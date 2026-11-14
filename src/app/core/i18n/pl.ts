@@ -9,6 +9,8 @@ export const PL: Dict = {
   // Top HUD & Navigation
   changeLanguage: 'Język',
   chooseView: 'Widok',
+  mapMode2d: 'Mapa 2D',
+  mapModeGlobe: 'Globus 3D',
   viewAnalytics: 'Analityka i Kalendarz Pożarów',
   viewInertia: 'Satelita i Bezwładność Klimatu',
   viewSpread: 'Wiatr i Punkty Krytyczne',
@@ -138,11 +140,13 @@ export const PL: Dict = {
   regionBboxLabel: 'MultiPolygon / Obszar',
   drawBboxBtn: 'Rysuj Ramkę',
   addBboxBtn: '+ Dodaj Ramkę',
-  drawBboxActiveHint: 'Przeciągnij po globusie 3D, aby narysować ramkę obszaru',
+  drawBboxActiveHint: 'Przeciągnij, aby narysować ramkę obszaru',
   drawBboxEditEdgeHint: 'Kliknij dowolną krawędź, aby dodać wierzchołek (5, 6+ krawędzi) lub przesuń rogi, a następnie zaakceptuj',
   drawBboxShiftHint: 'Wskazówka: przytrzymaj Shift + przeciągnij na globusie',
   polygonEdgesLabel: 'krawędzi',
   acceptAndCalculateBtn: 'Akceptuj i Oblicz',
+  recalculatePrompt: 'Zmieniono zakres',
+  recalculateBtn: 'Przelicz',
   calculateBboxBtn: 'Oblicz Obszar',
   draftPendingDesc: 'Szkic poligonu gotowy — kliknij krawędzie na globusie (5, 6+ krawędzi) lub kliknij Akceptuj i Oblicz.',
   datasetLabel: 'Zbiór Danych',
@@ -262,7 +266,7 @@ export const PL: Dict = {
 
   // Map & Globe Layers
   layersBtn: 'Warstwy',
-  layersTitle: 'Warstwy Globu',
+  layersTitle: 'Warstwy i Preferencje',
   layersZoomBadge: 'Powiększenie',
   layersResetBtn: 'Resetuj',
   layersSectionFire: 'Pożary i Analiza',

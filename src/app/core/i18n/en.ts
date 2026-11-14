@@ -9,6 +9,8 @@ export const EN: Dict = {
   // Top HUD & Navigation
   changeLanguage: 'Language',
   chooseView: 'View',
+  mapMode2d: '2D Map',
+  mapModeGlobe: '3D Globe',
   viewAnalytics: 'Fire Analytics & Calendar',
   viewInertia: 'Satellite & Climate Inertia',
   viewSpread: 'Wind Spread & Choke-Points',
@@ -138,11 +140,13 @@ export const EN: Dict = {
   regionBboxLabel: 'MultiPolygon / BBox',
   drawBboxBtn: 'Draw Box',
   addBboxBtn: '+ Add Box',
-  drawBboxActiveHint: 'Drag across the 3D globe to draw bounding box polygon',
+  drawBboxActiveHint: 'Drag to draw bounding box',
   drawBboxEditEdgeHint: 'Click any edge to add a vertex (5, 6+ edges) or drag corners, then accept to calculate',
   drawBboxShiftHint: 'Tip: Hold Shift + drag on globe to draw or edit polygon edges',
   polygonEdgesLabel: 'edges',
   acceptAndCalculateBtn: 'Accept & Calculate',
+  recalculatePrompt: 'Selection changed',
+  recalculateBtn: 'Recalculate',
   calculateBboxBtn: 'Calculate Bounding Box',
   draftPendingDesc: 'Polygon draft ready — click edges on the globe to reshape (5, 6+ edges) or click Accept & Calculate.',
   datasetLabel: 'Dataset',
@@ -262,7 +266,7 @@ export const EN: Dict = {
 
   // Map & Globe Layers
   layersBtn: 'Layers',
-  layersTitle: 'Globe Layers',
+  layersTitle: 'Layers & Preferences',
   layersZoomBadge: 'Zoom',
   layersResetBtn: 'Reset',
   layersSectionFire: 'Fire & Analysis',

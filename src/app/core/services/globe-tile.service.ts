@@ -191,7 +191,7 @@ export class GlobeTileService {
     };
   }
 
-  private buildTileUrl(provider: TileProviderId, z: number, x: number, y: number): string {
+  buildTileUrl(provider: TileProviderId, z: number, x: number, y: number): string {
     if (provider === 'osm') {
       return `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
     }

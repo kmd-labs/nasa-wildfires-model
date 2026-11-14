@@ -1,4 +1,5 @@
 export type WildfireViewMode = 'analytics' | 'inertia' | 'spread' | 'evacuation';
+export type MapRenderMode = '2d' | 'globe';
 export type WindScenarioId = 'actual' | 'atlanticSurge' | 'levanteReversal' | 'elNinoDroughtBoost';
 export type CameraFocusId = 'iberia' | 'northAtlantic' | 'pacificEnso';
 export type SstDisplayMode = 'ortho' | 'anomaly' | 'sst';

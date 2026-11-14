@@ -90,33 +90,18 @@
             <span>{{ t.drawBboxBtn }}</span>
           </button>
 
-          @if (state.hasUnacceptedDraft()) {
-            <span class="region-form__bbox-pill region-form__bbox-pill--draft">
-              {{ state.draftEdgeCount() }} {{ t.polygonEdgesLabel }}
-            </span>
+          @if (state.needsRecalculate()) {
             <button
               type="button"
               class="accept-bbox-btn"
-              (click)="state.acceptDraftPolygon()">
+              (click)="state.recalculateSelection()">
               <lucide-icon [img]="checkIcon" [size]="13"></lucide-icon>
-              <span>{{ t.acceptAndCalculateBtn }}</span>
-            </button>
-            <button
-              type="button"
-              class="icon-action"
-              [title]="t.close"
-              (click)="state.cancelDrawBoundingBox()">
-              <lucide-icon [img]="closeIcon" [size]="13"></lucide-icon>
+              <span>{{ t.recalculateBtn }}</span>
             </button>
           } @else if (state.regionBbox(); as bbox) {
             <span class="region-form__bbox-pill">
               {{ bbox[0] | number:'1.2-2' }}, {{ bbox[1] | number:'1.2-2' }} → {{ bbox[2] | number:'1.2-2' }}, {{ bbox[3] | number:'1.2-2' }}
             </span>
-            @if ((state.regionPolygon()?.length ?? 0) > 4) {
-              <span class="region-form__bbox-pill">
-                {{ state.regionPolygon()!.length }} {{ t.polygonEdgesLabel }}
-              </span>
-            }
           }
 
           <span class="region-form__spacer"></span>
@@ -154,7 +139,7 @@
                   max="180"
                   placeholder="-10.0"
                   [value]="draftW()"
-                  (input)="draftW.set($any($event.target).value)"
+                  (input)="onCoordInput('w', $any($event.target).value)"
                   (keydown.enter)="applyDraftCoords()" />
               </label>
               <label class="coord-field">
@@ -166,7 +151,7 @@
                   max="85"
                   placeholder="36.0"
                   [value]="draftS()"
-                  (input)="draftS.set($any($event.target).value)"
+                  (input)="onCoordInput('s', $any($event.target).value)"
                   (keydown.enter)="applyDraftCoords()" />
               </label>
               <label class="coord-field">
@@ -178,7 +163,7 @@
                   max="180"
                   placeholder="3.5"
                   [value]="draftE()"
-                  (input)="draftE.set($any($event.target).value)"
+                  (input)="onCoordInput('e', $any($event.target).value)"
                   (keydown.enter)="applyDraftCoords()" />
               </label>
               <label class="coord-field">
@@ -190,7 +175,7 @@
                   max="85"
                   placeholder="44.0"
                   [value]="draftN()"
-                  (input)="draftN.set($any($event.target).value)"
+                  (input)="onCoordInput('n', $any($event.target).value)"
                   (keydown.enter)="applyDraftCoords()" />
               </label>
             </div>
@@ -200,7 +185,7 @@
             }
 
             <div class="coords-actions">
-              <app-button variant="preset" size="sm" (btnClick)="applyDraftCoords()">{{ t.calculateBboxBtn }}</app-button>
+              <app-button variant="preset" size="sm" (btnClick)="applyDraftCoords()">{{ t.recalculateBtn }}</app-button>
             </div>
           </div>
         }
@@ -212,8 +197,8 @@
               type="date"
               min="2000-01-01"
               max="2030-12-31"
-              [value]="state.dateStart()"
-              (change)="state.setDateStart($any($event.target).value)" />
+              [value]="state.draftDateStart()"
+              (change)="state.setDraftDateStart($any($event.target).value)" />
           </label>
           <label class="inline-date">
             <span>{{ t.dateEndLabel }}</span>
@@ -221,33 +206,20 @@
               type="date"
               min="2000-01-01"
               max="2030-12-31"
-              [value]="state.dateEnd()"
-              (change)="state.setDateEnd($any($event.target).value)" />
+              [value]="state.draftDateEnd()"
+              (change)="state.setDraftDateEnd($any($event.target).value)" />
           </label>
         </div>
 
         <div class="region-form__dataset">
           <span class="region-form__dataset-label">{{ t.datasetLabel }}:</span>
-          <div class="segmented" role="group" [attr.aria-label]="t.datasetLabel">
-            <button
-              type="button"
-              class="segmented__btn"
-              [class.segmented__btn--active]="state.activeDataset() === 'VIIRS'"
-              [class.segmented__btn--disabled]="!state.isViirsAvailable()"
-              [attr.aria-disabled]="!state.isViirsAvailable()"
-              [appTooltip]="!state.isViirsAvailable() ? t.viirsUnavailableTooltip : t.datasetViirsDesc"
-              (click)="state.isViirsAvailable() && state.setDataset('VIIRS')">
-              {{ t.datasetViirsBtn }}
-            </button>
-            <button
-              type="button"
-              class="segmented__btn"
-              [class.segmented__btn--active]="state.activeDataset() === 'MODIS'"
-              [appTooltip]="t.datasetModisDesc"
-              (click)="state.setDataset('MODIS')">
-              {{ t.datasetModisBtn }}
-            </button>
-          </div>
+          <app-switcher
+            size="sm"
+            [options]="datasetOptions()"
+            [value]="state.activeDataset()"
+            [ariaLabel]="t.datasetLabel"
+            (valueChange)="$event && state.setDataset($event)">
+          </app-switcher>
           <span class="region-form__dataset-used">
             {{ t.datasetUsedLabel }}: <b>{{ state.activeDataset() === 'VIIRS' ? t.datasetViirsBtn : t.datasetModisBtn }}</b>
           </span>
@@ -255,20 +227,24 @@
       </section>
     }
 
-    <!-- Separate Collapsible Layers Section (1 column, starts expanded) -->
+    <!-- Separate Collapsible Layers & Preferences Section -->
     <section class="layers-section" [attr.aria-label]="t.layersTitle">
-      <button
-        type="button"
-        class="layers-section__header"
-        [attr.aria-expanded]="showLayersSection()"
-        (click)="showLayersSection.set(!showLayersSection())">
+      <div class="layers-section__header">
         <span class="layers-section__title">
           <lucide-icon [img]="layersIcon" [size]="13" class="layers-section__icon"></lucide-icon>
           <span>{{ t.layersTitle }}</span>
           <span class="layers-section__zoom">Zoom z{{ state.activeTileZoom() }}</span>
         </span>
-        <lucide-icon [img]="showLayersSection() ? chevronUpIcon : chevronDownIcon" [size]="14"></lucide-icon>
-      </button>
+        <button
+          type="button"
+          class="icon-action"
+          [title]="t.layersTitle"
+          [attr.aria-label]="t.layersTitle"
+          [attr.aria-expanded]="showLayersSection()"
+          (click)="showLayersSection.set(!showLayersSection())">
+          <lucide-icon [img]="showLayersSection() ? chevronUpIcon : chevronDownIcon" [size]="14"></lucide-icon>
+        </button>
+      </div>
 
       @if (showLayersSection()) {
         <div class="layers-section__body">
@@ -284,6 +260,22 @@
               </label>
             }
           </div>
+
+          <div class="layers-section__ramp">
+            <div class="layers-section__ramp-select">
+              <lucide-icon [img]="paletteIcon" [size]="13"></lucide-icon>
+              <span class="ramp-bar__label">{{ t.colorRampLabel }}</span>
+              <app-dropdown
+                variant="ghost"
+                [options]="colorRampOptions()"
+                [value]="state.colorRamp()"
+                [ariaLabel]="t.colorRampLabel"
+                (valueChange)="state.colorRamp.set($event)">
+              </app-dropdown>
+            </div>
+            <span class="ramp-bar__swatch" [style.background]="activeRampGradient()"></span>
+          </div>
+
           <div class="layers-section__actions">
             <button type="button" class="layers-section__reset" (click)="state.resetDefaultLayers()">
               <lucide-icon [img]="resetIcon" [size]="11"></lucide-icon>
@@ -296,11 +288,7 @@
 
     <!-- Collapsible & Expandable Analysis Section -->
     <section class="analysis-section" [attr.aria-label]="t.analysisSectionTitle">
-      <button
-        type="button"
-        class="analysis-section__header"
-        [attr.aria-expanded]="showAnalysisSection()"
-        (click)="showAnalysisSection.set(!showAnalysisSection())">
+      <div class="analysis-section__header">
         <span class="analysis-section__title">
           <lucide-icon [img]="chartIcon" [size]="13" class="analysis-section__icon"></lucide-icon>
           <span>{{ t.analysisSectionTitle }}</span>
@@ -308,8 +296,16 @@
             <span class="analysis-section__count">{{ summary.harmonizedFires | number }}</span>
           }
         </span>
-        <lucide-icon [img]="showAnalysisSection() ? chevronUpIcon : chevronDownIcon" [size]="14"></lucide-icon>
-      </button>
+        <button
+          type="button"
+          class="icon-action"
+          [title]="t.analysisSectionTitle"
+          [attr.aria-label]="t.analysisSectionTitle"
+          [attr.aria-expanded]="showAnalysisSection()"
+          (click)="showAnalysisSection.set(!showAnalysisSection())">
+          <lucide-icon [img]="showAnalysisSection() ? chevronUpIcon : chevronDownIcon" [size]="14"></lucide-icon>
+        </button>
+      </div>
     </section>
 
     @if (showAnalysisSection()) {
@@ -421,38 +417,18 @@
                 <p class="viz-card__meta">{{ summary.totalRecords | number }} {{ t.recordsCountLabel }}</p>
               </div>
               <div class="viz-card__actions">
-                <div class="segmented">
-                  <button
-                    type="button"
-                    class="segmented__btn"
-                    [class.segmented__btn--active]="cal.mode === 'monthly'"
-                    (click)="state.calendarGranularity.set('monthly')">
-                    {{ t.calendarMonthly }}
-                  </button>
-                  <button
-                    type="button"
-                    class="segmented__btn"
-                    [class.segmented__btn--active]="cal.mode === 'daily'"
-                    (click)="state.calendarGranularity.set('daily')">
-                    {{ t.calendarDaily }}
-                  </button>
-                </div>
+                <app-switcher
+                  size="sm"
+                  [options]="calendarModeOptions()"
+                  [value]="cal.mode"
+                  [ariaLabel]="t.burningCalendarTitle"
+                  (valueChange)="$event && state.calendarGranularity.set($event)">
+                </app-switcher>
               </div>
             </div>
 
-            <!-- Accessible Color Ramp Selector & Legend -->
+            <!-- Compact Color Scale Legend (ramp preference configured in Layers & Preferences) -->
             <div class="ramp-bar">
-              <div class="ramp-bar__select">
-                <lucide-icon [img]="paletteIcon" [size]="13"></lucide-icon>
-                <span class="ramp-bar__label">{{ t.colorRampLabel }}:</span>
-                <app-dropdown
-                  variant="ghost"
-                  [options]="colorRampOptions()"
-                  [value]="state.colorRamp()"
-                  [ariaLabel]="t.colorRampLabel"
-                  (valueChange)="state.colorRamp.set($event)">
-                </app-dropdown>
-              </div>
               <div class="ramp-bar__legend">
                 <span>{{ t.calendarLow }} (0)</span>
                 <span class="ramp-bar__swatch" [style.background]="activeRampGradient()"></span>

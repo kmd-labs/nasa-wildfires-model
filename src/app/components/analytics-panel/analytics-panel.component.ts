@@ -16,17 +16,18 @@ import {
   CheckCircle2,
   CircleDashed,
   Compass,
-  Check,
-  X
+  Check
 } from 'lucide-angular';
-import { ButtonComponent, DropdownComponent, DropdownOption, TooltipDirective } from '@kmd/design-system';
+import { ButtonComponent, DropdownComponent, DropdownOption, SwitcherComponent, SwitcherOption } from '@kmd/design-system';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { WildfireStateService } from '../../core/services/wildfire-state.service';
 import { WildfireDataService } from '../../core/services/wildfire-data.service';
 import { HotspotAnalyticsService } from '../../core/services/hotspot-analytics.service';
 import { ColorRampService } from '../../core/services/color-ramp.service';
 import {
+  ActiveFireDataset,
   BurningCalendarCell,
+  CalendarGranularity,
   ColorRampId,
   YearlyComparisonPoint
 } from '../../core/models/wildfire.model';
@@ -34,7 +35,7 @@ import {
 @Component({
   selector: 'app-analytics-panel',
   standalone: true,
-  imports: [CommonModule, LucideAngularModule, ButtonComponent, DropdownComponent, TooltipDirective],
+  imports: [CommonModule, LucideAngularModule, ButtonComponent, DropdownComponent, SwitcherComponent],
   templateUrl: './analytics-panel.component.html',
   styleUrl: './analytics-panel.component.scss'
 })
@@ -76,7 +77,6 @@ export class AnalyticsPanelComponent {
   readonly circleDashedIcon = CircleDashed;
   readonly compassIcon = Compass;
   readonly checkIcon = Check;
-  readonly closeIcon = X;
 
   constructor() {
     effect(() => {
@@ -113,13 +113,54 @@ export class AnalyticsPanelComponent {
         checked: this.state.showRegionBbox(),
         setChecked: (v: boolean) => this.state.showRegionBbox.set(v)
       },
+      ...(this.state.mapMode() === 'globe'
+        ? [
+            {
+              id: 'ortho',
+              label: t.layerLandOrtho,
+              swatch: '#2f6f4e',
+              checked: this.state.showLandOrtho(),
+              setChecked: (v: boolean) => this.state.showLandOrtho.set(v)
+            },
+            ...(this.state.showLandOrtho()
+              ? [
+                  {
+                    id: 'borders',
+                    label: t.layerBorders,
+                    swatch: '#cbd5e1',
+                    checked: this.state.showBorders(),
+                    setChecked: (v: boolean) => this.state.showBorders.set(v)
+                  }
+                ]
+              : [])
+          ]
+        : [])
+    ];
+  });
+
+  readonly datasetOptions = computed<SwitcherOption<ActiveFireDataset>[]>(() => {
+    const t = this.i18n.t();
+    const viirsOk = this.state.isViirsAvailable();
+    return [
       {
-        id: 'ortho',
-        label: t.layerLandOrtho,
-        swatch: '#2f6f4e',
-        checked: this.state.showLandOrtho(),
-        setChecked: (v: boolean) => this.state.showLandOrtho.set(v)
+        value: 'VIIRS',
+        label: t.datasetViirsBtn,
+        disabled: !viirsOk,
+        tooltip: !viirsOk ? t.viirsUnavailableTooltip : t.datasetViirsDesc
+      },
+      {
+        value: 'MODIS',
+        label: t.datasetModisBtn,
+        tooltip: t.datasetModisDesc
       }
+    ];
+  });
+
+  readonly calendarModeOptions = computed<SwitcherOption<CalendarGranularity>[]>(() => {
+    const t = this.i18n.t();
+    return [
+      { value: 'monthly', label: t.calendarMonthly },
+      { value: 'daily', label: t.calendarDaily }
     ];
   });
 
@@ -158,6 +199,33 @@ export class AnalyticsPanelComponent {
     return Math.max(2, ...list.map(y => Math.abs(y.anomalyZScore)));
   });
 
+  onCoordInput(which: 'w' | 's' | 'e' | 'n', value: string) {
+    if (which === 'w') this.draftW.set(value);
+    else if (which === 's') this.draftS.set(value);
+    else if (which === 'e') this.draftE.set(value);
+    else this.draftN.set(value);
+
+    const w = Number(this.draftW());
+    const s = Number(this.draftS());
+    const e = Number(this.draftE());
+    const n = Number(this.draftN());
+    if (
+      this.draftW().trim() !== '' &&
+      this.draftS().trim() !== '' &&
+      this.draftE().trim() !== '' &&
+      this.draftN().trim() !== '' &&
+      Number.isFinite(w) &&
+      Number.isFinite(s) &&
+      Number.isFinite(e) &&
+      Number.isFinite(n) &&
+      w < e &&
+      s < n
+    ) {
+      this.coordError.set(false);
+      this.state.previewCoordBox([w, s, e, n]);
+    }
+  }
+
   applyDraftCoords() {
     const w = Number(this.draftW());
     const s = Number(this.draftS());
@@ -180,6 +248,9 @@ export class AnalyticsPanelComponent {
     }
     this.coordError.set(false);
     this.state.setCustomBbox([w, s, e, n], true);
+    if (this.state.hasPendingDateChanges()) {
+      this.state.recalculateSelection();
+    }
   }
 
   cellFill(cell: BurningCalendarCell): string {

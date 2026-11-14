@@ -1,6 +1,4 @@
 @let t = i18n.t();
-@let activeBbox = state.liveDrawBbox() ?? state.regionBbox();
-@let summary = analytics.summary();
 
 <main class="viewport">
   <app-splash (revealed)="splash.finish()"></app-splash>
@@ -25,105 +23,94 @@
         </app-dropdown>
       </div>
     </div>
+
+    <div class="header__right">
+      <div class="header__action glass-panel">
+        <app-button
+          variant="ghost"
+          [size]="bp.mobile() ? 'sm' : 'md'"
+          [iconOnly]="bp.mobile()"
+          [ariaLabel]="t.tabInputExport"
+          [titleText]="bp.mobile() ? t.tabInputExport : null"
+          (btnClick)="openDataPopup()">
+          <lucide-icon [img]="uploadIcon" [size]="15"></lucide-icon>
+          @if (!bp.mobile()) {
+            <span>{{ t.tabInputExport }}</span>
+          }
+        </app-button>
+      </div>
+
+      <div class="header__action glass-panel">
+        <app-button
+          variant="ghost"
+          [size]="bp.mobile() ? 'sm' : 'md'"
+          [iconOnly]="bp.mobile()"
+          [ariaLabel]="t.sourcesBtn"
+          [titleText]="bp.mobile() ? t.sourcesBtn : null"
+          (btnClick)="openSources()">
+          <lucide-icon [img]="databaseIcon" [size]="15"></lucide-icon>
+          @if (!bp.mobile()) {
+            <span>{{ t.sourcesBtn }}</span>
+          }
+        </app-button>
+      </div>
+
+      <div class="header__action glass-panel">
+        <app-button
+          variant="ghost"
+          [size]="bp.mobile() ? 'sm' : 'md'"
+          [iconOnly]="bp.mobile()"
+          [ariaLabel]="t.glossary"
+          [titleText]="bp.mobile() ? t.glossary : null"
+          (btnClick)="openGlossary()">
+          <lucide-icon [img]="bookOpenIcon" [size]="15"></lucide-icon>
+          @if (!bp.mobile()) {
+            <span>{{ t.glossary }}</span>
+          }
+        </app-button>
+      </div>
+
+      <div class="header__view glass-panel" role="group" [attr.aria-label]="t.chooseView">
+        <app-switcher
+          variant="ghost"
+          [size]="bp.mobile() ? 'sm' : 'md'"
+          [compact]="bp.mobile()"
+          [options]="mapModeOptions()"
+          [value]="state.mapMode()"
+          [ariaLabel]="t.chooseView"
+          (valueChange)="state.mapMode.set($event ?? '2d')">
+        </app-switcher>
+      </div>
+    </div>
   </header>
 
-  <!-- Interactive Bounding Box Drawing & Editing Banner -->
-  @if (state.isDrawingBbox() || state.liveDrawBbox() || state.hasUnacceptedDraft()) {
+  <!-- Simplified Bounding Box / Date Recalculation Prompt -->
+  @if (state.isDrawingBbox() || state.liveDrawBbox() || state.needsRecalculate()) {
     <div class="draw-banner glass-panel" role="status">
       <lucide-icon [img]="boxSelectIcon" [size]="15" class="draw-banner__icon"></lucide-icon>
-      <span class="draw-banner__text">
-        {{ state.hasUnacceptedDraft() ? t.drawBboxEditEdgeHint : t.drawBboxActiveHint }}
-      </span>
-      @if (state.hasUnacceptedDraft()) {
-        <span class="draw-banner__coords">{{ state.draftEdgeCount() }} {{ t.polygonEdgesLabel }}</span>
-        <button type="button" class="draw-banner__accept" (click)="state.acceptDraftPolygon()">
+      @if (state.isDrawingBbox() || state.liveDrawBbox()) {
+        <span class="draw-banner__text">{{ t.drawBboxActiveHint }}</span>
+      } @else {
+        <span class="draw-banner__text">{{ t.recalculatePrompt }}</span>
+        <button type="button" class="draw-banner__accept" (click)="state.recalculateSelection()">
           <lucide-icon [img]="checkIcon" [size]="13"></lucide-icon>
-          <span>{{ t.acceptAndCalculateBtn }}</span>
+          <span>{{ t.recalculateBtn }}</span>
         </button>
-      } @else if (activeBbox) {
-        <span class="draw-banner__coords">
-          [{{ activeBbox[0] | number:'1.2-2' }}°, {{ activeBbox[1] | number:'1.2-2' }}°, {{ activeBbox[2] | number:'1.2-2' }}°, {{ activeBbox[3] | number:'1.2-2' }}°]
-        </span>
       }
-      <button type="button" class="draw-banner__cancel" [attr.aria-label]="t.close" (click)="state.cancelDrawBoundingBox()">
-        <lucide-icon [img]="closeIcon" [size]="13"></lucide-icon>
-      </button>
     </div>
   }
 
-  <!-- Fullscreen 3D Globe Visualization Stage -->
+  <!-- Fullscreen 2D OSM Map or 3D Globe Visualization Stage -->
   <section class="stage" [attr.aria-label]="analytics.globeAltText()">
-    <app-globe></app-globe>
+    @if (state.mapMode() === '2d') {
+      <app-map2d></app-map2d>
+    } @else {
+      <app-globe></app-globe>
+    }
   </section>
 
   <!-- Unified Left Analytics, Region Bounding Box, Layers & Date Range Container -->
   <app-analytics-panel></app-analytics-panel>
-
-  <!-- Bottom Dock: Context Telemetry & Glossaries -->
-  <footer class="dock-wrap">
-    <!-- Compact Telemetry Strip -->
-    <div class="telemetry-bar glass-panel">
-      <div class="telemetry-bar__metrics">
-        <div class="metric">
-          <span class="metric__label">{{ t.kpiHarmonizedFires }}</span>
-          <span class="metric__val metric__val--accent">
-            {{ state.hasActiveSelection() ? (summary.harmonizedFires | number) : '—' }}
-          </span>
-        </div>
-        <div class="metric">
-          <span class="metric__label">{{ t.kpiMultiYearAnomaly }}</span>
-          @if (state.hasActiveSelection()) {
-            <span
-              class="metric__val"
-              [class.metric__val--danger]="summary.anomalyZScore >= 0.5"
-              [class.metric__val--success]="summary.anomalyZScore <= -0.5">
-              {{ summary.anomalyZScore >= 0 ? '+' : '' }}{{ summary.anomalyZScore }}σ
-            </span>
-          } @else {
-            <span class="metric__val">—</span>
-          }
-        </div>
-        <div class="metric">
-          <span class="metric__label">{{ t.kpiTotalFrp }}</span>
-          <span class="metric__val">{{ state.hasActiveSelection() ? ((summary.totalFrpMw | number) + ' MW') : '—' }}</span>
-        </div>
-        <div class="metric">
-          <span class="metric__label">{{ t.kpiRegionArea }}</span>
-          <span class="metric__val">{{ state.hasBoundingBox() ? ((summary.areaKm2 | number) + ' km²') : '—' }}</span>
-        </div>
-        <div class="metric">
-          <span class="metric__label">{{ t.datasetUsedLabel }}</span>
-          <span class="metric__val metric__val--accent">
-            {{ state.hasActiveSelection() ? (summary.activeDataset === 'VIIRS' ? t.datasetViirsBtn : t.datasetModisBtn) : '—' }}
-          </span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Main Control Dock -->
-    <div class="dock glass-panel">
-      <app-button variant="ghost" (btnClick)="openDataPopup()">
-        <lucide-icon [img]="uploadIcon" [size]="15"></lucide-icon>
-        @if (!bp.mobile()) {
-          <span>{{ t.tabInputExport }}</span>
-        }
-      </app-button>
-
-      <app-button variant="ghost" (btnClick)="openSources()">
-        <lucide-icon [img]="databaseIcon" [size]="15"></lucide-icon>
-        @if (!bp.mobile()) {
-          <span>{{ t.sourcesBtn }}</span>
-        }
-      </app-button>
-
-      <app-button variant="ghost" (btnClick)="openGlossary()">
-        <lucide-icon [img]="bookOpenIcon" [size]="15"></lucide-icon>
-        @if (!bp.mobile()) {
-          <span>{{ t.glossary }}</span>
-        }
-      </app-button>
-    </div>
-  </footer>
 
   <!-- Bottom-right OpenStreetMap License Attribution -->
   <a

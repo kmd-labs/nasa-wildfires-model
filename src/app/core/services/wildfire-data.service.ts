@@ -66,6 +66,8 @@ interface TimelineMetaJson {
   }>;
 }
 
+const DEFAULT_HOSTED_API_BASE = 'https://nasa-wildfires-model-95065765400.europe-west1.run.app';
+
 /**
  * Fallback AOI registry matching aoi.csv from Issue #22
  * (used until Marcin's PR lands src/assets/data/aoi.csv).
@@ -173,13 +175,12 @@ export class WildfireDataService {
   private apiAbort: AbortController | null = null;
   private apiPollTimer: ReturnType<typeof setTimeout> | null = null;
   private activeApiQuery = '';
-  private resolvedBaseCache: string | null = null;
   private offlineRetryDelayMs = 5000;
 
   resolveApiUrl(apiPath: string): string {
     const winBase = typeof window !== 'undefined' ? (window as { __KMD_API_BASE__?: string }).__KMD_API_BASE__ : '';
     const lsBase = typeof localStorage !== 'undefined' ? localStorage.getItem('kmd.fireApiBase') : '';
-    const base = (winBase || lsBase || this.resolvedBaseCache || '').replace(/\/+$/, '');
+    const base = (winBase || lsBase || DEFAULT_HOSTED_API_BASE).replace(/\/+$/, '');
     return `${base}${apiPath}`;
   }
 
@@ -262,29 +263,7 @@ export class WildfireDataService {
       let resp = await fetch(this.resolveApiUrl(apiPath), { signal: controller.signal });
       if (this.activeApiQuery !== queryKey || controller.signal.aborted) return;
 
-      let contentType = resp.headers.get('content-type') ?? '';
-      // Only probe direct :8000 if /api returned SPA HTML or 404 (no dev proxy), not 5xx proxy refusal
-      const shouldProbeDirect =
-        !contentType.includes('application/json') &&
-        resp.status < 500 &&
-        this.resolvedBaseCache === null &&
-        typeof window !== 'undefined' &&
-        window.location.port === '4200';
-      if (shouldProbeDirect) {
-        const directBase = `${window.location.protocol}//${window.location.hostname}:8000`;
-        try {
-          const directResp = await fetch(`${directBase}${apiPath}`, { signal: controller.signal });
-          if (this.activeApiQuery !== queryKey || controller.signal.aborted) return;
-          if ((directResp.headers.get('content-type') ?? '').includes('application/json')) {
-            this.resolvedBaseCache = directBase;
-            resp = directResp;
-            contentType = resp.headers.get('content-type') ?? '';
-          }
-        } catch {
-          // ignore if direct local backend port is also unavailable
-        }
-      }
-
+      const contentType = resp.headers.get('content-type') ?? '';
       if (!contentType.includes('application/json')) {
         if (!this.isInsideCachedRegion(primaryBox)) {
           this.backendCalendar.set(null);
@@ -372,8 +351,15 @@ export class WildfireDataService {
 
   loadAll(): Promise<void> {
     if (this.loadPromise) return this.loadPromise;
+    void this.warmUpBackend();
     this.loadPromise = this.fetchAll();
     return this.loadPromise;
+  }
+
+  private warmUpBackend(): void {
+    // Wake scaled-to-zero Cloud Run instances while the user fills out the region form.
+    if (typeof fetch === 'undefined') return;
+    void fetch(this.resolveApiUrl('/api/health')).catch(() => {});
   }
 
   getEnsoOni(yearMonth: string): number {

@@ -27,6 +27,8 @@ export interface BurningCalendarModel {
 export interface GlobePixelSquare {
   lon: number;
   lat: number;
+  halfLon: number;
+  halfLat: number;
   sensor: ActiveFireDataset;
   sizeMeters: number;
   count: number;
@@ -130,45 +132,77 @@ export class HotspotAnalyticsService {
     const bbox = this.state.regionBbox();
     if (!bbox) return [];
 
+    const aggregateToGrid = (
+      points: { lon: number; lat: number; count: number; frpMw: number }[]
+    ): GlobePixelSquare[] => {
+      if (points.length === 0) return [];
+      const midLat = (bbox[1] + bbox[3]) * 0.5;
+      const dLat = sizeMeters / 110574;
+      const cosLat = Math.max(0.2, Math.cos((midLat * Math.PI) / 180));
+      const dLon = sizeMeters / (111320 * cosLat);
+      const halfLon = dLon * 0.5;
+      const halfLat = dLat * 0.5;
+
+      // Snap detections to a regular sensor-resolution grid so pixels never overlap awkwardly
+      const bins = new Map<string, { lon: number; lat: number; count: number; frpMw: number }>();
+      for (const p of points) {
+        const col = Math.round(p.lon / dLon);
+        const row = Math.round(p.lat / dLat);
+        const key = `${row}:${col}`;
+        const existing = bins.get(key);
+        if (existing) {
+          existing.count += p.count;
+          existing.frpMw += p.frpMw;
+        } else {
+          bins.set(key, {
+            lon: col * dLon,
+            lat: row * dLat,
+            count: p.count,
+            frpMw: p.frpMw
+          });
+        }
+      }
+
+      const cells = Array.from(bins.values());
+      const maxVal = Math.max(1, ...cells.map(c => (c.frpMw > 0 ? c.frpMw : c.count)));
+      return cells.map(c => {
+        const val = c.frpMw > 0 ? c.frpMw : c.count;
+        return {
+          lon: c.lon,
+          lat: c.lat,
+          halfLon,
+          halfLat,
+          sensor: dataset,
+          sizeMeters,
+          count: c.count,
+          frpMw: c.frpMw,
+          normIntensity: Math.min(1, Math.pow(val / maxVal, 0.58))
+        };
+      });
+    };
+
     if (!this.data.isCustomDataset()) {
       const backend = this.data.backendCalendar();
       if (!backend) return [];
       const rawPixels = backend.selection.pixels;
       if (rawPixels && rawPixels.length > 0) {
-        const filtered = rawPixels.filter(p => p.sensor === dataset);
-        if (filtered.length === 0) return [];
-        const maxVal = Math.max(1, ...filtered.map(p => (p.frpMw > 0 ? p.frpMw : p.count)));
-        return filtered.map(p => {
-          const val = p.frpMw > 0 ? p.frpMw : p.count;
-          return {
-            lon: p.lon,
-            lat: p.lat,
-            sensor: dataset,
-            sizeMeters,
-            count: p.count,
-            frpMw: p.frpMw,
-            normIntensity: Math.min(1, Math.pow(val / maxVal, 0.58))
-          };
-        });
+        return aggregateToGrid(
+          rawPixels
+            .filter(p => p.sensor === dataset)
+            .map(p => ({ lon: p.lon, lat: p.lat, count: p.count, frpMw: p.frpMw }))
+        );
       }
       // Fallback if backend payload has no pixels array
-      const cells = backend.selection.cells.filter(c =>
-        dataset === 'VIIRS' ? c.rawViirs > 0 : c.rawModis > 0
+      return aggregateToGrid(
+        backend.selection.cells
+          .filter(c => (dataset === 'VIIRS' ? c.rawViirs > 0 : c.rawModis > 0))
+          .map(c => ({
+            lon: c.lon,
+            lat: c.lat,
+            count: dataset === 'VIIRS' ? c.rawViirs : c.rawModis,
+            frpMw: 0
+          }))
       );
-      if (cells.length === 0) return [];
-      const maxVal = Math.max(1, ...cells.map(c => (dataset === 'VIIRS' ? c.rawViirs : c.rawModis)));
-      return cells.map(c => {
-        const count = dataset === 'VIIRS' ? c.rawViirs : c.rawModis;
-        return {
-          lon: c.lon,
-          lat: c.lat,
-          sensor: dataset,
-          sizeMeters,
-          count,
-          frpMw: 0,
-          normIntensity: Math.min(1, Math.pow(count / maxVal, 0.58))
-        };
-      });
     }
 
     const start = this.state.dateStart();
@@ -181,21 +215,14 @@ export class HotspotAnalyticsService {
       if (dataset === 'VIIRS') return r.rawViirsCount > 0 || r.sensor === 'VIIRS' || r.sensor === 'HARMONIZED';
       return r.rawModisCount > 0 || r.sensor === 'MODIS' || r.sensor === 'HARMONIZED';
     });
-    if (matching.length === 0) return [];
-    const maxVal = Math.max(1, ...matching.map(r => (r.frpMw > 0 ? r.frpMw : 1)));
-    return matching.map(r => {
-      const count = dataset === 'VIIRS' ? (r.rawViirsCount || 1) : (r.rawModisCount || 1);
-      const val = r.frpMw > 0 ? r.frpMw : count;
-      return {
+    return aggregateToGrid(
+      matching.map(r => ({
         lon: r.lon,
         lat: r.lat,
-        sensor: dataset,
-        sizeMeters,
-        count,
-        frpMw: r.frpMw,
-        normIntensity: Math.min(1, Math.pow(val / maxVal, 0.58))
-      };
-    });
+        count: dataset === 'VIIRS' ? (r.rawViirsCount || 1) : (r.rawModisCount || 1),
+        frpMw: r.frpMw
+      }))
+    );
   });
 
   /** Approximate MultiPolygon area in km² and hectares using spherical latitude cosine. */
