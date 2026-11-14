@@ -1,0 +1,145 @@
+{
+  "zones": [
+    {
+      "id": "ez-villardeciervos",
+      "name": "Villardeciervos / Culebra",
+      "lon": -6.28,
+      "lat": 41.94,
+      "radiusDeg": 0.24,
+      "populationBase": 3420,
+      "riskLevel": "critical"
+    },
+    {
+      "id": "ez-tabara",
+      "name": "Tábara & Río Esla",
+      "lon": -5.96,
+      "lat": 41.82,
+      "radiusDeg": 0.28,
+      "populationBase": 6180,
+      "riskLevel": "high"
+    },
+    {
+      "id": "ez-pedrogao",
+      "name": "Pedrógão Grande / Castanheira",
+      "lon": -8.22,
+      "lat": 39.95,
+      "radiusDeg": 0.26,
+      "populationBase": 8940,
+      "riskLevel": "critical"
+    },
+    {
+      "id": "ez-braganca",
+      "name": "Bragança South Corridor",
+      "lon": -6.75,
+      "lat": 41.72,
+      "radiusDeg": 0.22,
+      "populationBase": 5120,
+      "riskLevel": "elevated"
+    },
+    {
+      "id": "ez-bejis",
+      "name": "Alto Palancia / Bejís",
+      "lon": -0.71,
+      "lat": 39.91,
+      "radiusDeg": 0.24,
+      "populationBase": 4650,
+      "riskLevel": "high"
+    }
+  ],
+  "escapeRoads": [
+    {
+      "id": "osm-n631-zamora",
+      "name": "N-631 → Zamora Safe Hub",
+      "coords": [
+        [
+          -6.28,
+          41.94
+        ],
+        [
+          -6.1,
+          41.88
+        ],
+        [
+          -5.96,
+          41.82
+        ],
+        [
+          -5.75,
+          41.51
+        ]
+      ]
+    },
+    {
+      "id": "osm-a52-puebla",
+      "name": "A-52 → Puebla de Sanabria",
+      "coords": [
+        [
+          -6.28,
+          41.94
+        ],
+        [
+          -6.46,
+          42.01
+        ],
+        [
+          -6.63,
+          42.06
+        ]
+      ]
+    },
+    {
+      "id": "osm-ip2-braganca",
+      "name": "IP4 / N-15 → Bragança Hub",
+      "coords": [
+        [
+          -6.28,
+          41.94
+        ],
+        [
+          -6.52,
+          41.84
+        ],
+        [
+          -6.75,
+          41.72
+        ]
+      ]
+    },
+    {
+      "id": "osm-ic8-coimbra",
+      "name": "IC8 / A13 → Coimbra Safe Hub",
+      "coords": [
+        [
+          -8.22,
+          39.95
+        ],
+        [
+          -8.34,
+          40.08
+        ],
+        [
+          -8.43,
+          40.21
+        ]
+      ]
+    },
+    {
+      "id": "osm-a23-sagunto",
+      "name": "A-23 → Sagunto / Coast",
+      "coords": [
+        [
+          -0.71,
+          39.91
+        ],
+        [
+          -0.51,
+          39.84
+        ],
+        [
+          -0.27,
+          39.68
+        ]
+      ]
+    }
+  ]
+}

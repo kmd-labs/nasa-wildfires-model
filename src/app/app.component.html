@@ -1,4 +1,7 @@
 @let t = i18n.t();
+@let view = state.viewMode();
+@let activeBbox = state.liveDrawBbox() ?? state.regionBbox();
+@let summary = analytics.summary();
 
 <main class="viewport">
   <app-splash (revealed)="splash.finish()"></app-splash>
@@ -7,7 +10,7 @@
   <header class="header" [class.header--popup-open]="isPopupOpen()">
     <div class="header__left">
       <app-brand
-        [appName]="'Nasa Wildfires Model'"
+        [appName]="t.appName"
         [lang]="i18n.lang()"
         (btnClick)="about.open({ lang: i18n.lang() })">
       </app-brand>
@@ -31,34 +34,235 @@
           align="right"
           [fullWidth]="true"
           [options]="viewOptions()"
-          [value]="currentView()"
+          [value]="view"
           [icon]="currentViewIcon()"
           [ariaLabel]="t.chooseView"
-          (valueChange)="currentView.set($event)">
+          (valueChange)="state.setViewMode($event)">
         </app-dropdown>
       </div>
     </div>
   </header>
 
-  <!-- Fullscreen Visualization Stage -->
-  <section class="stage" [attr.aria-label]="t.stageAriaLabel"></section>
+  <!-- Interactive Bounding Box Drawing Hint Banner -->
+  @if (state.isDrawingBbox() || state.liveDrawBbox()) {
+    <div class="draw-banner glass-panel" role="status">
+      <lucide-icon [img]="boxSelectIcon" [size]="15" class="draw-banner__icon"></lucide-icon>
+      <span class="draw-banner__text">{{ t.drawBboxActiveHint }}</span>
+      <span class="draw-banner__coords">
+        [{{ activeBbox[0] | number:'1.2-2' }}°, {{ activeBbox[1] | number:'1.2-2' }}°, {{ activeBbox[2] | number:'1.2-2' }}°, {{ activeBbox[3] | number:'1.2-2' }}°]
+      </span>
+      <button type="button" class="draw-banner__cancel" [attr.aria-label]="t.close" (click)="state.cancelDrawBoundingBox()">
+        <lucide-icon [img]="closeIcon" [size]="13"></lucide-icon>
+      </button>
+    </div>
+  }
 
-  <!-- Bottom Dock: Sliders & Glossaries -->
+  <!-- Fullscreen 3D Globe Visualization Stage -->
+  <section class="stage" [attr.aria-label]="t.stageAriaLabel">
+    <app-globe></app-globe>
+  </section>
+
+  <!-- Unified Left Analytics, Region Bounding Box & Date Range Container -->
+  @if (view === 'analytics') {
+    <app-analytics-panel></app-analytics-panel>
+  }
+
+  <!-- Floating Globe & Analysis Layers Panel -->
+  <app-layers></app-layers>
+
+  <!-- Bottom Dock: Context Telemetry, Timeline Slider & Glossaries -->
   <footer class="dock-wrap">
-    <div class="dock glass-panel">
-      <div class="dock__slider">
-        <app-timeline-slider
-          [min]="-100"
-          [max]="100"
-          [step]="1"
-          [value]="sliderValue()"
-          [ariaLabel]="t.timelineLabel"
-          (valueChange)="sliderValue.set($event)">
-        </app-timeline-slider>
+    <!-- Compact Telemetry Strip -->
+    <div class="telemetry-bar glass-panel">
+      @if (view !== 'analytics') {
+        <div class="telemetry-bar__aoi">
+          <app-dropdown
+            variant="ghost"
+            direction="up"
+            [fullWidth]="true"
+            [options]="aoiOptions()"
+            [value]="state.selectedAoiId()"
+            [ariaLabel]="t.wildfireSelectLabel"
+            (valueChange)="state.selectAoi($event)">
+          </app-dropdown>
+        </div>
+
+        <div class="telemetry-bar__divider"></div>
+      }
+
+      <div class="telemetry-bar__metrics">
+        @if (view === 'analytics') {
+          <div class="metric">
+            <span class="metric__label">{{ t.kpiHarmonizedFires }}</span>
+            <span class="metric__val metric__val--accent">{{ summary.harmonizedFires | number }}</span>
+          </div>
+          <div class="metric">
+            <span class="metric__label">{{ t.kpiMultiYearAnomaly }}</span>
+            <span
+              class="metric__val"
+              [class.metric__val--danger]="summary.anomalyZScore >= 0.5"
+              [class.metric__val--success]="summary.anomalyZScore <= -0.5">
+              {{ summary.anomalyZScore >= 0 ? '+' : '' }}{{ summary.anomalyZScore }}σ
+            </span>
+          </div>
+          <div class="metric">
+            <span class="metric__label">{{ t.kpiTotalFrp }}</span>
+            <span class="metric__val">{{ summary.totalFrpMw | number }} MW</span>
+          </div>
+          <div class="metric">
+            <span class="metric__label">{{ t.kpiRegionArea }}</span>
+            <span class="metric__val">{{ summary.areaKm2 | number }} km²</span>
+          </div>
+        } @else if (view === 'inertia') {
+          @let step = state.currentTimelineStep();
+          @let aoi = state.selectedAoi();
+          <div class="metric">
+            <span class="metric__label">{{ t.metricDate }}</span>
+            <span class="metric__val">{{ step?.date ?? aoi?.startDate }}</span>
+            <span
+              class="phase-pill"
+              [class.phase-pill--active]="step?.phase === 'activeFire'">
+              {{ step?.phase === 'activeFire' ? t.phaseActiveFire : t.phasePreFire }}
+              ({{ (step?.monthsRelative ?? 0) >= 0 ? '+' : '' }}{{ step?.monthsRelative ?? 0 }}m)
+            </span>
+          </div>
+          <div class="metric">
+            <span class="metric__label">{{ t.metricGulfStream }}</span>
+            <span class="metric__val">{{ (step?.gulfStreamSstAnomalyC ?? 0) >= 0 ? '+' : '' }}{{ step?.gulfStreamSstAnomalyC ?? 0 }}°C</span>
+          </div>
+          <div class="metric">
+            <span class="metric__label">{{ t.metricElNino }}</span>
+            <span class="metric__val metric__val--accent">{{ (step?.elNinoOni ?? 0) >= 0 ? '+' : '' }}{{ step?.elNinoOni ?? 0 }}</span>
+          </div>
+          @if (aoi?.burnedAreaHa) {
+            <div class="metric">
+              <span class="metric__label">{{ t.metricBurnedArea }}</span>
+              <span class="metric__val">{{ aoi.burnedAreaHa | number }} ha</span>
+            </div>
+          }
+        } @else if (view === 'spread') {
+          @let frame = state.currentSpreadFrame();
+          <div class="metric">
+            <span class="metric__label">{{ t.metricWind }}</span>
+            <span class="metric__val">{{ state.effectiveWindSpeedKmh() }} km/h · {{ state.effectiveWindDirDeg() }}°</span>
+          </div>
+          <div class="metric">
+            <span class="metric__label">{{ t.metricShear }}</span>
+            <span class="metric__val">{{ frame?.synopticSummary?.windShear3hDeg ?? 24 }}°</span>
+          </div>
+          <div class="metric">
+            <span class="metric__label">{{ t.metricBurningCells }}</span>
+            <span class="metric__val metric__val--accent">{{ state.burningCellCount() }}</span>
+          </div>
+        } @else {
+          <div class="metric">
+            <span class="metric__label">{{ t.metricAffectedPop }}</span>
+            <span class="metric__val metric__val--danger">{{ state.affectedPopulation() | number }}</span>
+          </div>
+          <div class="metric">
+            <span class="metric__label">{{ t.metricEvacZones }}</span>
+            <span class="metric__val">{{ data.evacuation()?.zones?.length ?? 5 }}</span>
+          </div>
+          <div class="metric">
+            <span class="metric__label">{{ t.metricEscapeRoutes }}</span>
+            <span class="metric__val metric__val--success">{{ data.evacuation()?.escapeRoads?.length ?? 5 }}</span>
+          </div>
+        }
       </div>
+    </div>
+
+    <!-- Main Control Dock -->
+    <div class="dock glass-panel">
+      @if (view === 'analytics') {
+        <app-button
+          variant="ghost"
+          (btnClick)="state.focusOnBbox()">
+          <lucide-icon [img]="compassIcon" [size]="14"></lucide-icon>
+          @if (!bp.mobile()) {
+            <span>{{ t.focusBbox }}</span>
+          }
+        </app-button>
+
+        <div class="dock__spacer"></div>
+
+        <app-button
+          variant="ghost"
+          (btnClick)="state.cycleSurfaceMode()">
+          <span>{{ state.sstMode() === 'ortho' ? t.sstOrtho : (state.sstMode() === 'anomaly' ? t.sstAnomaly : t.sstAbsolute) }}</span>
+        </app-button>
+      } @else {
+        <app-button
+          variant="ghost"
+          [attr.aria-label]="state.playing() ? t.pause : t.play"
+          (btnClick)="state.togglePlay()">
+          <lucide-icon [img]="state.playing() ? pauseIcon : playIcon" [size]="15"></lucide-icon>
+        </app-button>
+
+        <div class="dock__slider">
+          <app-timeline-slider
+            [min]="0"
+            [max]="sliderMax()"
+            [step]="1"
+            [value]="sliderValue()"
+            [ariaLabel]="t.timelineLabel"
+            (valueChange)="onSliderChange($event)">
+          </app-timeline-slider>
+        </div>
+
+        <!-- View-Specific Layer & Scenario Controls -->
+        <div class="dock__controls">
+          @if (view === 'inertia') {
+            <app-button
+              variant="ghost"
+              (btnClick)="state.cycleSurfaceMode()">
+              <span>{{ state.sstMode() === 'ortho' ? t.sstOrtho : (state.sstMode() === 'anomaly' ? t.sstAnomaly : t.sstAbsolute) }}</span>
+            </app-button>
+          } @else {
+            <div class="dock__scenario">
+              <app-dropdown
+                variant="ghost"
+                align="right"
+                direction="up"
+                [options]="scenarioOptions()"
+                [value]="state.windScenario()"
+                [ariaLabel]="t.scenarioLabel"
+                (valueChange)="state.windScenario.set($event)">
+              </app-dropdown>
+            </div>
+          }
+        </div>
+
+        <app-button variant="preset" (btnClick)="openAnalyticsView()">
+          <lucide-icon [img]="chartIcon" [size]="14"></lucide-icon>
+          @if (!bp.mobile()) {
+            <span>{{ t.analyticsBtn }}</span>
+          }
+        </app-button>
+      }
+
+      <app-button
+        variant="toggle"
+        [active]="state.isLayersOpen()"
+        [ariaLabel]="t.layersTitle"
+        (btnClick)="state.toggleLayersPanel()">
+        <lucide-icon [img]="layersIcon" [size]="14"></lucide-icon>
+        @if (!bp.mobile()) {
+          <span>{{ t.layersBtn }}</span>
+        }
+      </app-button>
+
+      <app-button variant="ghost" (btnClick)="openSources()">
+        <lucide-icon [img]="databaseIcon" [size]="15"></lucide-icon>
+        @if (!bp.mobile()) {
+          <span>{{ t.sourcesBtn }}</span>
+        }
+      </app-button>
+
       <app-button variant="ghost" (btnClick)="openGlossary()">
         <lucide-icon [img]="bookOpenIcon" [size]="15"></lucide-icon>
-        <span>{{ t.glossary }}</span>
+        @if (!bp.mobile()) {
+          <span>{{ t.glossary }}</span>
+        }
       </app-button>
     </div>
   </footer>

@@ -1,0 +1,101 @@
+@use "variables" as *;
+
+.layers-panel {
+  position: fixed;
+  right: 16px;
+  bottom: 126px;
+  width: min(304px, calc(100vw - 32px));
+  max-height: calc(100vh - 210px);
+  border-radius: radius("card");
+  padding: 10px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 22;
+  animation: panelSlideIn 0.16s ease-out;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid color("line");
+  }
+
+  &__title-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+  }
+
+  &__icon {
+    color: color("accent");
+    flex: none;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: font-size("xs");
+    font-weight: font-weight("semibold");
+    color: color("text-bright");
+    letter-spacing: 0.01em;
+  }
+
+  &__zoom-badge {
+    font-family: var(--font-family-mono);
+    font-size: font-size("xxs");
+    font-weight: font-weight("semibold");
+    padding: 1px 6px;
+    border-radius: radius("pill");
+    background: color("btn-bg");
+    border: 1px solid color("line");
+    color: color("text-dim");
+    white-space: nowrap;
+  }
+
+  &__actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto;
+    padding-right: 2px;
+  }
+
+  &__section {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  &__section-title {
+    margin: 0;
+    padding: 0 6px;
+    font-size: font-size("xxs");
+    font-weight: font-weight("semibold");
+    color: color("text-dim");
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  @include respond-to("mobile") {
+    right: 8px;
+    left: 8px;
+    bottom: 112px;
+    width: auto;
+    max-height: calc(100vh - 180px);
+  }
+}

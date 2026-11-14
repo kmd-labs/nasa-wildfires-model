@@ -2,8 +2,9 @@ import { Injectable, computed, effect, signal } from '@angular/core';
 import { Dict, Lang } from './i18n.types';
 import { EN } from './en';
 import { PL } from './pl';
+import { ES } from './es';
 
-const DICTS: Record<Lang, Dict> = { en: EN, pl: PL };
+const DICTS: Record<Lang, Dict> = { en: EN, pl: PL, es: ES };
 const STORAGE_KEY = 'nasa-wildfires-model.lang';
 
 /**
@@ -14,7 +15,7 @@ const STORAGE_KEY = 'nasa-wildfires-model.lang';
 @Injectable({ providedIn: 'root' })
 export class I18nService {
   readonly dicts = DICTS;
-  readonly langs: Lang[] = ['en', 'pl'];
+  readonly langs: Lang[] = ['en', 'pl', 'es'];
   readonly lang = signal<Lang>(this.resolveInitialLang());
   readonly t = computed(() => DICTS[this.lang()]);
 
@@ -62,7 +63,7 @@ export class I18nService {
   }
 
   private isSupportedLang(val: string | null | undefined): val is Lang {
-    return val === 'en' || val === 'pl';
+    return val === 'en' || val === 'pl' || val === 'es';
   }
 
   private persistLang(lang: Lang) {

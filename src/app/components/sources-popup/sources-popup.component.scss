@@ -1,0 +1,83 @@
+@use "variables" as *;
+
+.sources-popup {
+  display: flex;
+  flex-direction: column;
+  gap: spacing("md");
+  max-width: 640px;
+  color: color("text-bright");
+  text-align: left;
+
+  &__section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: font-size("xs");
+    font-weight: font-weight("bold");
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: color("text-dim");
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  &__card {
+    padding: 10px 12px;
+    border: 1px solid color("line");
+    border-radius: radius("sm");
+    background: color("btn-bg");
+  }
+
+  &__card-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+
+  &__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: font-size("xs");
+    font-weight: font-weight("semibold");
+    color: color("accent");
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+
+    lucide-icon {
+      display: inline-flex;
+    }
+  }
+
+  &__badge {
+    display: inline-block;
+    font-size: font-size("xxs");
+    font-family: $font-family-mono;
+    color: color("text-dim");
+    padding: 2px 6px;
+    border-radius: radius("sm");
+    background: color("line");
+    line-height: 1.35;
+  }
+
+  &__desc {
+    margin: 0;
+    font-size: font-size("xs");
+    color: color("text-dim");
+    line-height: 1.45;
+  }
+}
