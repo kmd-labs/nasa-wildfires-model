@@ -1,0 +1,1084 @@
+{
+  "data/raw/firms/aoi/losacio_2022_lipiec_firms.csv": {
+    "dataset": "NASA FIRMS active fires (MODIS C6.1 1 km, VIIRS 375 m)",
+    "aoi_id": "losacio_2022_lipiec",
+    "bytes": 229298,
+    "created_utc": "2026-11-14T12:16:28+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "window": [
+      "2022-06-25",
+      "2022-09-15"
+    ],
+    "bbox": [
+      -6.28,
+      41.62,
+      -5.87,
+      41.93
+    ],
+    "rows_per_source": {
+      "VIIRS_SNPP_SP": 794,
+      "VIIRS_NOAA20_SP": 666,
+      "MODIS_SP": 234
+    }
+  },
+  "data/raw/firms/aoi/piodao_2025_firms.csv": {
+    "dataset": "NASA FIRMS active fires (MODIS C6.1 1 km, VIIRS 375 m)",
+    "aoi_id": "piodao_2025",
+    "bytes": 1352214,
+    "created_utc": "2026-11-14T12:18:00+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "window": [
+      "2025-07-20",
+      "2025-09-20"
+    ],
+    "bbox": [
+      -8.11,
+      40.0,
+      -7.62,
+      40.43
+    ],
+    "rows_per_source": {
+      "VIIRS_SNPP_SP": 3477,
+      "VIIRS_NOAA20_SP": 3095,
+      "VIIRS_NOAA21_SP": 2303,
+      "MODIS_SP": 1018
+    }
+  },
+  "data/raw/firms/aoi/larouco_2025_firms.csv": {
+    "dataset": "NASA FIRMS active fires (MODIS C6.1 1 km, VIIRS 375 m)",
+    "aoi_id": "larouco_2025",
+    "bytes": 992928,
+    "created_utc": "2026-11-14T12:19:21+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "window": [
+      "2025-07-20",
+      "2025-09-15"
+    ],
+    "bbox": [
+      -7.33,
+      42.26,
+      -6.91,
+      42.59
+    ],
+    "rows_per_source": {
+      "VIIRS_NOAA20_SP": 2260,
+      "VIIRS_SNPP_SP": 2081,
+      "VIIRS_NOAA21_SP": 2064,
+      "MODIS_SP": 848
+    }
+  },
+  "data/raw/firms/aoi/burgohondo_2026_avila_firms.csv": {
+    "dataset": "NASA FIRMS active fires (MODIS C6.1 1 km, VIIRS 375 m)",
+    "aoi_id": "burgohondo_2026_avila",
+    "bytes": 1031468,
+    "created_utc": "2026-11-14T12:21:04+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "window": [
+      "2026-07-01",
+      "2026-09-15"
+    ],
+    "bbox": [
+      -4.88,
+      40.28,
+      -4.4,
+      40.54
+    ],
+    "rows_per_source": {
+      "VIIRS_SNPP_SP": 2466,
+      "VIIRS_NOAA20_SP": 2315,
+      "VIIRS_NOAA21_SP": 2083,
+      "MODIS_SP": 652,
+      "VIIRS_SNPP_NRT": 4,
+      "VIIRS_NOAA21_NRT": 3,
+      "VIIRS_NOAA20_NRT": 3
+    }
+  },
+  "data/raw/firms/aoi/burgohondo_2026_kompleks_firms.csv": {
+    "dataset": "NASA FIRMS active fires (MODIS C6.1 1 km, VIIRS 375 m)",
+    "aoi_id": "burgohondo_2026_kompleks",
+    "bytes": 1511402,
+    "created_utc": "2026-11-14T12:22:47+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "window": [
+      "2026-07-01",
+      "2026-09-15"
+    ],
+    "bbox": [
+      -4.88,
+      40.18,
+      -4.19,
+      40.54
+    ],
+    "rows_per_source": {
+      "VIIRS_SNPP_SP": 3615,
+      "VIIRS_NOAA20_SP": 3368,
+      "VIIRS_NOAA21_SP": 3056,
+      "MODIS_SP": 928,
+      "VIIRS_SNPP_NRT": 23,
+      "VIIRS_NOAA20_NRT": 23,
+      "VIIRS_NOAA21_NRT": 16
+    }
+  },
+  "data/raw/firms/aoi/losacio_2022_lacznie_firms.csv": {
+    "dataset": "NASA FIRMS active fires (MODIS C6.1 1 km, VIIRS 375 m)",
+    "aoi_id": "losacio_2022_lacznie",
+    "bytes": 524376,
+    "created_utc": "2026-11-14T12:24:41+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "window": [
+      "2022-06-01",
+      "2022-09-15"
+    ],
+    "bbox": [
+      -6.51,
+      41.62,
+      -5.87,
+      42.03
+    ],
+    "rows_per_source": {
+      "VIIRS_SNPP_SP": 2111,
+      "VIIRS_NOAA20_SP": 1404,
+      "MODIS_SP": 361
+    }
+  },
+  "data/raw/firms/country/modis/modis_2000_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 10044,
+    "created_utc": "2026-11-14T12:24:42+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2000,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/modis/modis_2000_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 353,
+    "created_utc": "2026-11-14T12:24:45+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2000,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/modis/modis_2001_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 257381,
+    "created_utc": "2026-11-14T12:24:46+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2001,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/modis/modis_2001_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 125114,
+    "created_utc": "2026-11-14T12:24:48+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2001,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/modis/modis_2002_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 398357,
+    "created_utc": "2026-11-14T12:24:49+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2002,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/modis/modis_2002_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 205531,
+    "created_utc": "2026-11-14T12:24:50+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2002,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/modis/modis_2003_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 578352,
+    "created_utc": "2026-11-14T12:24:52+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2003,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/modis/modis_2003_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 488211,
+    "created_utc": "2026-11-14T12:24:54+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2003,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/modis/modis_2004_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 609997,
+    "created_utc": "2026-11-14T12:24:55+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2004,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/modis/modis_2004_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 236295,
+    "created_utc": "2026-11-14T12:24:57+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2004,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/modis/modis_2005_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 540387,
+    "created_utc": "2026-11-14T12:24:58+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2005,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/modis/modis_2005_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 722900,
+    "created_utc": "2026-11-14T12:25:00+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2005,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/modis/modis_2006_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 559822,
+    "created_utc": "2026-11-14T12:25:02+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2006,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/modis/modis_2006_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 206547,
+    "created_utc": "2026-11-14T12:25:03+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2006,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/modis/modis_2007_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 339961,
+    "created_utc": "2026-11-14T12:25:04+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2007,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/modis/modis_2007_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 122625,
+    "created_utc": "2026-11-14T12:25:06+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2007,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/modis/modis_2008_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 230531,
+    "created_utc": "2026-11-14T12:25:07+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2008,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/modis/modis_2008_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 76965,
+    "created_utc": "2026-11-14T12:25:08+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2008,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/modis/modis_2009_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 357323,
+    "created_utc": "2026-11-14T12:25:10+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2009,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/modis/modis_2009_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 268219,
+    "created_utc": "2026-11-14T12:25:11+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2009,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/modis/modis_2010_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 208717,
+    "created_utc": "2026-11-14T12:25:13+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2010,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/modis/modis_2010_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 328523,
+    "created_utc": "2026-11-14T12:25:14+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2010,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/modis/modis_2011_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 421630,
+    "created_utc": "2026-11-14T12:25:16+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2011,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/modis/modis_2011_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 235203,
+    "created_utc": "2026-11-14T12:25:17+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2011,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/modis/modis_2012_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 479582,
+    "created_utc": "2026-11-14T12:25:19+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2012,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/modis/modis_2012_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 276315,
+    "created_utc": "2026-11-14T12:25:21+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2012,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/modis/modis_2013_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 266012,
+    "created_utc": "2026-11-14T12:25:22+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2013,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/modis/modis_2013_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 345651,
+    "created_utc": "2026-11-14T12:25:23+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2013,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/modis/modis_2014_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 200014,
+    "created_utc": "2026-11-14T12:25:25+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2014,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/modis/modis_2014_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 47514,
+    "created_utc": "2026-11-14T12:25:26+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2014,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/modis/modis_2015_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 245092,
+    "created_utc": "2026-11-14T12:25:28+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2015,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/modis/modis_2015_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 159883,
+    "created_utc": "2026-11-14T12:25:29+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2015,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/modis/modis_2016_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 248139,
+    "created_utc": "2026-11-14T12:25:31+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2016,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/modis/modis_2016_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 373472,
+    "created_utc": "2026-11-14T12:25:33+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2016,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/modis/modis_2017_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 400380,
+    "created_utc": "2026-11-14T12:25:34+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2017,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/modis/modis_2017_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 517415,
+    "created_utc": "2026-11-14T12:25:36+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2017,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/modis/modis_2018_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 130927,
+    "created_utc": "2026-11-14T12:25:37+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2018,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/modis/modis_2018_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 102991,
+    "created_utc": "2026-11-14T12:25:38+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2018,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/modis/modis_2019_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 258462,
+    "created_utc": "2026-11-14T12:25:40+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2019,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/modis/modis_2019_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 100031,
+    "created_utc": "2026-11-14T12:25:41+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2019,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/modis/modis_2020_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 202904,
+    "created_utc": "2026-11-14T12:25:42+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2020,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/modis/modis_2020_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 106460,
+    "created_utc": "2026-11-14T12:25:43+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2020,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/modis/modis_2021_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 374191,
+    "created_utc": "2026-11-14T12:25:45+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2021,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/modis/modis_2021_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 74425,
+    "created_utc": "2026-11-14T12:25:46+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2021,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/modis/modis_2022_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 466980,
+    "created_utc": "2026-11-14T12:25:48+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2022,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/modis/modis_2022_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 179244,
+    "created_utc": "2026-11-14T12:25:49+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2022,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/modis/modis_2023_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 222893,
+    "created_utc": "2026-11-14T12:25:50+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2023,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/modis/modis_2023_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 84920,
+    "created_utc": "2026-11-14T12:25:52+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2023,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/modis/modis_2024_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 167436,
+    "created_utc": "2026-11-14T12:25:53+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2024,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/modis/modis_2024_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (MODIS)",
+    "aoi_id": null,
+    "bytes": 252905,
+    "created_utc": "2026-11-14T12:25:54+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2024,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/viirs-snpp/viirs-snpp_2012_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_SNPP)",
+    "aoi_id": null,
+    "bytes": 1683750,
+    "created_utc": "2026-11-14T12:25:58+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2012,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/viirs-snpp/viirs-snpp_2012_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_SNPP)",
+    "aoi_id": null,
+    "bytes": 742901,
+    "created_utc": "2026-11-14T12:26:00+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2012,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/viirs-snpp/viirs-snpp_2013_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_SNPP)",
+    "aoi_id": null,
+    "bytes": 1089475,
+    "created_utc": "2026-11-14T12:26:01+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2013,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/viirs-snpp/viirs-snpp_2013_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_SNPP)",
+    "aoi_id": null,
+    "bytes": 948113,
+    "created_utc": "2026-11-14T12:26:03+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2013,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/viirs-snpp/viirs-snpp_2014_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_SNPP)",
+    "aoi_id": null,
+    "bytes": 1000999,
+    "created_utc": "2026-11-14T12:26:05+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2014,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/viirs-snpp/viirs-snpp_2014_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_SNPP)",
+    "aoi_id": null,
+    "bytes": 183497,
+    "created_utc": "2026-11-14T12:26:06+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2014,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/viirs-snpp/viirs-snpp_2015_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_SNPP)",
+    "aoi_id": null,
+    "bytes": 1170092,
+    "created_utc": "2026-11-14T12:26:08+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2015,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/viirs-snpp/viirs-snpp_2015_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_SNPP)",
+    "aoi_id": null,
+    "bytes": 460144,
+    "created_utc": "2026-11-14T12:26:10+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2015,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/viirs-snpp/viirs-snpp_2016_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_SNPP)",
+    "aoi_id": null,
+    "bytes": 1072754,
+    "created_utc": "2026-11-14T12:26:11+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2016,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/viirs-snpp/viirs-snpp_2016_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_SNPP)",
+    "aoi_id": null,
+    "bytes": 1090617,
+    "created_utc": "2026-11-14T12:26:13+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2016,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/viirs-snpp/viirs-snpp_2017_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_SNPP)",
+    "aoi_id": null,
+    "bytes": 1558431,
+    "created_utc": "2026-11-14T12:26:19+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2017,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/viirs-snpp/viirs-snpp_2017_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_SNPP)",
+    "aoi_id": null,
+    "bytes": 1504115,
+    "created_utc": "2026-11-14T12:26:21+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2017,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/viirs-snpp/viirs-snpp_2018_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_SNPP)",
+    "aoi_id": null,
+    "bytes": 760665,
+    "created_utc": "2026-11-14T12:26:23+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2018,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/viirs-snpp/viirs-snpp_2018_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_SNPP)",
+    "aoi_id": null,
+    "bytes": 299634,
+    "created_utc": "2026-11-14T12:26:24+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2018,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/viirs-snpp/viirs-snpp_2019_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_SNPP)",
+    "aoi_id": null,
+    "bytes": 1121105,
+    "created_utc": "2026-11-14T12:26:26+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2019,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/viirs-snpp/viirs-snpp_2019_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_SNPP)",
+    "aoi_id": null,
+    "bytes": 297234,
+    "created_utc": "2026-11-14T12:26:27+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2019,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/viirs-snpp/viirs-snpp_2020_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_SNPP)",
+    "aoi_id": null,
+    "bytes": 859193,
+    "created_utc": "2026-11-14T12:26:29+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2020,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/viirs-snpp/viirs-snpp_2020_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_SNPP)",
+    "aoi_id": null,
+    "bytes": 295151,
+    "created_utc": "2026-11-14T12:26:30+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2020,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/viirs-snpp/viirs-snpp_2021_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_SNPP)",
+    "aoi_id": null,
+    "bytes": 2058504,
+    "created_utc": "2026-11-14T12:26:32+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2021,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/viirs-snpp/viirs-snpp_2021_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_SNPP)",
+    "aoi_id": null,
+    "bytes": 203155,
+    "created_utc": "2026-11-14T12:26:34+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2021,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/viirs-snpp/viirs-snpp_2022_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_SNPP)",
+    "aoi_id": null,
+    "bytes": 1727127,
+    "created_utc": "2026-11-14T12:26:36+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2022,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/viirs-snpp/viirs-snpp_2022_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_SNPP)",
+    "aoi_id": null,
+    "bytes": 397984,
+    "created_utc": "2026-11-14T12:26:37+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2022,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/viirs-snpp/viirs-snpp_2023_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_SNPP)",
+    "aoi_id": null,
+    "bytes": 974247,
+    "created_utc": "2026-11-14T12:26:39+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2023,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/viirs-snpp/viirs-snpp_2023_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_SNPP)",
+    "aoi_id": null,
+    "bytes": 231545,
+    "created_utc": "2026-11-14T12:26:40+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2023,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/viirs-snpp/viirs-snpp_2024_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_SNPP)",
+    "aoi_id": null,
+    "bytes": 654773,
+    "created_utc": "2026-11-14T12:26:42+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2024,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/viirs-snpp/viirs-snpp_2024_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_SNPP)",
+    "aoi_id": null,
+    "bytes": 946487,
+    "created_utc": "2026-11-14T12:26:44+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2024,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/viirs-jpss1/viirs-jpss1_2018_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_NOAA20)",
+    "aoi_id": null,
+    "bytes": 648697,
+    "created_utc": "2026-11-14T12:26:47+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2018,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/viirs-jpss1/viirs-jpss1_2018_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_NOAA20)",
+    "aoi_id": null,
+    "bytes": 295333,
+    "created_utc": "2026-11-14T12:26:48+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2018,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/viirs-jpss1/viirs-jpss1_2019_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_NOAA20)",
+    "aoi_id": null,
+    "bytes": 1184457,
+    "created_utc": "2026-11-14T12:26:50+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2019,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/viirs-jpss1/viirs-jpss1_2019_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_NOAA20)",
+    "aoi_id": null,
+    "bytes": 289171,
+    "created_utc": "2026-11-14T12:26:51+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2019,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/viirs-jpss1/viirs-jpss1_2020_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_NOAA20)",
+    "aoi_id": null,
+    "bytes": 896296,
+    "created_utc": "2026-11-14T12:26:53+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2020,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/viirs-jpss1/viirs-jpss1_2020_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_NOAA20)",
+    "aoi_id": null,
+    "bytes": 320762,
+    "created_utc": "2026-11-14T12:26:55+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2020,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/viirs-jpss1/viirs-jpss1_2021_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_NOAA20)",
+    "aoi_id": null,
+    "bytes": 2216604,
+    "created_utc": "2026-11-14T12:26:57+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2021,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/viirs-jpss1/viirs-jpss1_2021_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_NOAA20)",
+    "aoi_id": null,
+    "bytes": 200957,
+    "created_utc": "2026-11-14T12:26:58+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2021,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/viirs-jpss1/viirs-jpss1_2022_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_NOAA20)",
+    "aoi_id": null,
+    "bytes": 1886610,
+    "created_utc": "2026-11-14T12:27:00+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2022,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/viirs-jpss1/viirs-jpss1_2022_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_NOAA20)",
+    "aoi_id": null,
+    "bytes": 471146,
+    "created_utc": "2026-11-14T12:27:01+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2022,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/viirs-jpss1/viirs-jpss1_2023_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_NOAA20)",
+    "aoi_id": null,
+    "bytes": 1018479,
+    "created_utc": "2026-11-14T12:27:03+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2023,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/viirs-jpss1/viirs-jpss1_2023_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_NOAA20)",
+    "aoi_id": null,
+    "bytes": 271978,
+    "created_utc": "2026-11-14T12:27:04+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2023,
+    "country": "Portugal"
+  },
+  "data/raw/firms/country/viirs-jpss1/viirs-jpss1_2024_Spain.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_NOAA20)",
+    "aoi_id": null,
+    "bytes": 729168,
+    "created_utc": "2026-11-14T12:27:06+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2024,
+    "country": "Spain"
+  },
+  "data/raw/firms/country/viirs-jpss1/viirs-jpss1_2024_Portugal.csv": {
+    "dataset": "NASA FIRMS yearly country file (VIIRS_NOAA20)",
+    "aoi_id": null,
+    "bytes": 966085,
+    "created_utc": "2026-11-14T12:27:08+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2024,
+    "country": "Portugal"
+  },
+  "data/raw/firms/api_iberia/VIIRS_NOAA21_2023.csv": {
+    "dataset": "NASA FIRMS Area API, Iberia bbox (VIIRS_NOAA21)",
+    "aoi_id": null,
+    "bytes": 2075271,
+    "created_utc": "2026-11-14T12:28:55+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2023,
+    "bbox": [
+      -9.6,
+      36.0,
+      3.4,
+      43.8
+    ],
+    "window": [
+      "2023-01-01",
+      "2023-12-31"
+    ],
+    "rows_per_source": {
+      "VIIRS_NOAA21_SP": 15307
+    }
+  },
+  "data/raw/firms/api_iberia/VIIRS_NOAA21_2024.csv": {
+    "dataset": "NASA FIRMS Area API, Iberia bbox (VIIRS_NOAA21)",
+    "aoi_id": null,
+    "bytes": 3012641,
+    "created_utc": "2026-11-14T12:31:04+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2024,
+    "bbox": [
+      -9.6,
+      36.0,
+      3.4,
+      43.8
+    ],
+    "window": [
+      "2024-01-01",
+      "2024-12-31"
+    ],
+    "rows_per_source": {
+      "VIIRS_NOAA21_SP": 22187
+    }
+  },
+  "data/raw/firms/api_iberia/MODIS_2026.csv": {
+    "dataset": "NASA FIRMS Area API, Iberia bbox (MODIS)",
+    "aoi_id": null,
+    "bytes": 1107169,
+    "created_utc": "2026-11-14T12:32:39+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2026,
+    "bbox": [
+      -9.6,
+      36.0,
+      3.4,
+      43.8
+    ],
+    "window": [
+      "2026-01-01",
+      "2026-11-14"
+    ],
+    "rows_per_source": {
+      "MODIS_SP": 7512,
+      "MODIS_NRT": 1275
+    }
+  },
+  "data/raw/firms/api_iberia/VIIRS_SNPP_2026.csv": {
+    "dataset": "NASA FIRMS Area API, Iberia bbox (VIIRS_SNPP)",
+    "aoi_id": null,
+    "bytes": 4118592,
+    "created_utc": "2026-11-14T12:34:17+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2026,
+    "bbox": [
+      -9.6,
+      36.0,
+      3.4,
+      43.8
+    ],
+    "window": [
+      "2026-01-01",
+      "2026-11-14"
+    ],
+    "rows_per_source": {
+      "VIIRS_SNPP_SP": 21434,
+      "VIIRS_SNPP_NRT": 9593
+    }
+  },
+  "data/raw/firms/api_iberia/VIIRS_NOAA20_2026.csv": {
+    "dataset": "NASA FIRMS Area API, Iberia bbox (VIIRS_NOAA20)",
+    "aoi_id": null,
+    "bytes": 4540517,
+    "created_utc": "2026-11-14T12:36:19+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2026,
+    "bbox": [
+      -9.6,
+      36.0,
+      3.4,
+      43.8
+    ],
+    "window": [
+      "2026-01-01",
+      "2026-11-14"
+    ],
+    "rows_per_source": {
+      "VIIRS_NOAA20_SP": 22193,
+      "VIIRS_NOAA20_NRT": 10528
+    }
+  },
+  "data/raw/firms/api_iberia/VIIRS_NOAA21_2026.csv": {
+    "dataset": "NASA FIRMS Area API, Iberia bbox (VIIRS_NOAA21)",
+    "aoi_id": null,
+    "bytes": 4376669,
+    "created_utc": "2026-11-14T12:38:13+00:00",
+    "attribution": "We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "year": 2026,
+    "bbox": [
+      -9.6,
+      36.0,
+      3.4,
+      43.8
+    ],
+    "window": [
+      "2026-01-01",
+      "2026-11-14"
+    ],
+    "rows_per_source": {
+      "VIIRS_NOAA21_SP": 21680,
+      "VIIRS_NOAA21_NRT": 9859
+    }
+  }
+}

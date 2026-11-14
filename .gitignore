@@ -14,8 +14,3 @@ secrets/
 __pycache__/
 .ipynb_checkpoints/
 
-# Raw downloaded data (re-create with scripts/notebooks/01_extract_data.ipynb)
-data/raw/*
-!data/raw/firms/
-data/raw/firms/*
-!data/raw/firms/aoi/
