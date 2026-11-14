@@ -176,9 +176,8 @@ class CalendarService:
         res = hz.pick_h3_resolution(env)
         cube = hz.build_cube(df, avail, res)
         eff, regional, calibration = hz.fit_efficiency(cube)
-        harmonized_res = hz.harmonize_full(cube, eff)
-        out = {"cube": cube, "res": harmonized_res, "harmonized": harmonized_res.values, "sd": harmonized_res.sd,
-               "calibration": calibration, "h3Resolution": res,
+        harmonized, sd = hz.harmonize(cube, eff, regional)
+        out = {"cube": cube, "harmonized": harmonized, "sd": sd, "calibration": calibration, "h3Resolution": res,
                "validation": hz.validate(cube) if len(cube.cells) else None, "availability": avail,
                "df": df[["date", "acq_date", "frp", "platform"]].copy()}
         if hasattr(hz, "extras"):  # v3: weight per detection and the small-fire layer
@@ -230,10 +229,8 @@ class CalendarService:
         viirs_cell = cube.counts[[hz.PLATFORMS.index(p) for p in hz.VIIRS]].sum(axis=0)
         modis, viirs = modis_cell.sum(axis=0), viirs_cell.sum(axis=0)
         empty = np.isnan(h["harmonized"]).all(axis=0) if len(cube.cells) else (cube.exposure.sum(axis=0) == 0)
-        total, lo90, hi90 = hz.total_interval(cube, h["res"])
-        total = np.where(empty, np.nan, total)
-        lo90 = np.where(empty, np.nan, lo90)
-        hi90 = np.where(empty, np.nan, hi90)
+        total = np.where(empty, np.nan, np.nansum(h["harmonized"], axis=0))
+        sd = np.where(empty, np.nan, np.sqrt(np.nansum(h["sd"] ** 2, axis=0)))
         complete = cube.observed >= 0.999
         z, pct, clim_mean, clim_std = hz.calendar_stats(total, cube.cal_month, complete)
         lo90, hi90 = np.maximum(total - 1.645 * sd, 0), total + 1.645 * sd
