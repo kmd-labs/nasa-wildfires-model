@@ -34,8 +34,21 @@
         grid-template-columns: 1fr;
       }
 
-      .settings__option:first-child {
-        grid-column: 1 / -1;
+      .settings__option {
+        min-width: 0;
+        width: 100%;
+        justify-content: flex-start;
+
+        &:first-child {
+          grid-column: 1 / -1;
+        }
+      }
+
+      .settings__name {
+        white-space: normal;
+        text-align: left;
+        line-height: 1.25;
+        overflow-wrap: break-word;
       }
     }
   }
@@ -83,6 +96,7 @@
   }
 
   &__badge {
+    flex-shrink: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -98,6 +112,7 @@
   }
 
   &__name {
+    min-width: 0;
     white-space: nowrap;
   }
 }
