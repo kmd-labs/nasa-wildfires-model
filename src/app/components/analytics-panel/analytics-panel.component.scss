@@ -909,12 +909,8 @@
     text-align: left;
     transition: background transition("fast");
 
-    &:hover:not(&--locked) {
+    &:hover {
       background: color("btn-hover");
-    }
-
-    &--locked {
-      cursor: default;
     }
 
     lucide-icon {

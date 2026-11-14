@@ -1,4 +1,4 @@
-import { Component, ElementRef, HostListener, ViewChild, computed, effect, inject, signal } from '@angular/core';
+import { Component, ElementRef, HostListener, ViewChild, computed, effect, inject, signal, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   LucideAngularModule,
@@ -97,6 +97,7 @@ export class AnalyticsPanelComponent {
   readonly areaSearchQuery = signal<string>('');
   readonly selectedCountryCode = signal<string | null>('__IBERIA__');
   readonly openDailyYears = signal<Set<number>>(new Set());
+  private initializedDailyYearKey = '';
 
   // Icons
   readonly chartIcon = BarChart3;
@@ -157,9 +158,15 @@ export class AnalyticsPanelComponent {
 
     effect(() => {
       const yearModels = this.analytics.burningCalendarsDailyByYear();
-      if (yearModels.length === 0) return;
+      if (yearModels.length === 0) {
+        this.initializedDailyYearKey = '';
+        return;
+      }
+      const yearKey = yearModels.map(m => m.year).join(',');
+      if (yearKey === this.initializedDailyYearKey) return;
+      this.initializedDailyYearKey = yearKey;
       const validYears = new Set(yearModels.map(m => m.year));
-      const cur = this.openDailyYears();
+      const cur = untracked(() => this.openDailyYears());
       const stillValid = [...cur].filter(y => validYears.has(y));
       if (stillValid.length > 0) return;
       const defaultYear = yearModels[yearModels.length - 1].year;
@@ -347,25 +354,12 @@ export class AnalyticsPanelComponent {
     return { leftPad, topPad, width, height, cellW, cellH };
   }
 
-  private visibleOpenDailyYearCount(): number {
-    const open = this.openDailyYears();
-    return this.analytics.burningCalendarsDailyByYear().filter(g => open.has(g.year)).length;
-  }
-
   isDailyYearOpen(year: number): boolean {
     return this.openDailyYears().has(year);
   }
 
-  isDailyYearLockedOpen(year: number): boolean {
-    return this.isDailyYearOpen(year) && this.visibleOpenDailyYearCount() <= 1;
-  }
-
   toggleDailyYear(year: number): void {
-    const open = this.openDailyYears();
-    if (open.has(year) && this.visibleOpenDailyYearCount() <= 1) {
-      return;
-    }
-    const next = new Set(open);
+    const next = new Set(this.openDailyYears());
     if (next.has(year)) {
       next.delete(year);
     } else {

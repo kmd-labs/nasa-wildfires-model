@@ -248,7 +248,6 @@ export const EN: Dict = {
   burningCalendarTitle: 'Burning Calendar (Harmonized Detections)',
   calendarMonthly: 'Year × Month',
   calendarDaily: 'Month × Day',
-  calendarOneYearOpenHint: 'At least one calendar year stays open',
   calendarNoData: 'No fire detections match this region and date range.',
   calendarHoverPlaceholder: 'Hover over a date cell to inspect details',
   calendarLow: 'Low',
