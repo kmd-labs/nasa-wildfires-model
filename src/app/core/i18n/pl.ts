@@ -100,7 +100,7 @@ export const PL: Dict = {
   legalNasa: 'NASA FIRMS (MCD14ML, VNP14IMGML), NASA/USGS SRTM 30m oraz NASA EOSDIS MODIS NDVI (MOD13Q1) — Domena Publiczna Rządu USA.',
   legalCopernicus: 'Zawiera zmodyfikowane informacje Copernicus Climate Change Service (C3S ERA5-Land) i Copernicus Marine Service (CMEMS) [2026].',
   legalNoaa: 'Temperatura powierzchni morza (OISST v2.1) oraz indeksy ENSO ONI / NAO udostępnione przez NOAA NCEI i Climate Prediction Center.',
-  legalOsm: 'Sieć dróg ewakuacyjnych i granice gmin: © współautorzy OpenStreetMap (ODbL).',
+  legalOsm: 'Sieć dróg ewakuacyjnych i granice gmin: © OpenStreetMap contributors (ODbL).',
 
   // Data Sources Popup
   sourcesBtn: 'Źródła danych',
@@ -321,5 +321,5 @@ export const PL: Dict = {
   layerBorders: 'Granice Administracyjne',
   layerRoads: 'Sieć Drogowa',
   layerGraticule: 'Siatka Współrzędnych',
-  osmAttribution: '© Autorzy OpenStreetMap'
+  osmAttribution: '© OpenStreetMap contributors'
 };
