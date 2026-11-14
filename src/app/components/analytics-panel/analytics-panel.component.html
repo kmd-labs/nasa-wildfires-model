@@ -28,25 +28,26 @@
         </div>
         @if (state.hasActiveSelection() && !data.isCustomDataset()) {
           @let bStatus = data.backendStatus();
-          @if (bStatus !== 'idle') {
-            <div class="analytics-panel__subtitle">
-              @if (bStatus === 'live' && data.backendCalendar(); as bCal) {
-                <span class="backend-pill backend-pill--live">{{ t.backendLiveLabel }} · {{ bCal.metadata.dataThrough }}</span>
-              } @else if (bStatus === 'downloading') {
-                @let prog = data.backendProgress();
-                <span class="backend-pill backend-pill--sync">
-                  {{ t.backendDownloadingLabel }}
-                  @if (prog && prog.total > 0) {
-                    ({{ prog.done }}/{{ prog.total }} {{ t.backendChunksLabel }})
-                  }
-                </span>
-              } @else if (bStatus === 'error' && data.backendError(); as bErr) {
-                <span class="backend-pill backend-pill--err" [title]="bErr">{{ bErr }}</span>
-              } @else if (bStatus === 'offline') {
-                <span class="backend-pill">{{ t.backendOfflineLabel }}</span>
-              }
-            </div>
-          }
+          <div class="analytics-panel__subtitle">
+            <span class="backend-pill backend-pill--dataset">
+              {{ t.datasetUsedLabel }}: {{ state.activeDataset() === 'VIIRS' ? t.datasetViirsBtn : t.datasetModisBtn }}
+            </span>
+            @if (bStatus === 'live' && data.backendCalendar(); as bCal) {
+              <span class="backend-pill backend-pill--live">{{ t.backendLiveLabel }} · {{ bCal.metadata.dataThrough }}</span>
+            } @else if (bStatus === 'downloading') {
+              @let prog = data.backendProgress();
+              <span class="backend-pill backend-pill--sync">
+                {{ t.backendDownloadingLabel }}
+                @if (prog && prog.total > 0) {
+                  ({{ prog.done }}/{{ prog.total }} {{ t.backendChunksLabel }})
+                }
+              </span>
+            } @else if (bStatus === 'error' && data.backendError(); as bErr) {
+              <span class="backend-pill backend-pill--err" [title]="bErr">{{ bErr }}</span>
+            } @else if (bStatus === 'offline') {
+              <span class="backend-pill">{{ t.backendOfflineLabel }}</span>
+            }
+          </div>
         }
       </div>
 
@@ -89,10 +90,33 @@
             <span>{{ t.drawBboxBtn }}</span>
           </button>
 
-          @if (state.regionBbox(); as bbox) {
+          @if (state.hasUnacceptedDraft()) {
+            <span class="region-form__bbox-pill region-form__bbox-pill--draft">
+              {{ state.draftEdgeCount() }} {{ t.polygonEdgesLabel }}
+            </span>
+            <button
+              type="button"
+              class="accept-bbox-btn"
+              (click)="state.acceptDraftPolygon()">
+              <lucide-icon [img]="checkIcon" [size]="13"></lucide-icon>
+              <span>{{ t.acceptAndCalculateBtn }}</span>
+            </button>
+            <button
+              type="button"
+              class="icon-action"
+              [title]="t.close"
+              (click)="state.cancelDrawBoundingBox()">
+              <lucide-icon [img]="closeIcon" [size]="13"></lucide-icon>
+            </button>
+          } @else if (state.regionBbox(); as bbox) {
             <span class="region-form__bbox-pill">
               {{ bbox[0] | number:'1.2-2' }}, {{ bbox[1] | number:'1.2-2' }} → {{ bbox[2] | number:'1.2-2' }}, {{ bbox[3] | number:'1.2-2' }}
             </span>
+            @if ((state.regionPolygon()?.length ?? 0) > 4) {
+              <span class="region-form__bbox-pill">
+                {{ state.regionPolygon()!.length }} {{ t.polygonEdgesLabel }}
+              </span>
+            }
           }
 
           <span class="region-form__spacer"></span>
@@ -176,7 +200,7 @@
             }
 
             <div class="coords-actions">
-              <app-button variant="preset" size="sm" (btnClick)="applyDraftCoords()">{{ t.applyCoords }}</app-button>
+              <app-button variant="preset" size="sm" (btnClick)="applyDraftCoords()">{{ t.calculateBboxBtn }}</app-button>
             </div>
           </div>
         }
@@ -200,6 +224,33 @@
               [value]="state.dateEnd()"
               (change)="state.setDateEnd($any($event.target).value)" />
           </label>
+        </div>
+
+        <div class="region-form__dataset">
+          <span class="region-form__dataset-label">{{ t.datasetLabel }}:</span>
+          <div class="segmented" role="group" [attr.aria-label]="t.datasetLabel">
+            <button
+              type="button"
+              class="segmented__btn"
+              [class.segmented__btn--active]="state.activeDataset() === 'VIIRS'"
+              [class.segmented__btn--disabled]="!state.isViirsAvailable()"
+              [attr.aria-disabled]="!state.isViirsAvailable()"
+              [appTooltip]="!state.isViirsAvailable() ? t.viirsUnavailableTooltip : t.datasetViirsDesc"
+              (click)="state.isViirsAvailable() && state.setDataset('VIIRS')">
+              {{ t.datasetViirsBtn }}
+            </button>
+            <button
+              type="button"
+              class="segmented__btn"
+              [class.segmented__btn--active]="state.activeDataset() === 'MODIS'"
+              [appTooltip]="t.datasetModisDesc"
+              (click)="state.setDataset('MODIS')">
+              {{ t.datasetModisBtn }}
+            </button>
+          </div>
+          <span class="region-form__dataset-used">
+            {{ t.datasetUsedLabel }}: <b>{{ state.activeDataset() === 'VIIRS' ? t.datasetViirsBtn : t.datasetModisBtn }}</b>
+          </span>
         </div>
       </section>
     }
@@ -309,7 +360,13 @@
               </div>
             </div>
 
-            @if (!state.hasBoundingBox()) {
+            @if (state.hasUnacceptedDraft()) {
+              <p class="analytics-empty-state__desc">{{ t.draftPendingDesc }}</p>
+              <app-button variant="preset" size="sm" (btnClick)="state.acceptDraftPolygon()">
+                <lucide-icon [img]="checkIcon" [size]="13"></lucide-icon>
+                <span>{{ t.acceptAndCalculateBtn }}</span>
+              </app-button>
+            } @else if (!state.hasBoundingBox()) {
               <app-button variant="preset" size="sm" (btnClick)="state.toggleDrawBbox('replace')">
                 <lucide-icon [img]="boxSelectIcon" [size]="13"></lucide-icon>
                 <span>{{ t.drawBboxBtn }}</span>
@@ -325,7 +382,9 @@
             <div class="kpi-card">
               <span class="kpi-card__label">{{ t.kpiHarmonizedFires }}</span>
               <strong class="kpi-card__val">{{ summary.harmonizedFires | number }}</strong>
-              <span class="kpi-card__sub">MODIS {{ summary.rawModisFires | number }} · VIIRS {{ summary.rawViirsFires | number }}</span>
+              <span class="kpi-card__sub">
+                {{ summary.activeDataset === 'VIIRS' ? t.datasetViirsBtn : t.datasetModisBtn }}: {{ summary.activeDatasetFires | number }} · MODIS {{ summary.rawModisFires | number }} · VIIRS {{ summary.rawViirsFires | number }}
+              </span>
             </div>
 
             <div class="kpi-card">

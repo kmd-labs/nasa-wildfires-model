@@ -27,12 +27,20 @@
     </div>
   </header>
 
-  <!-- Interactive Bounding Box Drawing Hint Banner -->
-  @if (state.isDrawingBbox() || state.liveDrawBbox()) {
+  <!-- Interactive Bounding Box Drawing & Editing Banner -->
+  @if (state.isDrawingBbox() || state.liveDrawBbox() || state.hasUnacceptedDraft()) {
     <div class="draw-banner glass-panel" role="status">
       <lucide-icon [img]="boxSelectIcon" [size]="15" class="draw-banner__icon"></lucide-icon>
-      <span class="draw-banner__text">{{ t.drawBboxActiveHint }}</span>
-      @if (activeBbox) {
+      <span class="draw-banner__text">
+        {{ state.hasUnacceptedDraft() ? t.drawBboxEditEdgeHint : t.drawBboxActiveHint }}
+      </span>
+      @if (state.hasUnacceptedDraft()) {
+        <span class="draw-banner__coords">{{ state.draftEdgeCount() }} {{ t.polygonEdgesLabel }}</span>
+        <button type="button" class="draw-banner__accept" (click)="state.acceptDraftPolygon()">
+          <lucide-icon [img]="checkIcon" [size]="13"></lucide-icon>
+          <span>{{ t.acceptAndCalculateBtn }}</span>
+        </button>
+      } @else if (activeBbox) {
         <span class="draw-banner__coords">
           [{{ activeBbox[0] | number:'1.2-2' }}°, {{ activeBbox[1] | number:'1.2-2' }}°, {{ activeBbox[2] | number:'1.2-2' }}°, {{ activeBbox[3] | number:'1.2-2' }}°]
         </span>
@@ -82,6 +90,12 @@
         <div class="metric">
           <span class="metric__label">{{ t.kpiRegionArea }}</span>
           <span class="metric__val">{{ state.hasBoundingBox() ? ((summary.areaKm2 | number) + ' km²') : '—' }}</span>
+        </div>
+        <div class="metric">
+          <span class="metric__label">{{ t.datasetUsedLabel }}</span>
+          <span class="metric__val metric__val--accent">
+            {{ state.hasActiveSelection() ? (summary.activeDataset === 'VIIRS' ? t.datasetViirsBtn : t.datasetModisBtn) : '—' }}
+          </span>
         </div>
       </div>
     </div>

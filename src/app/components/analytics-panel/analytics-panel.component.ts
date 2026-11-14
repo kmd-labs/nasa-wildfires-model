@@ -15,9 +15,11 @@ import {
   Layers,
   CheckCircle2,
   CircleDashed,
-  Compass
+  Compass,
+  Check,
+  X
 } from 'lucide-angular';
-import { ButtonComponent, DropdownComponent, DropdownOption } from '@kmd/design-system';
+import { ButtonComponent, DropdownComponent, DropdownOption, TooltipDirective } from '@kmd/design-system';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { WildfireStateService } from '../../core/services/wildfire-state.service';
 import { WildfireDataService } from '../../core/services/wildfire-data.service';
@@ -32,7 +34,7 @@ import {
 @Component({
   selector: 'app-analytics-panel',
   standalone: true,
-  imports: [CommonModule, LucideAngularModule, ButtonComponent, DropdownComponent],
+  imports: [CommonModule, LucideAngularModule, ButtonComponent, DropdownComponent, TooltipDirective],
   templateUrl: './analytics-panel.component.html',
   styleUrl: './analytics-panel.component.scss'
 })
@@ -73,6 +75,8 @@ export class AnalyticsPanelComponent {
   readonly checkCircleIcon = CheckCircle2;
   readonly circleDashedIcon = CircleDashed;
   readonly compassIcon = Compass;
+  readonly checkIcon = Check;
+  readonly closeIcon = X;
 
   constructor() {
     effect(() => {
@@ -108,6 +112,13 @@ export class AnalyticsPanelComponent {
         swatch: '#d37400',
         checked: this.state.showRegionBbox(),
         setChecked: (v: boolean) => this.state.showRegionBbox.set(v)
+      },
+      {
+        id: 'ortho',
+        label: t.layerLandOrtho,
+        swatch: '#2f6f4e',
+        checked: this.state.showLandOrtho(),
+        setChecked: (v: boolean) => this.state.showLandOrtho.set(v)
       }
     ];
   });
