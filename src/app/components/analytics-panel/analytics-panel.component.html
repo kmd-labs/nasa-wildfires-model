@@ -34,6 +34,12 @@
             </span>
             @if (bStatus === 'live' && data.backendCalendar(); as bCal) {
               <span class="backend-pill backend-pill--live">{{ t.backendLiveLabel }} · {{ bCal.metadata.dataThrough | localeDate }}</span>
+            } @else if (bStatus === 'cached' && data.backendCalendar(); as bCal) {
+              <span
+                class="backend-pill backend-pill--cached"
+                [title]="t.backendCachedTooltip">
+                {{ t.backendCachedLabel }} · {{ bCal.metadata.dataThrough | localeDate }}
+              </span>
             } @else if (bStatus === 'loading' || bStatus === 'downloading') {
               <span class="backend-pill backend-pill--sync">
                 <lucide-icon [img]="loaderIcon" [size]="11" class="spin-icon"></lucide-icon>
@@ -424,9 +430,6 @@
                 </button>
               }
             </div>
-            <span class="region-form__dataset-used">
-              {{ t.datasetUsedLabel }}: <b>{{ activeDatasetDisplayLabel() }}</b>
-            </span>
           </div>
         </section>
       }
@@ -592,7 +595,76 @@
               </div>
             </div>
 
-            @if (cal.cells.length > 0) {
+            @if (cal.mode === 'daily' && analytics.burningCalendarsDailyByYear().length > 1) {
+              <div class="calendar-year-list">
+                @for (yrGroup of analytics.burningCalendarsDailyByYear(); track yrGroup.year) {
+                  @let yOpen = isDailyYearOpen(yrGroup.year);
+                  @let yLocked = isDailyYearLockedOpen(yrGroup.year);
+                  @let yCal = yrGroup.calendar;
+                  @let yDims = getCalendarSvgDims(yCal);
+                  <div class="calendar-year-accordion" [class.calendar-year-accordion--open]="yOpen">
+                    <button
+                      type="button"
+                      class="calendar-year-accordion__trigger"
+                      [class.calendar-year-accordion__trigger--locked]="yLocked"
+                      [attr.aria-expanded]="yOpen"
+                      [title]="yLocked ? t.calendarOneYearOpenHint : ''"
+                      (click)="toggleDailyYear(yrGroup.year)">
+                      <span class="calendar-year-accordion__year">{{ yrGroup.year }}</span>
+                      <span class="calendar-year-accordion__count">
+                        {{ yrGroup.totalHarmonized | number }} {{ t.kpiHarmonizedFires }}
+                      </span>
+                      <lucide-icon [img]="yOpen ? chevronUpIcon : chevronDownIcon" [size]="14"></lucide-icon>
+                    </button>
+                    @if (yOpen) {
+                      <div class="svg-wrap">
+                        <svg
+                          class="calendar-svg"
+                          [attr.viewBox]="'0 0 ' + yDims.width + ' ' + yDims.height"
+                          role="img"
+                          [attr.aria-label]="t.burningCalendarTitle + ' ' + yrGroup.year">
+                          @for (colLbl of yCal.colLabels; track $index) {
+                            @if (yCal.colLabels.length <= 12 || $index % 3 === 0) {
+                              <text
+                                [attr.x]="yDims.leftPad + $index * yDims.cellW + yDims.cellW * 0.5"
+                                y="11"
+                                class="svg-axis-label"
+                                text-anchor="middle">
+                                {{ colLbl }}
+                              </text>
+                            }
+                          }
+
+                          @for (rowLbl of yCal.rowLabels; track $index) {
+                            <text
+                              [attr.x]="yDims.leftPad - 6"
+                              [attr.y]="yDims.topPad + $index * yDims.cellH + yDims.cellH * 0.72"
+                              class="svg-axis-label"
+                              text-anchor="end">
+                              {{ rowLbl }}
+                            </text>
+                          }
+
+                          @for (cell of yCal.cells; track cell.key) {
+                            <rect
+                              [attr.x]="yDims.leftPad + cell.col * yDims.cellW"
+                              [attr.y]="yDims.topPad + cell.row * yDims.cellH"
+                              [attr.width]="Math.max(3, yDims.cellW - 2)"
+                              [attr.height]="Math.max(3, yDims.cellH - 2)"
+                              rx="2.5"
+                              [attr.fill]="cellFill(cell)"
+                              [attr.opacity]="cellOpacity(cell)"
+                              class="cal-cell"
+                              (mouseenter)="hoveredCell.set(cell)"
+                              (mouseleave)="hoveredCell.set(null)" />
+                          }
+                        </svg>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            } @else if (cal.cells.length > 0) {
               <div class="svg-wrap">
                 <svg
                   class="calendar-svg"

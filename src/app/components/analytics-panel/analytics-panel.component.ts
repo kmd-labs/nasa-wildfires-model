@@ -40,7 +40,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { DEFAULT_PREFILL_BBOX, WildfireStateService } from '../../core/services/wildfire-state.service';
 import { USER_LOCATION_PIN_COLOR } from '../../core/utils/location-pin';
 import { WildfireDataService } from '../../core/services/wildfire-data.service';
-import { HotspotAnalyticsService } from '../../core/services/hotspot-analytics.service';
+import { HotspotAnalyticsService, BurningCalendarModel } from '../../core/services/hotspot-analytics.service';
 import { ColorRampService } from '../../core/services/color-ramp.service';
 import { LocaleDatePipe } from '../../core/pipes/locale-date.pipe';
 import { LocaleDateInputComponent } from '../locale-date-input/locale-date-input.component';
@@ -96,6 +96,7 @@ export class AnalyticsPanelComponent {
   readonly areaDropdownOpen = signal<boolean>(false);
   readonly areaSearchQuery = signal<string>('');
   readonly selectedCountryCode = signal<string | null>('__IBERIA__');
+  readonly openDailyYears = signal<Set<number>>(new Set());
 
   // Icons
   readonly chartIcon = BarChart3;
@@ -152,6 +153,17 @@ export class AnalyticsPanelComponent {
         this.draftN.set('');
       }
       this.coordError.set(false);
+    });
+
+    effect(() => {
+      const yearModels = this.analytics.burningCalendarsDailyByYear();
+      if (yearModels.length === 0) return;
+      const validYears = new Set(yearModels.map(m => m.year));
+      const cur = this.openDailyYears();
+      const stillValid = [...cur].filter(y => validYears.has(y));
+      if (stillValid.length > 0) return;
+      const defaultYear = yearModels[yearModels.length - 1].year;
+      this.openDailyYears.set(new Set([defaultYear]));
     });
   }
 
@@ -321,8 +333,9 @@ export class AnalyticsPanelComponent {
 
   readonly activeRampGradient = computed(() => this.ramps.getRamp(this.state.colorRamp()).cssGradient);
 
-  readonly calendarSvgDims = computed(() => {
-    const cal = this.analytics.burningCalendar();
+  readonly calendarSvgDims = computed(() => this.getCalendarSvgDims(this.analytics.burningCalendar()));
+
+  getCalendarSvgDims(cal: BurningCalendarModel) {
     const rows = Math.max(1, cal.rowLabels.length);
     const cols = Math.max(1, cal.colLabels.length);
     const leftPad = 42;
@@ -332,7 +345,34 @@ export class AnalyticsPanelComponent {
     const cellH = cal.mode === 'daily' ? 17 : Math.max(11, Math.min(20, 210 / rows));
     const height = topPad + rows * cellH + 8;
     return { leftPad, topPad, width, height, cellW, cellH };
-  });
+  }
+
+  private visibleOpenDailyYearCount(): number {
+    const open = this.openDailyYears();
+    return this.analytics.burningCalendarsDailyByYear().filter(g => open.has(g.year)).length;
+  }
+
+  isDailyYearOpen(year: number): boolean {
+    return this.openDailyYears().has(year);
+  }
+
+  isDailyYearLockedOpen(year: number): boolean {
+    return this.isDailyYearOpen(year) && this.visibleOpenDailyYearCount() <= 1;
+  }
+
+  toggleDailyYear(year: number): void {
+    const open = this.openDailyYears();
+    if (open.has(year) && this.visibleOpenDailyYearCount() <= 1) {
+      return;
+    }
+    const next = new Set(open);
+    if (next.has(year)) {
+      next.delete(year);
+    } else {
+      next.add(year);
+    }
+    this.openDailyYears.set(next);
+  }
 
   readonly historyMaxVal = computed(() => {
     const list = this.analytics.chartSeries();

@@ -27,6 +27,12 @@ export interface BurningCalendarModel {
   maxFrp: number;
 }
 
+export interface YearBurningCalendarModel {
+  year: number;
+  calendar: BurningCalendarModel;
+  totalHarmonized: number;
+}
+
 export interface GlobePixelSquare {
   lon: number;
   lat: number;
@@ -501,7 +507,7 @@ export class HotspotAnalyticsService {
     const start = this.state.dateStart();
     const end = this.state.dateEnd();
     const hasDates = this.state.hasDateRange();
-    const monthShort = this.i18n.t().monthNamesShort;
+    const monthShort = [...this.i18n.t().monthNamesShort];
     const backend = this.data.backendCalendar();
     const isCustom = this.data.isCustomDataset();
 
@@ -989,6 +995,190 @@ export class HotspotAnalyticsService {
       maxCount,
       maxFrp
     };
+  });
+
+  /**
+   * Month × Day calendar split per touched calendar year when 2+ years overlap the selection.
+   * Uses unified intensity normalization across years so collapsible sections compare on the same scale.
+   */
+  readonly burningCalendarsDailyByYear = computed<YearBurningCalendarModel[]>(() => {
+    if (this.state.calendarGranularity() !== 'daily') return [];
+    const start = this.state.dateStart();
+    const end = this.state.dateEnd();
+    if (!start || !end) return [];
+
+    const y0 = Number(start.slice(0, 4));
+    const y1 = Number(end.slice(0, 4));
+    if (!Number.isFinite(y0) || !Number.isFinite(y1)) return [];
+    const minY = Math.min(y0, y1);
+    const maxY = Math.max(y0, y1);
+    const years: number[] = [];
+    for (let y = minY; y <= maxY; y++) {
+      years.push(y);
+    }
+
+    const monthShort = [...this.i18n.t().monthNamesShort];
+    const colLabels = Array.from({ length: 31 }, (_, i) => String(i + 1));
+
+    type DailyBucket = { harm: number; modis: number; viirs: number; frp: number; avg: number };
+    const bucketsByYear = new Map<number, Map<string, DailyBucket>>();
+    for (const y of years) {
+      bucketsByYear.set(y, new Map<string, DailyBucket>());
+    }
+
+    const backend = this.data.backendCalendar();
+    if (!this.data.isCustomDataset() && backend) {
+      const ratio = this.backendSpatialRatio();
+      const baseAvgByMmDd = new Map<string, number>();
+      for (const row of backend.selection.daily ?? []) {
+        baseAvgByMmDd.set(row.mmdd, row.baselineAvg * ratio);
+      }
+
+      const byYearPayload = backend.selection.dailyByYear;
+      if (byYearPayload) {
+        for (const y of years) {
+          const map = bucketsByYear.get(y)!;
+          for (const row of byYearPayload[String(y)] ?? []) {
+            map.set(row.mmdd, {
+              harm: Math.round(row.harmonized * ratio),
+              modis: Math.round(row.rawModis * ratio),
+              viirs: Math.round(row.rawViirs * ratio),
+              frp: Math.round(row.frpMw * ratio),
+              avg: row.baselineAvg * ratio
+            });
+          }
+        }
+      } else if (years.length === 1) {
+        const map = bucketsByYear.get(years[0])!;
+        for (const row of backend.selection.daily ?? []) {
+          map.set(row.mmdd, {
+            harm: Math.round(row.harmonized * ratio),
+            modis: Math.round(row.rawModis * ratio),
+            viirs: Math.round(row.rawViirs * ratio),
+            frp: Math.round(row.frpMw * ratio),
+            avg: row.baselineAvg * ratio
+          });
+        }
+      } else {
+        // Fallback for cached/older backends without `dailyByYear`: apportion mm-dd across years by monthly share.
+        const monthTotalsByYear = new Map<string, number>();
+        const monthSumAcrossYears = new Array<number>(12).fill(0);
+        for (let i = 0; i < backend.months.length; i++) {
+          const ym = backend.months[i];
+          const y = Number(ym.slice(0, 4));
+          if (y < minY || y > maxY) continue;
+          const mIdx = Number(ym.slice(5, 7)) - 1;
+          const v = Math.max(0, backend.series.harmonized[i] ?? 0);
+          monthTotalsByYear.set(ym, v);
+          monthSumAcrossYears[mIdx] += v;
+        }
+        for (const row of backend.selection.daily ?? []) {
+          const mIdx = Number(row.mmdd.slice(0, 2)) - 1;
+          const totalMonth = monthSumAcrossYears[mIdx];
+          for (const y of years) {
+            const ym = `${y}-${row.mmdd.slice(0, 2)}`;
+            const iso = `${y}-${row.mmdd}`;
+            if (iso < start || iso > end) continue;
+            const share = totalMonth > 0
+              ? (monthTotalsByYear.get(ym) ?? 0) / totalMonth
+              : 1 / years.length;
+            if (share <= 0) continue;
+            bucketsByYear.get(y)!.set(row.mmdd, {
+              harm: Math.round(row.harmonized * ratio * share),
+              modis: Math.round(row.rawModis * ratio * share),
+              viirs: Math.round(row.rawViirs * ratio * share),
+              frp: Math.round(row.frpMw * ratio * share),
+              avg: row.baselineAvg * ratio
+            });
+          }
+        }
+      }
+    } else {
+      const region = this.regionHotspots();
+      const filtered = this.filteredHotspots();
+      const baselineBuckets = new Map<string, number>();
+      const yearsInRegion = Math.max(1, new Set(region.map(r => r.date.slice(0, 4))).size);
+      for (const r of region) {
+        const mmdd = r.date.slice(5, 10);
+        baselineBuckets.set(mmdd, (baselineBuckets.get(mmdd) ?? 0) + r.harmonizedCount);
+      }
+      for (const r of filtered) {
+        const y = Number(r.date.slice(0, 4));
+        const map = bucketsByYear.get(y);
+        if (!map) continue;
+        const mmdd = r.date.slice(5, 10);
+        const cur = map.get(mmdd) ?? {
+          harm: 0,
+          modis: 0,
+          viirs: 0,
+          frp: 0,
+          avg: (baselineBuckets.get(mmdd) ?? 0) / yearsInRegion
+        };
+        cur.harm += r.harmonizedCount;
+        cur.modis += r.rawModisCount;
+        cur.viirs += r.rawViirsCount;
+        cur.frp += r.frpMw;
+        map.set(mmdd, cur);
+      }
+    }
+
+    let maxCount = 1;
+    let maxFrp = 1;
+    for (const map of bucketsByYear.values()) {
+      for (const b of map.values()) {
+        if (b.harm > maxCount) maxCount = b.harm;
+        if (b.frp > maxFrp) maxFrp = b.frp;
+      }
+    }
+
+    return years.map(year => {
+      const map = bucketsByYear.get(year)!;
+      const cells: BurningCalendarCell[] = [];
+      let totalHarmonized = 0;
+
+      for (let m = 0; m < 12; m++) {
+        const daysInMonth = new Date(Date.UTC(year, m + 1, 0)).getUTCDate();
+        for (let d = 0; d < 31; d++) {
+          const validDay = d < daysInMonth;
+          const mmdd = `${String(m + 1).padStart(2, '0')}-${String(d + 1).padStart(2, '0')}`;
+          const isoDate = `${year}-${mmdd}`;
+          const inRange = validDay && isoDate >= start && isoDate <= end;
+          const b = map.get(mmdd);
+          const harm = inRange && b ? b.harm : 0;
+          totalHarmonized += harm;
+          const avg = b ? b.avg : 0;
+          const z = avg > 0 ? (harm - avg) / Math.max(1, Math.sqrt(avg)) : harm > 0 ? 1.5 : 0;
+
+          cells.push({
+            key: isoDate,
+            label: `${monthShort[m]} ${String(d + 1).padStart(2, '0')}, ${year}`,
+            row: m,
+            col: d,
+            harmonizedCount: harm,
+            rawModisCount: inRange && b ? b.modis : 0,
+            rawViirsCount: inRange && b ? b.viirs : 0,
+            frpMw: inRange && b ? b.frp : 0,
+            multiYearAvg: Number(avg.toFixed(1)),
+            anomalyZScore: Number(z.toFixed(2)),
+            intensity: validDay && inRange && harm > 0 ? Math.min(1, Math.pow(harm / maxCount, 0.72)) : 0,
+            inRange
+          });
+        }
+      }
+
+      return {
+        year,
+        totalHarmonized,
+        calendar: {
+          mode: 'daily',
+          rowLabels: monthShort,
+          colLabels,
+          cells,
+          maxCount,
+          maxFrp
+        }
+      };
+    });
   });
 
   computeBboxArea(bbox: BoundingBox): { km2: number; ha: number } {

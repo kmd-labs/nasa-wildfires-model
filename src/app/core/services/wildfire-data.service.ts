@@ -1,4 +1,4 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import {
   BackendCalendarPayload,
   BackendDownloadProgress,
@@ -16,6 +16,7 @@ import {
   PredefinedCountry,
   WildfireAoi
 } from '../models/wildfire.model';
+import { OfflineCacheService } from './offline-cache.service';
 
 interface CountryGeoJsonPayload {
   type: string;
@@ -154,6 +155,8 @@ const DEFAULT_AOIS: WildfireAoi[] = [
   providedIn: 'root'
 })
 export class WildfireDataService {
+  private readonly offlineCache = inject(OfflineCacheService);
+
   readonly aois = signal<WildfireAoi[]>(DEFAULT_AOIS);
   readonly countries = signal<PredefinedCountry[]>([]);
   readonly calendar = signal<CalendarSummaryData | null>(null);
@@ -170,6 +173,7 @@ export class WildfireDataService {
   readonly backendStatus = signal<BackendSyncStatus>('idle');
   readonly backendProgress = signal<BackendDownloadProgress | null>(null);
   readonly backendError = signal<string | null>(null);
+  readonly backendCachedAt = signal<number | null>(null);
 
   private defaultHotspots: HarmonizedHotspotRecord[] = [];
   private cachedDefaultCalendar: BackendCalendarPayload | null = null;
@@ -210,10 +214,35 @@ export class WildfireDataService {
     this.backendCalendar.set(null);
     this.backendProgress.set(null);
     this.backendError.set(null);
+    this.backendCachedAt.set(null);
     this.backendStatus.set('idle');
   }
 
   private cacheCalendarPayload(queryKey: string, payload: BackendCalendarPayload): void {
+    if (this.resolvedCalendarCache.size >= 10) {
+      const oldestKey = this.resolvedCalendarCache.keys().next().value;
+      if (oldestKey !== undefined) {
+        this.resolvedCalendarCache.delete(oldestKey);
+      }
+    }
+    this.resolvedCalendarCache.set(queryKey, payload);
+    void this.offlineCache.putCalendar(queryKey, payload);
+  }
+
+  private async tryRestoreOfflineCalendar(queryKey: string): Promise<boolean> {
+    const record = await this.offlineCache.getCalendar(queryKey);
+    if (!record) return false;
+    if (this.activeApiQuery !== queryKey) return false;
+    this.cacheCalendarPayloadInMemory(queryKey, record.payload);
+    this.backendCalendar.set(record.payload);
+    this.backendCachedAt.set(record.cachedAt);
+    this.backendStatus.set('cached');
+    this.backendProgress.set(null);
+    this.backendError.set(null);
+    return true;
+  }
+
+  private cacheCalendarPayloadInMemory(queryKey: string, payload: BackendCalendarPayload): void {
     if (this.resolvedCalendarCache.size >= 10) {
       const oldestKey = this.resolvedCalendarCache.keys().next().value;
       if (oldestKey !== undefined) {
@@ -279,7 +308,8 @@ export class WildfireDataService {
         this.bgRefreshCount = 0;
         this.offlineRetryCount = 0;
         this.backendCalendar.set(this.cachedDefaultCalendar);
-        this.backendStatus.set('live');
+        this.backendCachedAt.set(null);
+        this.backendStatus.set(typeof navigator !== 'undefined' && navigator.onLine === false ? 'cached' : 'live');
         this.backendProgress.set(null);
         this.backendError.set(null);
         return;
@@ -301,10 +331,17 @@ export class WildfireDataService {
       if (cached) {
         this.cancelBackendSync();
         this.backendCalendar.set(cached);
-        this.backendStatus.set('live');
+        this.backendCachedAt.set(null);
+        this.backendStatus.set(typeof navigator !== 'undefined' && navigator.onLine === false ? 'cached' : 'live');
         this.backendProgress.set(null);
         this.backendError.set(null);
         return;
+      }
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        if (await this.tryRestoreOfflineCalendar(queryKey)) {
+          this.cancelBackendSync();
+          return;
+        }
       }
     } else if (!isSameQuery) {
       return;
@@ -318,6 +355,7 @@ export class WildfireDataService {
       this.backendCalendar.set(null);
     }
     if (!isBackgroundPoll && this.backendStatus() !== 'downloading') {
+      this.backendCachedAt.set(null);
       this.backendStatus.set('loading');
     }
     this.backendError.set(null);
@@ -332,21 +370,7 @@ export class WildfireDataService {
 
       const contentType = resp.headers.get('content-type') ?? '';
       if (!contentType.includes('application/json')) {
-        if (!this.isInsideCachedRegion(primaryBox)) {
-          this.backendCalendar.set(null);
-        }
-        this.backendStatus.set('offline');
-        this.backendProgress.set(null);
-        if (this.offlineRetryCount < 5) {
-          this.offlineRetryCount += 1;
-          const delay = this.offlineRetryDelayMs;
-          this.offlineRetryDelayMs = Math.min(30000, this.offlineRetryDelayMs * 2);
-          this.apiPollTimer = setTimeout(() => {
-            if (this.activeApiQuery === queryKey && !this.isCustomDataset()) {
-              void this.syncCalendarFromBackend(bboxOrList, dateStart, dateEnd, true);
-            }
-          }, delay);
-        }
+        await this.handleOfflineOrUnreachable(queryKey, bboxOrList, dateStart, dateEnd, primaryBox);
         return;
       }
 
@@ -389,6 +413,7 @@ export class WildfireDataService {
         this.offlineRetryCount = 0;
         const payload = body as BackendCalendarPayload;
         this.backendCalendar.set(payload);
+        this.backendCachedAt.set(null);
         this.backendStatus.set('live');
         this.backendProgress.set(null);
         this.backendError.set(null);
@@ -424,21 +449,36 @@ export class WildfireDataService {
       this.backendError.set(typeof body?.error === 'string' ? body.error : `HTTP ${resp.status}`);
     } catch (err) {
       if ((err as { name?: string })?.name === 'AbortError') return;
-      if (!this.isInsideCachedRegion(primaryBox)) {
-        this.backendCalendar.set(null);
-      }
-      this.backendStatus.set('offline');
-      this.backendProgress.set(null);
-      if (this.offlineRetryCount < 5) {
-        this.offlineRetryCount += 1;
-        const delay = this.offlineRetryDelayMs;
-        this.offlineRetryDelayMs = Math.min(30000, this.offlineRetryDelayMs * 2);
-        this.apiPollTimer = setTimeout(() => {
-          if (this.activeApiQuery === queryKey && !this.isCustomDataset()) {
-            void this.syncCalendarFromBackend(bboxOrList, dateStart, dateEnd, true);
-          }
-        }, delay);
-      }
+      await this.handleOfflineOrUnreachable(queryKey, bboxOrList, dateStart, dateEnd, primaryBox);
+    }
+  }
+
+  private async handleOfflineOrUnreachable(
+    queryKey: string,
+    bboxOrList: BoundingBox | BoundingBox[],
+    dateStart: string,
+    dateEnd: string,
+    primaryBox: BoundingBox
+  ): Promise<void> {
+    if (await this.tryRestoreOfflineCalendar(queryKey)) {
+      return;
+    }
+    if (!this.isInsideCachedRegion(primaryBox)) {
+      this.backendCalendar.set(null);
+    }
+    this.backendCachedAt.set(null);
+    this.backendStatus.set('offline');
+    this.backendProgress.set(null);
+    const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
+    if (!isOffline && this.offlineRetryCount < 5) {
+      this.offlineRetryCount += 1;
+      const delay = this.offlineRetryDelayMs;
+      this.offlineRetryDelayMs = Math.min(30000, this.offlineRetryDelayMs * 2);
+      this.apiPollTimer = setTimeout(() => {
+        if (this.activeApiQuery === queryKey && !this.isCustomDataset()) {
+          void this.syncCalendarFromBackend(bboxOrList, dateStart, dateEnd, true);
+        }
+      }, delay);
     }
   }
 
@@ -514,6 +554,7 @@ export class WildfireDataService {
     this.isCustomDataset.set(false);
     this.hotspotDatasetName.set('');
     this.hotspots.set(this.defaultHotspots);
+    void this.offlineCache.clearCustomDataset();
   }
 
   getSampleCsvTemplate(): string {
@@ -528,7 +569,8 @@ export class WildfireDataService {
 
   importHotspotFile(
     filename: string,
-    rawText: string
+    rawText: string,
+    persist = true
   ): { ok: boolean; count: number; minDate?: string; maxDate?: string; bbox?: BoundingBox } {
     this.importError.set(null);
     const trimmed = rawText.trim();
@@ -569,6 +611,9 @@ export class WildfireDataService {
       this.hotspots.set(parsed);
       this.hotspotDatasetName.set(filename);
       this.isCustomDataset.set(true);
+      if (persist) {
+        void this.offlineCache.putCustomDataset(filename, trimmed);
+      }
 
       return {
         ok: true,
@@ -682,11 +727,21 @@ export class WildfireDataService {
 
       if (defaultCal?.months && defaultCal?.selection) {
         this.cachedDefaultCalendar = defaultCal;
+        const defaultKey = `${DEFAULT_CACHED_IBERIA_BBOX.map(v => Number(v.toFixed(4))).join(',')}|${DEFAULT_CACHED_FROM_YM}|${DEFAULT_CACHED_TO_YM}`;
+        void this.offlineCache.putCalendar(defaultKey, defaultCal);
         if (!this.isCustomDataset() && !this.backendCalendar()) {
           this.backendCalendar.set(defaultCal);
-          this.backendStatus.set('live');
+          this.backendCachedAt.set(null);
+          this.backendStatus.set(typeof navigator !== 'undefined' && navigator.onLine === false ? 'cached' : 'live');
           this.backendProgress.set(null);
           this.backendError.set(null);
+        }
+      }
+
+      if (!this.isCustomDataset()) {
+        const savedCustom = await this.offlineCache.getCustomDataset();
+        if (savedCustom) {
+          this.importHotspotFile(savedCustom.filename, savedCustom.rawText, false);
         }
       }
 

@@ -217,6 +217,7 @@ export interface Dict {
   burningCalendarTitle: string;
   calendarMonthly: string;
   calendarDaily: string;
+  calendarOneYearOpenHint: string;
   calendarNoData: string;
   calendarHoverPlaceholder: string;
   calendarLow: string;
@@ -255,6 +256,8 @@ export interface Dict {
   downloadPngBtn: string;
   recordsCountLabel: string;
   backendLiveLabel: string;
+  backendCachedLabel: string;
+  backendCachedTooltip: string;
   backendLoadingLabel: string;
   backendDownloadingLabel: string;
   backendAnalyzingLabel: string;

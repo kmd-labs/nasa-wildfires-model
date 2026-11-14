@@ -147,6 +147,11 @@
       color: #047857;
     }
 
+    &--cached {
+      background: rgba(217, 119, 6, 0.14);
+      color: #b45309;
+    }
+
     &--sync {
       background: color("accent-glow-soft");
       color: color("accent");
@@ -347,17 +352,6 @@
     font-size: 10px;
     font-weight: font-weight("semibold");
     color: color("text-dim");
-  }
-
-  &__dataset-used {
-    margin-left: auto;
-    font-size: 10px;
-    color: color("text-dim");
-
-    b {
-      font-family: var(--font-family-mono);
-      color: color("accent");
-    }
   }
 
   &__coords {
@@ -860,6 +854,71 @@
     margin: 2px 0 0;
     font-size: font-size("xxs");
     color: color("text-dim");
+  }
+}
+
+.calendar-year-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.calendar-year-accordion {
+  border-radius: radius("sm");
+  border: 1px solid color("line");
+  background: rgba(255, 255, 255, 0.55);
+  overflow: hidden;
+
+  &--open {
+    background: rgba(255, 255, 255, 0.85);
+    border-color: color("line-strong");
+  }
+
+  &__trigger {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border: none;
+    background: transparent;
+    color: color("text-bright");
+    font: inherit;
+    font-size: font-size("xs");
+    cursor: pointer;
+    text-align: left;
+    transition: background transition("fast");
+
+    &:hover:not(&--locked) {
+      background: color("btn-hover");
+    }
+
+    &--locked {
+      cursor: default;
+    }
+
+    lucide-icon {
+      margin-left: auto;
+      color: color("text-dim");
+    }
+  }
+
+  &__year {
+    font-family: var(--font-family-mono);
+    font-weight: font-weight("bold");
+    color: color("text-bright");
+  }
+
+  &__count {
+    font-family: var(--font-family-mono);
+    font-size: 10px;
+    font-weight: font-weight("medium");
+    color: color("text-dim");
+  }
+
+  .svg-wrap {
+    padding: 4px 8px 6px;
+    border-top: 1px dashed color("line");
   }
 }
 
