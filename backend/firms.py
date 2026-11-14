@@ -38,7 +38,7 @@ import h3
 import pandas as pd
 import requests
 
-from . import harmonization as hz
+from .harmonization_select import hz
 
 REPO = Path(__file__).resolve().parents[1]
 FIRMS_URL = os.getenv("FIRMS_URL", "https://firms.modaps.eosdis.nasa.gov")

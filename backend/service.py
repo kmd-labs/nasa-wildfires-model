@@ -8,7 +8,7 @@ import h3
 import numpy as np
 import pandas as pd
 
-from . import harmonization as hz
+from .harmonization_select import hz
 from .firms import FirmsClient, FirmsError, Region, RegionStore
 
 ATTRIBUTION = ("We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management "
@@ -137,6 +137,8 @@ class CalendarService:
         out = {"cube": cube, "harmonized": harmonized, "sd": sd, "calibration": calibration, "h3Resolution": res,
                "validation": hz.validate(cube) if len(cube.cells) else None, "availability": avail,
                "df": df[["date", "acq_date", "frp", "platform"]].copy()}
+        if hasattr(hz, "extras"):  # v3: weight per detection and the small-fire layer
+            out.update(hz.extras(cube, eff, df))
         with self._lock:
             if len(self._results) > 32:
                 self._results.pop(next(iter(self._results)))
@@ -158,6 +160,16 @@ class CalendarService:
         sd = np.where(empty, np.nan, np.sqrt(np.nansum(h["sd"] ** 2, axis=0)))
         complete = cube.observed >= 0.999
         z, pct, clim_mean, clim_std = hz.calendar_stats(total, cube.cal_month, complete)
+        lo90, hi90 = np.maximum(total - 1.645 * sd, 0), total + 1.645 * sd
+        extra_series = {}
+        if hasattr(hz, "median_stats"):  # v3: leave-one-out median of the same calendar month
+            ms = hz.median_stats(total, cube.cal_month, complete, lo90, hi90)
+            extra_series.update({"otherYearsMedian": _clean(ms["otherYearsMedian"], 1), "pctOfMedian": _clean(ms["pctOfMedian"], 1),
+                                 "withinNormal": _clean(ms["withinNormal"], 0)})
+        if "smallFires" in h:  # v3: small fires per VIIRS satellite, the explanatory layer (not in the count)
+            small_total = np.nansum(h["smallFires"], axis=0) if len(cube.cells) else np.full(len(cube.months), np.nan)
+            no_viirs = np.isnan(h["smallFires"]).all(axis=0) if len(cube.cells) else np.ones(len(cube.months), dtype=bool)
+            extra_series["smallFiresPerViirsSatellite"] = _clean(np.where(no_viirs, np.nan, small_total), 1)
         years = sorted(set(cube.years.tolist()))
 
         # selected period: whole months between the two dates
@@ -245,8 +257,8 @@ class CalendarService:
             "series": {
                 "rawModis": _clean(modis, 0), "rawViirs": _clean(viirs, 0), "naiveSum": _clean(modis + viirs, 0),
                 "harmonized": _clean(total, 1),
-                "harmonizedLo90": _clean(np.maximum(total - 1.645 * sd, 0), 1), "harmonizedHi90": _clean(total + 1.645 * sd, 1),
-                "anomalyZ": _clean(z), "percentile": _clean(pct, 1),
+                "harmonizedLo90": _clean(lo90, 1), "harmonizedHi90": _clean(hi90, 1),
+                "anomalyZ": _clean(z), "percentile": _clean(pct, 1), **extra_series,
             },
             "calendar": {  # year x month matrix of harmonized hot spots, ready for the heat map
                 "years": years,
@@ -294,4 +306,9 @@ class CalendarService:
         out = df.loc[keep, [c for c in CSV_COLUMNS if c in df]].copy()
         out["platform"] = df.platform[keep]
         out["used_in_calendar"] = df.qa_pass[keep]
+        if hasattr(hz, "extras"):  # v3: MODIS-equivalent weight (sums to the calendar) and small-fire flag
+            h = self._harmonized(region, bbox)
+            out["weight"] = h["weights"].reindex(out.index).fillna(0.0).round(5)
+            if "small" in df:
+                out["small_fire"] = df.small[keep]
         return out.sort_values(["acq_date", "acq_time"]).to_csv(index=False)

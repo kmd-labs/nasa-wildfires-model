@@ -93,3 +93,7 @@ dowolnym hostingu), a aplikacja musi znać jego adres. Cache powinien leżeć na
 - Krótkie przerwy w pracy satelity wewnątrz miesiąca nie są modelowane.
 - Przedział 90 % zakłada rozkład Poissona i znane efektywności, więc jest dolnym ograniczeniem niepewności.
 - BBOX większy niż 400 stopni kwadratowych jest odrzucany.
+
+## Harmonization version
+
+`HARMONIZATION=v1|v2|v3` picks the module (default `v1`). v3 counts exactly like v2 and adds the small-fire layer, a weight per hot spot (`weight` column in the CSV), median stats and calibrated intervals; see [`docs/harmonization.md`](../docs/harmonization.md).
