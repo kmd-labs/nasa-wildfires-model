@@ -7,6 +7,7 @@ import {
   Database,
   Upload,
   BoxSelect,
+  Check,
   X
 } from 'lucide-angular';
 import {
@@ -68,6 +69,7 @@ export class AppComponent {
   readonly databaseIcon = Database;
   readonly uploadIcon = Upload;
   readonly boxSelectIcon = BoxSelect;
+  readonly checkIcon = Check;
   readonly closeIcon = X;
 
   constructor() {

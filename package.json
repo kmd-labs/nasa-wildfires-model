@@ -5,6 +5,7 @@
     "ng": "ng",
     "start": "ng serve",
     "start-devcontainer": "ng serve --host 0.0.0.0",
+    "dev": "trap 'kill $BE 2>/dev/null || true' EXIT INT TERM; .venv/bin/python -m backend serve --host 0.0.0.0 --port 8000 & BE=$!; npm run start-devcontainer",
     "build": "ng build",
     "build:gh-pages": "ng build --base-href /nasa-wildfires-model/",
     "build:og": "node scripts/generate-og.mjs",

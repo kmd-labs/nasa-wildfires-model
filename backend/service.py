@@ -182,9 +182,13 @@ class CalendarService:
                 ["platform", "latitude", "longitude", "acq_date", "acq_time"]
             )
         mask = pd.Series(False, index=frame.index)
+        pad = 0.015  # include detections whose center lies just outside the bbox so boundary pixel squares clip cleanly
+        pad_mask = pd.Series(False, index=frame.index)
         for w, s, e, n in bboxes:
             mask |= frame.latitude.between(s, n) & frame.longitude.between(w, e)
+            pad_mask |= frame.latitude.between(s - pad, n + pad) & frame.longitude.between(w - pad, e + pad)
         df = frame[mask & frame.qa_pass]
+        pixel_df = frame[pad_mask & frame.qa_pass][["date", "latitude", "longitude", "frp", "platform"]].copy()
         avail = regions[0].availability()
         env = envelope_bbox(bboxes)
         res = hz.pick_h3_resolution(env)
@@ -193,7 +197,7 @@ class CalendarService:
         harmonized, sd = hz.harmonize(cube, eff, regional)
         out = {"cube": cube, "harmonized": harmonized, "sd": sd, "calibration": calibration, "h3Resolution": res,
                "validation": hz.validate(cube) if len(cube.cells) else None, "availability": avail,
-               "df": df[["date", "acq_date", "frp", "platform"]].copy()}
+               "df": df[["date", "acq_date", "frp", "platform"]].copy(), "pixel_df": pixel_df}
         if hasattr(hz, "extras"):  # v3: weight per detection and the small-fire layer
             out.update(hz.extras(cube, eff, df))
         with self._lock:
@@ -355,6 +359,31 @@ class CalendarService:
                         "baselineAvg": round(float(base_avg_map.get(mmdd, 0.0)), 2),
                     })
 
+        pixel_df = h["pixel_df"]
+        pixel_win = pixel_df[(pixel_df.date >= first) & (pixel_df.date <= last)]
+        pixels = []
+        if len(pixel_win):
+            for sensor_name, plat_tuple in (("VIIRS", hz.VIIRS), ("MODIS", hz.MODIS)):
+                sub = pixel_win[pixel_win.platform.isin(plat_tuple)]
+                if not len(sub):
+                    continue
+                grp = pd.DataFrame({
+                    "lat": sub.latitude.round(4),
+                    "lon": sub.longitude.round(4),
+                    "frp": sub.frp.fillna(0.0),
+                    "n": 1,
+                }).groupby(["lat", "lon"], as_index=False).sum()
+                if len(grp) > 2500:
+                    grp = grp.nlargest(2500, "frp")
+                for row in grp.itertuples(index=False):
+                    pixels.append({
+                        "lon": float(row.lon),
+                        "lat": float(row.lat),
+                        "sensor": sensor_name,
+                        "count": int(row.n),
+                        "frpMw": round(float(row.frp), 1),
+                    })
+
         job = self._job(region)
         return {
             "metadata": {
@@ -403,6 +432,7 @@ class CalendarService:
                     "top5": sorted(({"year": y, "harmonized": round(v, 1)} for y, v in same_window.items()), key=lambda r: -r["harmonized"])[:5],
                 },
                 "cells": cells,
+                "pixels": pixels,
             },
             "validation": h["validation"],
             "seamTest": self._seam_tests(bboxes, h, tot),

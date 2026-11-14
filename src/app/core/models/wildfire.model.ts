@@ -18,6 +18,7 @@ export interface PredefinedCountry {
 }
 export type ColorRampId = 'okabeIto' | 'cividis' | 'viridis' | 'ylOrRd';
 export type HotspotSensor = 'MODIS' | 'VIIRS' | 'HARMONIZED';
+export type ActiveFireDataset = 'VIIRS' | 'MODIS';
 export type CalendarGranularity = 'daily' | 'monthly';
 
 export interface HarmonizedHotspotRecord {
@@ -87,6 +88,8 @@ export interface HotspotAnalyticsSummary {
   anomalyZScore: number;
   areaKm2: number;
   areaHa: number;
+  activeDataset: ActiveFireDataset;
+  activeDatasetFires: number;
 }
 
 export interface WildfireAoi {
@@ -245,6 +248,14 @@ export interface BackendH3Cell {
   rawViirs: number;
 }
 
+export interface BackendPixelDetection {
+  lon: number;
+  lat: number;
+  sensor: ActiveFireDataset;
+  count: number;
+  frpMw: number;
+}
+
 export interface BackendYearlyRow {
   year: number;
   rawModis: number;
@@ -322,6 +333,7 @@ export interface BackendCalendarPayload {
       top5: { year: number; harmonized: number }[];
     };
     cells: BackendH3Cell[];
+    pixels?: BackendPixelDetection[];
   };
   validation: Record<string, unknown> | null;
 }

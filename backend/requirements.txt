@@ -6,7 +6,8 @@ numpy
 pandas
 h3
 python-dotenv
-pyhdf          # burned area (MCD64A1 / VNP64A1 HDF4 tiles)
+# optional (needs system libhdf4-dev / gcc; only used by /api/burned-area):
+# pyhdf
 # tests only
 pytest
 httpx

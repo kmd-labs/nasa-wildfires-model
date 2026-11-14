@@ -1,5 +1,6 @@
 import { Injectable, computed, effect, inject, untracked } from '@angular/core';
 import {
+  ActiveFireDataset,
   BackendDailyBucket,
   BoundingBox,
   BurningCalendarCell,
@@ -21,6 +22,16 @@ export interface BurningCalendarModel {
   cells: BurningCalendarCell[];
   maxCount: number;
   maxFrp: number;
+}
+
+export interface GlobePixelSquare {
+  lon: number;
+  lat: number;
+  sensor: ActiveFireDataset;
+  sizeMeters: number;
+  count: number;
+  frpMw: number;
+  normIntensity: number;
 }
 
 @Injectable({
@@ -61,8 +72,15 @@ export class HotspotAnalyticsService {
     () => !this.data.isCustomDataset() && this.data.backendCalendar() !== null
   );
 
-  /** Backend already clips all cells and series directly to the active bounding box. */
-  private readonly backendSpatialRatio = computed<number>(() => 1);
+  /** Spatial ratio when the accepted polygon is edited (4+ edges) inside the bbox envelope. */
+  private readonly backendSpatialRatio = computed<number>(() => {
+    const bbox = this.state.regionBbox();
+    const poly = this.state.regionPolygon();
+    if (!bbox || !poly || poly.length < 3) return 1;
+    const envArea = Math.max(1, this.computeBboxArea(bbox).km2);
+    const polyArea = this.bboxArea().km2;
+    return Math.max(0.05, Math.min(1, polyArea / envArea));
+  });
 
   /** All hotspot records inside the selected region bounding box (for custom uploaded datasets). */
   readonly regionHotspots = computed<HarmonizedHotspotRecord[]>(() => {
@@ -100,6 +118,84 @@ export class HotspotAnalyticsService {
     const start = this.state.dateStart();
     const end = this.state.dateEnd();
     return this.regionHotspots().filter(r => r.date >= start && r.date <= end);
+  });
+
+  /**
+   * Pixel squares for the active dataset (VIIRS 375 m or MODIS 1 km) including boundary pixels
+   * whose center may lie just outside the polygon so the globe clips them accurately.
+   */
+  readonly globePixelSquares = computed<GlobePixelSquare[]>(() => {
+    const dataset = this.state.activeDataset();
+    const sizeMeters = dataset === 'VIIRS' ? 375 : 1000;
+    const bbox = this.state.regionBbox();
+    if (!bbox) return [];
+
+    if (!this.data.isCustomDataset()) {
+      const backend = this.data.backendCalendar();
+      if (!backend) return [];
+      const rawPixels = backend.selection.pixels;
+      if (rawPixels && rawPixels.length > 0) {
+        const filtered = rawPixels.filter(p => p.sensor === dataset);
+        if (filtered.length === 0) return [];
+        const maxVal = Math.max(1, ...filtered.map(p => (p.frpMw > 0 ? p.frpMw : p.count)));
+        return filtered.map(p => {
+          const val = p.frpMw > 0 ? p.frpMw : p.count;
+          return {
+            lon: p.lon,
+            lat: p.lat,
+            sensor: dataset,
+            sizeMeters,
+            count: p.count,
+            frpMw: p.frpMw,
+            normIntensity: Math.min(1, Math.pow(val / maxVal, 0.58))
+          };
+        });
+      }
+      // Fallback if backend payload has no pixels array
+      const cells = backend.selection.cells.filter(c =>
+        dataset === 'VIIRS' ? c.rawViirs > 0 : c.rawModis > 0
+      );
+      if (cells.length === 0) return [];
+      const maxVal = Math.max(1, ...cells.map(c => (dataset === 'VIIRS' ? c.rawViirs : c.rawModis)));
+      return cells.map(c => {
+        const count = dataset === 'VIIRS' ? c.rawViirs : c.rawModis;
+        return {
+          lon: c.lon,
+          lat: c.lat,
+          sensor: dataset,
+          sizeMeters,
+          count,
+          frpMw: 0,
+          normIntensity: Math.min(1, Math.pow(count / maxVal, 0.58))
+        };
+      });
+    }
+
+    const start = this.state.dateStart();
+    const end = this.state.dateEnd();
+    const pad = 0.015;
+    const [w, s, e, n] = bbox;
+    const matching = this.data.hotspots().filter(r => {
+      if (r.date < start || r.date > end) return false;
+      if (r.lon < w - pad || r.lon > e + pad || r.lat < s - pad || r.lat > n + pad) return false;
+      if (dataset === 'VIIRS') return r.rawViirsCount > 0 || r.sensor === 'VIIRS' || r.sensor === 'HARMONIZED';
+      return r.rawModisCount > 0 || r.sensor === 'MODIS' || r.sensor === 'HARMONIZED';
+    });
+    if (matching.length === 0) return [];
+    const maxVal = Math.max(1, ...matching.map(r => (r.frpMw > 0 ? r.frpMw : 1)));
+    return matching.map(r => {
+      const count = dataset === 'VIIRS' ? (r.rawViirsCount || 1) : (r.rawModisCount || 1);
+      const val = r.frpMw > 0 ? r.frpMw : count;
+      return {
+        lon: r.lon,
+        lat: r.lat,
+        sensor: dataset,
+        sizeMeters,
+        count,
+        frpMw: r.frpMw,
+        normIntensity: Math.min(1, Math.pow(val / maxVal, 0.58))
+      };
+    });
   });
 
   /** Approximate MultiPolygon area in km² and hectares using spherical latitude cosine. */
@@ -268,6 +364,7 @@ export class HotspotAnalyticsService {
       const anomalyZScore = Number(((avgPerSelectedYear - singleYearAvg) / std).toFixed(2));
       const anomalyPct = expectedTotal > 0 ? Number((((harm - expectedTotal) / expectedTotal) * 100).toFixed(1)) : 0;
 
+      const activeDataset = this.state.activeDataset();
       return {
         totalRecords: modis + viirs,
         harmonizedFires: harm,
@@ -282,7 +379,9 @@ export class HotspotAnalyticsService {
         anomalyPct,
         anomalyZScore,
         areaKm2: area.km2,
-        areaHa: area.ha
+        areaHa: area.ha,
+        activeDataset,
+        activeDatasetFires: activeDataset === 'VIIRS' ? viirs : modis
       };
     }
 
@@ -325,6 +424,7 @@ export class HotspotAnalyticsService {
     const anomalyZScore = Number(((avgPerSelectedYear - meanSingle) / std).toFixed(2));
     const anomalyPct = expectedTotal > 0 ? Number((((harm - expectedTotal) / expectedTotal) * 100).toFixed(1)) : 0;
 
+    const activeDataset = this.state.activeDataset();
     return {
       totalRecords: records.length,
       harmonizedFires: harm,
@@ -339,7 +439,9 @@ export class HotspotAnalyticsService {
       anomalyPct,
       anomalyZScore,
       areaKm2: area.km2,
-      areaHa: area.ha
+      areaHa: area.ha,
+      activeDataset,
+      activeDatasetFires: activeDataset === 'VIIRS' ? viirs : modis
     };
   });
 
@@ -780,7 +882,9 @@ export class HotspotAnalyticsService {
       datasetSource: this.data.isCustomDataset()
         ? this.data.hotspotDatasetName()
         : 'NASA FIRMS MODIS (MCD14ML) + VIIRS (VNP14IMGML) Quantile Harmonized',
+      activeDataset: this.state.activeDataset(),
       regionBbox: this.state.regionBbox(),
+      regionPolygon: this.state.regionPolygon(),
       dateRange: {
         start: this.state.dateStart(),
         end: this.state.dateEnd()

@@ -308,6 +308,27 @@
     white-space: nowrap;
   }
 
+  &__accept {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 24px;
+    padding: 0 10px;
+    border: none;
+    border-radius: radius("pill");
+    background: color("accent");
+    color: #ffffff;
+    font: inherit;
+    font-size: font-size("xxs");
+    font-weight: font-weight("semibold");
+    cursor: pointer;
+    white-space: nowrap;
+
+    &:hover {
+      filter: brightness(0.94);
+    }
+  }
+
   &__cancel {
     display: inline-flex;
     align-items: center;

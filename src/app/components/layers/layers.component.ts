@@ -56,6 +56,19 @@ export class LayersComponent {
             setChecked: (v) => this.state.showRegionBbox.set(v)
           }
         ]
+      },
+      {
+        id: 'base',
+        title: t.layersSectionBase,
+        items: [
+          {
+            id: 'ortho',
+            label: t.layerLandOrtho,
+            swatch: '#2f6f4e',
+            checked: this.state.showLandOrtho(),
+            setChecked: (v) => this.state.showLandOrtho.set(v)
+          }
+        ]
       }
     ];
   });

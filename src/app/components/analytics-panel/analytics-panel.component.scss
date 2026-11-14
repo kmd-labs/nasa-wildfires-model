@@ -141,6 +141,11 @@
       background: rgba(220, 38, 38, 0.12);
       color: #b91c1c;
     }
+
+    &--dataset {
+      background: color("info-soft");
+      color: color("info-700");
+    }
   }
 
   &__header-actions {
@@ -189,6 +194,32 @@
     border-top: 1px dashed color("line");
   }
 
+  &__dataset {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-top: 6px;
+    border-top: 1px dashed color("line");
+  }
+
+  &__dataset-label {
+    font-size: 10px;
+    font-weight: font-weight("semibold");
+    color: color("text-dim");
+  }
+
+  &__dataset-used {
+    margin-left: auto;
+    font-size: 10px;
+    color: color("text-dim");
+
+    b {
+      font-family: var(--font-family-mono);
+      color: color("accent");
+    }
+  }
+
   &__coords {
     display: flex;
     flex-direction: column;
@@ -204,6 +235,12 @@
     border-radius: radius("pill");
     background: color("btn-bg");
     border: 1px solid color("line");
+
+    &--draft {
+      background: color("info-soft");
+      border-color: color("info-600");
+      color: color("info-700");
+    }
   }
 
   &__clear {
@@ -512,6 +549,28 @@
   }
 }
 
+.accept-bbox-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 11px;
+  border-radius: radius("pill");
+  border: none;
+  background: color("accent");
+  color: #ffffff;
+  font: inherit;
+  font-size: font-size("xxs");
+  font-weight: font-weight("semibold");
+  cursor: pointer;
+  white-space: nowrap;
+  transition: filter transition("fast");
+
+  &:hover {
+    filter: brightness(0.94);
+  }
+}
+
 .inline-date {
   display: inline-flex;
   align-items: center;
@@ -709,6 +768,11 @@
       color: color("text-bright");
       font-weight: font-weight("semibold");
       box-shadow: 0 1px 3px color("shadow-panel");
+    }
+
+    &--disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
     }
   }
 }

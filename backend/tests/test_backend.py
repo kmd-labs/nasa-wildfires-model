@@ -203,6 +203,8 @@ def test_download_and_seed_give_the_same_calendar(fake, frozen_today, tmp_path):
     # whereas the small bbox download sees too few detections per day to detect outages.
     assert np.allclose(np.array(a["series"]["harmonized"], dtype=float), np.array(b["series"]["harmonized"], dtype=float), rtol=0.25, atol=2.0, equal_nan=True)
     assert a["selection"]["hotspots"]["rawModis"] > 0
+    assert any(p["sensor"] == "MODIS" for p in a["selection"]["pixels"])
+    assert any(p["sensor"] == "VIIRS" for p in a["selection"]["pixels"])
     assert a["selection"]["comparedWithSameMonthsInOtherYears"]["rank"] == b["selection"]["comparedWithSameMonthsInOtherYears"]["rank"]
     assert len(a["calendar"]["harmonized"]) == len(a["calendar"]["years"]) and len(a["calendar"]["harmonized"][0]) == 12
 
