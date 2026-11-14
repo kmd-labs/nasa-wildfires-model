@@ -386,7 +386,7 @@ class CalendarService:
         out["platform"] = df.platform[keep]
         out["used_in_calendar"] = df.qa_pass[keep]
         if hasattr(hz, "extras") and len(regions) == 1:  # v3: MODIS-equivalent weight (sums to the calendar) and small-fire flag
-            h = self._harmonized(regions[0], bboxes[0])
+            h = self._harmonized(regions, bboxes)
             out["weight"] = h["weights"].reindex(out.index).fillna(0.0).round(5)
             if "small" in df:
                 out["small_fire"] = df.small[keep]
