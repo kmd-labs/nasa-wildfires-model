@@ -20,6 +20,8 @@ export interface Dict {
   // Top HUD & Navigation
   changeLanguage: string;
   chooseView: string;
+  mapMode2d: string;
+  mapModeGlobe: string;
   viewAnalytics: string;
   viewInertia: string;
   viewSpread: string;
@@ -117,6 +119,8 @@ export interface Dict {
   drawBboxShiftHint: string;
   polygonEdgesLabel: string;
   acceptAndCalculateBtn: string;
+  recalculatePrompt: string;
+  recalculateBtn: string;
   calculateBboxBtn: string;
   draftPendingDesc: string;
   datasetLabel: string;

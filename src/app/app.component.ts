@@ -3,12 +3,12 @@ import { CommonModule } from '@angular/common';
 import {
   LucideAngularModule,
   Globe,
+  Map as MapIcon,
   BookOpen,
   Database,
   Upload,
   BoxSelect,
-  Check,
-  X
+  Check
 } from 'lucide-angular';
 import {
   BrandComponent,
@@ -20,16 +20,20 @@ import {
   SplashComponent,
   SplashService,
   AboutService,
+  SwitcherComponent,
+  SwitcherOption,
   TooltipComponent,
   BreakpointService,
   SeoService
 } from '@kmd/design-system';
 import { I18nService } from './core/i18n/i18n.service';
 import { Lang } from './core/i18n/i18n.types';
+import { MapRenderMode } from './core/models/wildfire.model';
 import { WildfireStateService } from './core/services/wildfire-state.service';
 import { WildfireDataService } from './core/services/wildfire-data.service';
 import { HotspotAnalyticsService } from './core/services/hotspot-analytics.service';
 import { GlobeComponent } from './components/globe/globe.component';
+import { Map2dComponent } from './components/map2d/map2d.component';
 import { GlossaryComponent } from './components/glossary/glossary.component';
 import { SourcesPopupComponent } from './components/sources-popup/sources-popup.component';
 import { DataPopupComponent } from './components/data-popup/data-popup.component';
@@ -46,8 +50,10 @@ import { AnalyticsPanelComponent } from './components/analytics-panel/analytics-
     DropdownComponent,
     PopupComponent,
     SplashComponent,
+    SwitcherComponent,
     TooltipComponent,
     GlobeComponent,
+    Map2dComponent,
     AnalyticsPanelComponent
   ],
   templateUrl: './app.component.html',
@@ -65,12 +71,12 @@ export class AppComponent {
   readonly analytics = inject(HotspotAnalyticsService);
 
   readonly globeIcon = Globe;
+  readonly mapIcon = MapIcon;
   readonly bookOpenIcon = BookOpen;
   readonly databaseIcon = Database;
   readonly uploadIcon = Upload;
   readonly boxSelectIcon = BoxSelect;
   readonly checkIcon = Check;
-  readonly closeIcon = X;
 
   constructor() {
     this.seo.update({
@@ -88,6 +94,14 @@ export class AppComponent {
       badge: l.toUpperCase()
     }))
   );
+
+  readonly mapModeOptions = computed<SwitcherOption<MapRenderMode>[]>(() => {
+    const t = this.i18n.t();
+    return [
+      { value: '2d', label: t.mapMode2d, shortLabel: '2D', icon: this.mapIcon },
+      { value: 'globe', label: t.mapModeGlobe, shortLabel: '3D', icon: this.globeIcon }
+    ];
+  });
 
   readonly isPopupOpen = computed(() => this.popup.config() !== null);
 

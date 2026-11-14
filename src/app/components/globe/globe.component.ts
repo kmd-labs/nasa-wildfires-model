@@ -22,70 +22,7 @@ import { ColorRampService } from '../../core/services/color-ramp.service';
 import { GlobePixelSquare, HotspotAnalyticsService } from '../../core/services/hotspot-analytics.service';
 import { GlobeTileService } from '../../core/services/globe-tile.service';
 import { BoundingBox, ColorRampId, MultiPolygonCoords, PolygonCoords, PolygonRing } from '../../core/models/wildfire.model';
-
-type LonLat = [number, number];
-
-function cross2d(a: LonLat, b: LonLat, p: LonLat): number {
-  return (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]);
-}
-
-function intersectSegments(p1: LonLat, p2: LonLat, a: LonLat, b: LonLat): LonLat {
-  const dcX = a[0] - b[0];
-  const dcY = a[1] - b[1];
-  const dpX = p1[0] - p2[0];
-  const dpY = p1[1] - p2[1];
-  const n1 = a[0] * b[1] - a[1] * b[0];
-  const n2 = p1[0] * p2[1] - p1[1] * p2[0];
-  const denom = dcX * dpY - dcY * dpX;
-  if (Math.abs(denom) < 1e-12) return p1;
-  return [(n1 * dpX - n2 * dcX) / denom, (n1 * dpY - n2 * dcY) / denom];
-}
-
-/** Sutherland-Hodgman polygon clip against a single triangle (ensured CCW). */
-function clipPolygonToTriangle(subject: LonLat[], tri: [LonLat, LonLat, LonLat]): LonLat[] {
-  const [t0, t1, t2] = tri;
-  const clipEdges: [LonLat, LonLat][] =
-    cross2d(t0, t1, t2) >= 0
-      ? [[t0, t1], [t1, t2], [t2, t0]]
-      : [[t0, t2], [t2, t1], [t1, t0]];
-
-  let output = subject;
-  for (const [edgeA, edgeB] of clipEdges) {
-    if (output.length === 0) return [];
-    const input = output;
-    output = [];
-    let prev = input[input.length - 1];
-    let prevIn = cross2d(edgeA, edgeB, prev) >= -1e-11;
-    for (const curr of input) {
-      const currIn = cross2d(edgeA, edgeB, curr) >= -1e-11;
-      if (currIn) {
-        if (!prevIn) output.push(intersectSegments(prev, curr, edgeA, edgeB));
-        output.push(curr);
-      } else if (prevIn) {
-        output.push(intersectSegments(prev, curr, edgeA, edgeB));
-      }
-      prev = curr;
-      prevIn = currIn;
-    }
-  }
-  return output;
-}
-
-function distToSegmentDeg(p: LonLat, a: LonLat, b: LonLat): number {
-  const cosLat = Math.max(0.15, Math.cos((p[1] * Math.PI) / 180));
-  const px = p[0] * cosLat;
-  const py = p[1];
-  const ax = a[0] * cosLat;
-  const ay = a[1];
-  const bx = b[0] * cosLat;
-  const by = b[1];
-  const dx = bx - ax;
-  const dy = by - ay;
-  const lenSq = dx * dx + dy * dy;
-  if (lenSq < 1e-12) return Math.hypot(px - ax, py - ay);
-  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq));
-  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
-}
+import { LonLat, ScreenPt, clipPolygonToTriangle, findNearestEdgePx, findNearestVertexPx } from '../../core/utils/polygon-clip';
 
 @Component({
   selector: 'app-globe',
@@ -117,6 +54,10 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
   // OpenStreetMap + Satellite orthophoto tile basemaps and wildfire overlay groups
   private readonly osmTileGroup = new THREE.Group();
   private readonly satTileGroup = new THREE.Group();
+  private readonly bordersGroup = new THREE.Group();
+  private bordersLoading = false;
+  private bordersLoaded = false;
+  private isDestroyed = false;
   private lastTileSyncTime = 0;
   private lastTileZoom = -1;
   private lastTileKey = '';
@@ -153,13 +94,19 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
   private readonly pv = new THREE.Vector3();
 
   constructor() {
-    // React to orthophoto map layer toggle immediately
+    // React to orthophoto map and administrative borders toggles
     effect(() => {
       const showOrtho = this.state.showLandOrtho();
+      const showBorders = showOrtho && this.state.showBorders();
       if (this.scene) {
-        untracked(() => this.syncSlippyTiles(true));
+        untracked(() => {
+          this.bordersGroup.visible = showBorders;
+          if (showBorders && !this.bordersLoaded && !this.bordersLoading) {
+            void this.loadBordersLayer();
+          }
+          this.syncSlippyTiles(true);
+        });
       }
-      void showOrtho;
     });
 
     // React to view mode or camera focus preset changes
@@ -239,8 +186,10 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    this.isDestroyed = true;
     if (this.animId !== null) cancelAnimationFrame(this.animId);
     window.removeEventListener('resize', this.onResize);
+    this.clearGroup(this.bordersGroup);
     this.controls?.dispose();
     this.renderer?.dispose();
     this.tiles.disposeAll();
@@ -434,6 +383,12 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
 
     this.scene.add(this.osmTileGroup);
     this.scene.add(this.satTileGroup);
+    this.scene.add(this.bordersGroup);
+    const showBorders = this.state.showLandOrtho() && this.state.showBorders();
+    this.bordersGroup.visible = showBorders;
+    if (showBorders && !this.bordersLoaded && !this.bordersLoading) {
+      void this.loadBordersLayer();
+    }
     this.syncSlippyTiles(true);
     this.ngZone.run(() => this.state.mapLoaded.set(true));
   }
@@ -628,14 +583,14 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
       }
     }
 
-    // 3. Vertex anchor dots (all 4, 5, 6+ vertices) + edge midpoint cues for splitting edges
+    // 3. Vertex anchor dots + edge midpoint cues (unit circles scaled to constant CSS pixel size)
     if (outerPts.length >= 3 && holesPts.length === 0) {
-      const dotGeo = new THREE.CircleGeometry(0.044, 16);
+      const dotGeo = new THREE.CircleGeometry(1, 16);
       const dotMat = new THREE.MeshBasicMaterial({
         color: edgeColor,
         side: THREE.DoubleSide
       });
-      const midGeo = new THREE.CircleGeometry(0.025, 12);
+      const midGeo = new THREE.CircleGeometry(1, 12);
       const midMat = new THREE.MeshBasicMaterial({
         color: 0xffffff,
         side: THREE.DoubleSide,
@@ -648,6 +603,7 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
         const dot = new THREE.Mesh(dotGeo, dotMat);
         dot.position.copy(cp);
         dot.lookAt(cp.clone().multiplyScalar(2));
+        dot.userData['handlePx'] = 4;
         dot.renderOrder = 42;
         this.bboxGroup.add(dot);
 
@@ -656,9 +612,11 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
         const midDot = new THREE.Mesh(midGeo, midMat);
         midDot.position.copy(mp);
         midDot.lookAt(mp.clone().multiplyScalar(2));
+        midDot.userData['handlePx'] = 2.8;
         midDot.renderOrder = 42;
         this.bboxGroup.add(midDot);
       }
+      this.updateBboxHandleScales();
     }
   }
 
@@ -698,9 +656,8 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
     const vTmp = this.pv;
 
     for (const sq of ordered) {
-      const halfLat = (sq.sizeMeters * 0.5) / 110574;
-      const cosLat = Math.max(0.1, Math.cos((sq.lat * Math.PI) / 180));
-      const halfLon = (sq.sizeMeters * 0.5) / (111320 * cosLat);
+      const halfLat = sq.halfLat;
+      const halfLon = sq.halfLon;
       const minLon = sq.lon - halfLon;
       const maxLon = sq.lon + halfLon;
       const minLat = sq.lat - halfLat;
@@ -716,7 +673,8 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
       const cr = r8 / 255;
       const cg = g8 / 255;
       const cb = b8 / 255;
-      const rSurf = R * (1.0025 + sq.normIntensity * 0.0004);
+      // Place pixels flush on top of the surface tiles rather than floating like clouds
+      const rSurf = R * 1.00125;
 
       for (const tri of polyTris) {
         if (maxLon < tri.minLon || minLon > tri.maxLon || maxLat < tri.minLat || minLat > tri.maxLat) {
@@ -751,7 +709,10 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
       side: THREE.DoubleSide,
       transparent: true,
       opacity: 0.88,
-      depthWrite: false
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -4,
+      polygonOffsetUnits: -4
     });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.renderOrder = 45;
@@ -803,39 +764,18 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
           });
         } else {
           const activePoly = this.state.draftPolygon() ?? this.state.regionPolygon();
-          const alt = Math.max(0.04, this.camera.position.length() - this.math.R);
-          const vertexTol = Math.max(0.03, alt * 0.14);
-          const edgeTol = Math.max(0.025, alt * 0.1);
-
-          let hitVertexIdx = -1;
-          if (activePoly && activePoly.length >= 3) {
-            let bestDist = vertexTol;
-            const cosLat = Math.max(0.15, Math.cos((hitLonLat[1] * Math.PI) / 180));
-            for (let i = 0; i < activePoly.length; i++) {
-              const d = Math.hypot((activePoly[i][0] - hitLonLat[0]) * cosLat, activePoly[i][1] - hitLonLat[1]);
-              if (d <= bestDist) {
-                bestDist = d;
-                hitVertexIdx = i;
-              }
-            }
-          }
+          const rect = this.canvasRef.nativeElement.getBoundingClientRect();
+          const px = ev.clientX - rect.left;
+          const py = ev.clientY - rect.top;
+          const screenPts = activePoly && activePoly.length >= 3 ? this.projectPolyToScreenPx(activePoly) : [];
+          const hitVertexIdx = screenPts.length >= 3 ? findNearestVertexPx(px, py, screenPts) : -1;
 
           if (hitVertexIdx >= 0) {
             this.draggingVertexIdx = hitVertexIdx;
             this.controls.enabled = false;
             this.ngZone.run(() => this.state.updateDraftVertex(hitVertexIdx, hitLonLat));
-          } else if (activePoly && activePoly.length >= 3) {
-            let bestEdgeIdx = -1;
-            let bestEdgeDist = edgeTol;
-            for (let i = 0; i < activePoly.length; i++) {
-              const a = activePoly[i];
-              const b = activePoly[(i + 1) % activePoly.length];
-              const d = distToSegmentDeg(hitLonLat, a, b);
-              if (d <= bestEdgeDist) {
-                bestEdgeDist = d;
-                bestEdgeIdx = i;
-              }
-            }
+          } else if (screenPts.length >= 3) {
+            const bestEdgeIdx = findNearestEdgePx(px, py, screenPts);
             if (bestEdgeIdx >= 0) {
               this.controls.enabled = false;
               this.ngZone.run(() => {
@@ -993,8 +933,42 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
     this.syncSlippyTiles(false, now);
 
     this.controls.update();
+    this.updateBboxHandleScales();
     this.renderer.render(this.scene, this.camera);
   };
+
+  /** Keep 3D handle dots a constant small CSS pixel size across all camera zoom distances. */
+  private updateBboxHandleScales() {
+    if (!this.camera || !this.bboxGroup || this.bboxGroup.children.length === 0) return;
+    const h = Math.max(1, this.canvasHeight || window.innerHeight);
+    const halfTan = Math.tan((this.camera.fov * Math.PI) / 360);
+    for (const child of this.bboxGroup.children) {
+      const targetPx = child.userData?.['handlePx'] as number | undefined;
+      if (!targetPx) continue;
+      const dist = this.camera.position.distanceTo(child.position);
+      const pxToWorld = (2 * dist * halfTan) / h;
+      child.scale.setScalar(targetPx * pxToWorld);
+    }
+  }
+
+  /** Project ring vertices on the visible front hemisphere to CSS screen pixels. */
+  private projectPolyToScreenPx(poly: PolygonRing): (ScreenPt | null)[] {
+    if (!this.camera) return [];
+    const rect = this.canvasRef.nativeElement.getBoundingClientRect();
+    const w = rect.width || this.canvasWidth || window.innerWidth;
+    const h = rect.height || this.canvasHeight || window.innerHeight;
+    const r = this.math.R * 1.0023;
+    const rSq = r * r;
+    const camPos = this.camera.position;
+    this.camera.updateMatrixWorld();
+
+    return poly.map(([lon, lat]) => {
+      const world = this.math.pos(lon, lat, r, new THREE.Vector3());
+      if (world.dot(camPos) <= rSq) return null;
+      const projected = world.project(this.camera);
+      return [(projected.x * 0.5 + 0.5) * w, (-projected.y * 0.5 + 0.5) * h] as ScreenPt;
+    });
+  }
 
   private syncSlippyTiles(force: boolean, now = performance.now()) {
     if (!this.camera || !this.scene) return;
@@ -1057,5 +1031,97 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
         this.lastTileKey = '';
       }
     });
+  }
+
+  private async loadBordersLayer(): Promise<void> {
+    this.bordersLoading = true;
+    try {
+      const [statesResp, countriesResp] = await Promise.all([
+        fetch('assets/data/global-states-10m.json'),
+        fetch('assets/data/uk-land-10m.json')
+      ]);
+      if (this.isDestroyed) return;
+      const states10m = statesResp.ok ? await statesResp.json() : null;
+      const countriesGeo = countriesResp.ok ? await countriesResp.json() : null;
+      if (this.isDestroyed) return;
+
+      const R = this.math.R;
+      this.clearGroup(this.bordersGroup);
+      if (Array.isArray(states10m)) {
+        this.addPolyRingsToBordersGroup(states10m, R * 1.0015, 0xe2e8f0, 0.45, 36, 0.5);
+      }
+      if (countriesGeo) {
+        this.addPolyRingsToBordersGroup(
+          this.extractFeatureRings(countriesGeo),
+          R * 1.0016,
+          0xf8fafc,
+          0.72,
+          37,
+          0.35
+        );
+      }
+      this.bordersLoaded = true;
+    } catch {
+      // ignore vector border fetch failures
+    } finally {
+      this.bordersLoading = false;
+    }
+  }
+
+  private addPolyRingsToBordersGroup(
+    rings: [number, number][][],
+    radius: number,
+    color: number,
+    opacity: number,
+    renderOrder: number,
+    maxSegDeg: number
+  ) {
+    const pts: number[] = [];
+    const pPrev = new THREE.Vector3();
+    for (const ring of rings) {
+      for (let i = 0; i < ring.length - 1; i++) {
+        const [lon0, lat0] = ring[i];
+        const [lon1, lat1] = ring[i + 1];
+        if (Math.abs(lon1 - lon0) > 150) continue;
+        const dist = Math.hypot(lon1 - lon0, lat1 - lat0);
+        const steps = Math.max(1, Math.ceil(dist / maxSegDeg));
+        this.math.pos(lon0, lat0, radius, pPrev);
+        for (let s = 1; s <= steps; s++) {
+          const t = s / steps;
+          this.math.pos(lon0 + (lon1 - lon0) * t, lat0 + (lat1 - lat0) * t, radius, this.pv);
+          pts.push(pPrev.x, pPrev.y, pPrev.z, this.pv.x, this.pv.y, this.pv.z);
+          pPrev.copy(this.pv);
+        }
+      }
+    }
+    if (pts.length === 0) return;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+    const mat = new THREE.LineBasicMaterial({
+      color,
+      transparent: true,
+      opacity,
+      depthWrite: false
+    });
+    const lines = new THREE.LineSegments(geo, mat);
+    lines.renderOrder = renderOrder;
+    this.bordersGroup.add(lines);
+  }
+
+  private extractFeatureRings(geojson: any): [number, number][][] {
+    const rings: [number, number][][] = [];
+    const features = geojson?.type === 'FeatureCollection' ? geojson.features : [geojson];
+    for (const f of features ?? []) {
+      const g = f?.geometry ?? f;
+      if (!g) continue;
+      if (g.type === 'Polygon') {
+        for (const r of g.coordinates) rings.push(r);
+      } else if (g.type === 'MultiPolygon') {
+        for (const poly of g.coordinates) {
+          for (const r of poly) rings.push(r);
+        }
+      }
+    }
+    return rings;
   }
 }
