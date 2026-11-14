@@ -14,3 +14,6 @@ secrets/
 __pycache__/
 .ipynb_checkpoints/
 
+
+# Basemaps from scripts/data-pipeline/fetch_aoi_basemaps.py (ortho/DEM mosaics, often >100 MB)
+data/raw/aoi/
