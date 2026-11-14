@@ -1,0 +1,11 @@
+# Backend of the burning-activity calendar (python -m backend ...)
+fastapi
+uvicorn
+requests
+numpy
+pandas
+h3
+python-dotenv
+# tests only
+pytest
+httpx
