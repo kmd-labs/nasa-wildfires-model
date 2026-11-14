@@ -4,18 +4,25 @@
   <app-splash (revealed)="splash.finish()"></app-splash>
 
   <!-- Top HUD: Left Logotype + Language -->
-  <header class="header" [class.header--popup-open]="isPopupOpen()">
+  <header
+    class="header"
+    [class.header--popup-open]="isPopupOpen()"
+    [class.header--brand-hovered]="isMobileView() && !bp.mobileLandscape() && brandHovered()"
+    [class.header--mobile-landscape]="bp.mobileLandscape()">
     <div class="header__left">
       <app-brand
         [appName]="t.appName"
         [lang]="i18n.lang()"
-        (btnClick)="about.open({ lang: i18n.lang() })">
+        [expanded]="isMobileView() && !bp.mobile() ? (brandHovered() || isPopupOpen()) : undefined"
+        (mouseenter)="brandHovered.set(true)"
+        (mouseleave)="brandHovered.set(false)"
+        (btnClick)="brandHovered.set(false); about.open({ lang: i18n.lang() })">
       </app-brand>
 
       <div class="header__settings glass-panel" role="group" [attr.aria-label]="t.changeLanguage">
         <app-dropdown
           variant="ghost"
-          [icon]="bp.mobile() ? null : globeIcon"
+          [icon]="isMobileView() ? null : globeIcon"
           [options]="langOptions()"
           [value]="i18n.lang()"
           [ariaLabel]="t.changeLanguage"
@@ -25,17 +32,45 @@
     </div>
 
     <div class="header__right">
+      <!-- Bounding Box / Date Recalculation Prompt (left of Input & Download) -->
+      @if (showRecalculateBanner()) {
+        <div class="draw-banner glass-panel" role="status">
+          <lucide-icon [img]="boxSelectIcon" [size]="15" class="draw-banner__icon"></lucide-icon>
+          @if (state.isDrawingBbox() || state.liveDrawBbox()) {
+            <span class="draw-banner__text">{{ t.drawBboxActiveHint }}</span>
+          } @else {
+            <span class="draw-banner__text">{{ t.recalculatePrompt }}</span>
+            <button
+              type="button"
+              class="draw-banner__accept"
+              [disabled]="!state.canRecalculate()"
+              (click)="state.recalculateSelection()">
+              <lucide-icon [img]="checkIcon" [size]="13"></lucide-icon>
+              <span>{{ t.recalculateBtn }}</span>
+            </button>
+          }
+          <button
+            type="button"
+            class="draw-banner__close"
+            [title]="t.close"
+            [attr.aria-label]="t.close"
+            (click)="dismissDrawBanner()">
+            <lucide-icon [img]="closeIcon" [size]="13"></lucide-icon>
+          </button>
+        </div>
+      }
+
       <div class="header__action glass-panel">
         <app-button
           variant="ghost"
-          [size]="bp.mobile() ? 'sm' : 'md'"
-          [iconOnly]="bp.mobile()"
-          [ariaLabel]="t.tabInputExport"
-          [titleText]="bp.mobile() ? t.tabInputExport : null"
+          [size]="isMobileView() ? 'sm' : 'md'"
+          [iconOnly]="isMobileView()"
+          [ariaLabel]="t.exportBtn"
+          [titleText]="isMobileView() ? t.exportBtn : null"
           (btnClick)="openDataPopup()">
-          <lucide-icon [img]="uploadIcon" [size]="15"></lucide-icon>
-          @if (!bp.mobile()) {
-            <span>{{ t.tabInputExport }}</span>
+          <lucide-icon [img]="downloadIcon" [size]="15"></lucide-icon>
+          @if (!isMobileView()) {
+            <span>{{ t.exportBtn }}</span>
           }
         </app-button>
       </div>
@@ -43,13 +78,13 @@
       <div class="header__action glass-panel">
         <app-button
           variant="ghost"
-          [size]="bp.mobile() ? 'sm' : 'md'"
-          [iconOnly]="bp.mobile()"
+          [size]="isMobileView() ? 'sm' : 'md'"
+          [iconOnly]="isMobileView()"
           [ariaLabel]="t.sourcesBtn"
-          [titleText]="bp.mobile() ? t.sourcesBtn : null"
+          [titleText]="isMobileView() ? t.sourcesBtn : null"
           (btnClick)="openSources()">
           <lucide-icon [img]="databaseIcon" [size]="15"></lucide-icon>
-          @if (!bp.mobile()) {
+          @if (!isMobileView()) {
             <span>{{ t.sourcesBtn }}</span>
           }
         </app-button>
@@ -58,13 +93,13 @@
       <div class="header__action glass-panel">
         <app-button
           variant="ghost"
-          [size]="bp.mobile() ? 'sm' : 'md'"
-          [iconOnly]="bp.mobile()"
+          [size]="isMobileView() ? 'sm' : 'md'"
+          [iconOnly]="isMobileView()"
           [ariaLabel]="t.glossary"
-          [titleText]="bp.mobile() ? t.glossary : null"
+          [titleText]="isMobileView() ? t.glossary : null"
           (btnClick)="openGlossary()">
           <lucide-icon [img]="bookOpenIcon" [size]="15"></lucide-icon>
-          @if (!bp.mobile()) {
+          @if (!isMobileView()) {
             <span>{{ t.glossary }}</span>
           }
         </app-button>
@@ -73,8 +108,8 @@
       <div class="header__view glass-panel" role="group" [attr.aria-label]="t.chooseView">
         <app-switcher
           variant="ghost"
-          [size]="bp.mobile() ? 'sm' : 'md'"
-          [compact]="bp.mobile()"
+          [size]="isMobileView() ? 'sm' : 'md'"
+          [compact]="isMobileView()"
           [options]="mapModeOptions()"
           [value]="state.mapMode()"
           [ariaLabel]="t.chooseView"
@@ -83,22 +118,6 @@
       </div>
     </div>
   </header>
-
-  <!-- Simplified Bounding Box / Date Recalculation Prompt -->
-  @if (state.isDrawingBbox() || state.liveDrawBbox() || state.needsRecalculate()) {
-    <div class="draw-banner glass-panel" role="status">
-      <lucide-icon [img]="boxSelectIcon" [size]="15" class="draw-banner__icon"></lucide-icon>
-      @if (state.isDrawingBbox() || state.liveDrawBbox()) {
-        <span class="draw-banner__text">{{ t.drawBboxActiveHint }}</span>
-      } @else {
-        <span class="draw-banner__text">{{ t.recalculatePrompt }}</span>
-        <button type="button" class="draw-banner__accept" (click)="state.recalculateSelection()">
-          <lucide-icon [img]="checkIcon" [size]="13"></lucide-icon>
-          <span>{{ t.recalculateBtn }}</span>
-        </button>
-      }
-    </div>
-  }
 
   <!-- Fullscreen 2D OSM Map or 3D Globe Visualization Stage -->
   <section class="stage" [attr.aria-label]="analytics.globeAltText()">

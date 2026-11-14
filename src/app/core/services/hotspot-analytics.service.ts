@@ -4,6 +4,7 @@ import {
   BackendDailyBucket,
   BoundingBox,
   BurningCalendarCell,
+  ChartSeriesPoint,
   HarmonizedHotspotRecord,
   HotspotAnalyticsSummary,
   MultiPolygonCoords,
@@ -12,8 +13,9 @@ import {
 } from '../models/wildfire.model';
 import { ColorRampService } from './color-ramp.service';
 import { WildfireDataService } from './wildfire-data.service';
-import { WildfireStateService, isPointInPolygonCoords } from './wildfire-state.service';
+import { VIIRS_FIRST_DATE, WildfireStateService, isPointInPolygonCoords } from './wildfire-state.service';
 import { I18nService } from '../i18n/i18n.service';
+import { formatLocaleDate } from '../pipes/locale-date.pipe';
 
 export interface BurningCalendarModel {
   mode: 'monthly' | 'daily';
@@ -74,11 +76,11 @@ export class HotspotAnalyticsService {
     () => !this.data.isCustomDataset() && this.data.backendCalendar() !== null
   );
 
-  /** Spatial ratio when the accepted polygon is edited (4+ edges) inside the bbox envelope. */
+  /** Spatial ratio when the accepted polygon / MultiPolygon is smaller than its bbox envelope. */
   private readonly backendSpatialRatio = computed<number>(() => {
     const bbox = this.state.regionBbox();
-    const poly = this.state.regionPolygon();
-    if (!bbox || !poly || poly.length < 3) return 1;
+    const multi = this.state.regionMultiPolygon();
+    if (!bbox || multi.length === 0) return 1;
     const envArea = Math.max(1, this.computeBboxArea(bbox).km2);
     const polyArea = this.bboxArea().km2;
     return Math.max(0.05, Math.min(1, polyArea / envArea));
@@ -123,22 +125,26 @@ export class HotspotAnalyticsService {
   });
 
   /**
-   * Pixel squares for the active dataset (VIIRS 375 m or MODIS 1 km) including boundary pixels
-   * whose center may lie just outside the polygon so the globe clips them accurately.
+   * Pixel squares for the active dataset (VIIRS 375 m, MODIS 1 km, or mixed: MODIS 1 km pre-2012
+   * switching automatically to VIIRS 375 m from 2012-01-20 onward) including boundary pixels
+   * whose center may lie just outside the polygon so the map/globe clips them cleanly.
    */
   readonly globePixelSquares = computed<GlobePixelSquare[]>(() => {
     const dataset = this.state.activeDataset();
-    const sizeMeters = dataset === 'VIIRS' ? 375 : 1000;
+    const isMixed = this.state.isMixedSensorRange();
     const bbox = this.state.regionBbox();
     if (!bbox) return [];
 
-    const aggregateToGrid = (
+    const midLat = (bbox[1] + bbox[3]) * 0.5;
+    const cosLat = Math.max(0.2, Math.cos((midLat * Math.PI) / 180));
+
+    const binSensorPoints = (
+      sensor: ActiveFireDataset,
       points: { lon: number; lat: number; count: number; frpMw: number }[]
-    ): GlobePixelSquare[] => {
+    ): Omit<GlobePixelSquare, 'normIntensity'>[] => {
       if (points.length === 0) return [];
-      const midLat = (bbox[1] + bbox[3]) * 0.5;
+      const sizeMeters = sensor === 'VIIRS' ? 375 : 1000;
       const dLat = sizeMeters / 110574;
-      const cosLat = Math.max(0.2, Math.cos((midLat * Math.PI) / 180));
       const dLon = sizeMeters / (111320 * cosLat);
       const halfLon = dLon * 0.5;
       const halfLat = dLat * 0.5;
@@ -163,19 +169,27 @@ export class HotspotAnalyticsService {
         }
       }
 
-      const cells = Array.from(bins.values());
-      const maxVal = Math.max(1, ...cells.map(c => (c.frpMw > 0 ? c.frpMw : c.count)));
-      return cells.map(c => {
+      return Array.from(bins.values()).map(c => ({
+        lon: c.lon,
+        lat: c.lat,
+        halfLon,
+        halfLat,
+        sensor,
+        sizeMeters,
+        count: c.count,
+        frpMw: c.frpMw
+      }));
+    };
+
+    const normalizeSquares = (
+      raw: Omit<GlobePixelSquare, 'normIntensity'>[]
+    ): GlobePixelSquare[] => {
+      if (raw.length === 0) return [];
+      const maxVal = Math.max(1, ...raw.map(c => (c.frpMw > 0 ? c.frpMw : c.count)));
+      return raw.map(c => {
         const val = c.frpMw > 0 ? c.frpMw : c.count;
         return {
-          lon: c.lon,
-          lat: c.lat,
-          halfLon,
-          halfLat,
-          sensor: dataset,
-          sizeMeters,
-          count: c.count,
-          frpMw: c.frpMw,
+          ...c,
           normIntensity: Math.min(1, Math.pow(val / maxVal, 0.58))
         };
       });
@@ -186,43 +200,127 @@ export class HotspotAnalyticsService {
       if (!backend) return [];
       const rawPixels = backend.selection.pixels;
       if (rawPixels && rawPixels.length > 0) {
-        return aggregateToGrid(
-          rawPixels
-            .filter(p => p.sensor === dataset)
-            .map(p => ({ lon: p.lon, lat: p.lat, count: p.count, frpMw: p.frpMw }))
+        if (!isMixed) {
+          return normalizeSquares(
+            binSensorPoints(
+              dataset,
+              rawPixels
+                .filter(p => p.sensor === dataset)
+                .map(p => ({ lon: p.lon, lat: p.lat, count: p.count, frpMw: p.frpMw }))
+            )
+          );
+        }
+
+        // Range spans 2012-01-20 with best quality active: use VIIRS 375 m + pre-2012 MODIS 1 km
+        const viirsPts = rawPixels
+          .filter(p => p.sensor === 'VIIRS')
+          .map(p => ({ lon: p.lon, lat: p.lat, count: p.count, frpMw: p.frpMw }));
+
+        const hasExactEra = rawPixels.some(p => p.sensor === 'MODIS' && typeof p.preViirs === 'boolean');
+        let modisPrePts: { lon: number; lat: number; count: number; frpMw: number }[];
+        if (hasExactEra) {
+          modisPrePts = rawPixels
+            .filter(p => p.sensor === 'MODIS' && p.preViirs === true)
+            .map(p => ({ lon: p.lon, lat: p.lat, count: p.count, frpMw: p.frpMw }));
+        } else {
+          // Compatibility fallback for backends without `preViirs` metadata: drop MODIS pixels
+          // that sit directly atop higher-precision VIIRS 375 m detections (~1 km cells).
+          const viirsOccupied = new Set<string>();
+          for (const vp of viirsPts) {
+            viirsOccupied.add(`${Math.round(vp.lat / 0.01)}:${Math.round(vp.lon / 0.01)}`);
+          }
+          modisPrePts = rawPixels
+            .filter(
+              p =>
+                p.sensor === 'MODIS' &&
+                !viirsOccupied.has(`${Math.round(p.lat / 0.01)}:${Math.round(p.lon / 0.01)}`)
+            )
+            .map(p => ({ lon: p.lon, lat: p.lat, count: p.count, frpMw: p.frpMw }));
+        }
+
+        return normalizeSquares([
+          ...binSensorPoints('MODIS', modisPrePts),
+          ...binSensorPoints('VIIRS', viirsPts)
+        ]);
+      }
+
+      // Fallback if backend payload has no pixels array
+      if (!isMixed) {
+        return normalizeSquares(
+          binSensorPoints(
+            dataset,
+            backend.selection.cells
+              .filter(c => (dataset === 'VIIRS' ? c.rawViirs > 0 : c.rawModis > 0))
+              .map(c => ({
+                lon: c.lon,
+                lat: c.lat,
+                count: dataset === 'VIIRS' ? c.rawViirs : c.rawModis,
+                frpMw: 0
+              }))
+          )
         );
       }
-      // Fallback if backend payload has no pixels array
-      return aggregateToGrid(
-        backend.selection.cells
-          .filter(c => (dataset === 'VIIRS' ? c.rawViirs > 0 : c.rawModis > 0))
-          .map(c => ({
-            lon: c.lon,
-            lat: c.lat,
-            count: dataset === 'VIIRS' ? c.rawViirs : c.rawModis,
-            frpMw: 0
-          }))
-      );
+
+      const viirsCells = backend.selection.cells
+        .filter(c => c.rawViirs > 0)
+        .map(c => ({ lon: c.lon, lat: c.lat, count: c.rawViirs, frpMw: 0 }));
+      const modisOnlyCells = backend.selection.cells
+        .filter(c => c.rawModis > 0 && c.rawViirs === 0)
+        .map(c => ({ lon: c.lon, lat: c.lat, count: c.rawModis, frpMw: 0 }));
+      return normalizeSquares([
+        ...binSensorPoints('MODIS', modisOnlyCells),
+        ...binSensorPoints('VIIRS', viirsCells)
+      ]);
     }
 
     const start = this.state.dateStart();
     const end = this.state.dateEnd();
     const pad = 0.015;
     const [w, s, e, n] = bbox;
-    const matching = this.data.hotspots().filter(r => {
-      if (r.date < start || r.date > end) return false;
-      if (r.lon < w - pad || r.lon > e + pad || r.lat < s - pad || r.lat > n + pad) return false;
-      if (dataset === 'VIIRS') return r.rawViirsCount > 0 || r.sensor === 'VIIRS' || r.sensor === 'HARMONIZED';
-      return r.rawModisCount > 0 || r.sensor === 'MODIS' || r.sensor === 'HARMONIZED';
-    });
-    return aggregateToGrid(
-      matching.map(r => ({
-        lon: r.lon,
-        lat: r.lat,
-        count: dataset === 'VIIRS' ? (r.rawViirsCount || 1) : (r.rawModisCount || 1),
-        frpMw: r.frpMw
-      }))
+    const inBoxAndDates = this.data.hotspots().filter(
+      r =>
+        r.date >= start &&
+        r.date <= end &&
+        r.lon >= w - pad &&
+        r.lon <= e + pad &&
+        r.lat >= s - pad &&
+        r.lat <= n + pad
     );
+
+    if (!isMixed) {
+      const matching = inBoxAndDates.filter(r =>
+        dataset === 'VIIRS'
+          ? r.rawViirsCount > 0 || r.sensor === 'VIIRS' || r.sensor === 'HARMONIZED'
+          : r.rawModisCount > 0 || r.sensor === 'MODIS' || r.sensor === 'HARMONIZED'
+      );
+      return normalizeSquares(
+        binSensorPoints(
+          dataset,
+          matching.map(r => ({
+            lon: r.lon,
+            lat: r.lat,
+            count: dataset === 'VIIRS' ? (r.rawViirsCount || 1) : (r.rawModisCount || 1),
+            frpMw: r.frpMw
+          }))
+        )
+      );
+    }
+
+    const preModisPts: { lon: number; lat: number; count: number; frpMw: number }[] = [];
+    const postViirsPts: { lon: number; lat: number; count: number; frpMw: number }[] = [];
+    for (const r of inBoxAndDates) {
+      if (r.date < VIIRS_FIRST_DATE) {
+        if (r.rawModisCount > 0 || r.sensor === 'MODIS' || r.sensor === 'HARMONIZED') {
+          preModisPts.push({ lon: r.lon, lat: r.lat, count: r.rawModisCount || 1, frpMw: r.frpMw });
+        }
+      } else if (r.rawViirsCount > 0 || r.sensor === 'VIIRS' || r.sensor === 'HARMONIZED') {
+        postViirsPts.push({ lon: r.lon, lat: r.lat, count: r.rawViirsCount || 1, frpMw: r.frpMw });
+      }
+    }
+    return normalizeSquares([
+      ...binSensorPoints('MODIS', preModisPts),
+      ...binSensorPoints('VIIRS', postViirsPts)
+    ]);
   });
 
   /** Approximate MultiPolygon area in km² and hectares using spherical latitude cosine. */
@@ -360,6 +458,115 @@ export class HotspotAnalyticsService {
     return out;
   });
 
+  /** Yearly series scaled to the currently analyzed date range (keeps multi-year baseline metadata). */
+  readonly chartYearlyComparison = computed<YearlyComparisonPoint[]>(() => {
+    const all = this.yearlyComparison();
+    if (!this.state.hasDateRange()) return all;
+    const selected = all.filter(y => y.inSelectedRange);
+    return selected.length > 0 ? selected : all;
+  });
+
+  /** Fires-detected & anomaly bar series in either monthly or yearly granularity using regular period average. */
+  readonly chartSeries = computed<ChartSeriesPoint[]>(() => {
+    const mode = this.state.chartGranularity();
+    if (mode === 'yearly') {
+      const years = this.chartYearlyComparison();
+      return this.finalizeChartSeries(
+        years.map(y => ({
+          key: String(y.year),
+          label: String(y.year),
+          modis: y.rawModisCount,
+          viirs: y.rawViirsCount,
+          harm: y.harmonizedCount,
+          inSelectedRange: y.inSelectedRange
+        }))
+      );
+    }
+
+    const start = this.state.dateStart();
+    const end = this.state.dateEnd();
+    const hasDates = this.state.hasDateRange();
+    const monthShort = this.i18n.t().monthNamesShort;
+    const backend = this.data.backendCalendar();
+    const isCustom = this.data.isCustomDataset();
+
+    const startYm = hasDates ? start.slice(0, 7) : backend?.months[0] ?? '2025-01';
+    const endYm = hasDates ? end.slice(0, 7) : backend?.months[backend.months.length - 1] ?? '2025-12';
+    const [sy, sm] = startYm.split('-').map(Number);
+    const [ey, em] = endYm.split('-').map(Number);
+    if (!Number.isFinite(sy) || !Number.isFinite(sm) || !Number.isFinite(ey) || !Number.isFinite(em)) {
+      return [];
+    }
+
+    const startIdx = sy * 12 + (sm - 1);
+    const endIdx = Math.max(startIdx, ey * 12 + (em - 1));
+    const countsByYm = new Map<string, { modis: number; viirs: number; harm: number }>();
+
+    if (!isCustom && backend) {
+      const ratio = this.backendSpatialRatio();
+      for (let i = 0; i < backend.months.length; i++) {
+        countsByYm.set(backend.months[i], {
+          modis: Math.round((backend.series.rawModis[i] ?? 0) * ratio),
+          viirs: Math.round((backend.series.rawViirs[i] ?? 0) * ratio),
+          harm: Math.round((backend.series.harmonized[i] ?? 0) * ratio)
+        });
+      }
+    } else {
+      for (const r of this.filteredHotspots()) {
+        const ym = r.date.slice(0, 7);
+        const cur = countsByYm.get(ym) ?? { modis: 0, viirs: 0, harm: 0 };
+        cur.modis += r.rawModisCount;
+        cur.viirs += r.rawViirsCount;
+        cur.harm += r.harmonizedCount;
+        countsByYm.set(ym, cur);
+      }
+    }
+
+    const items: { key: string; label: string; modis: number; viirs: number; harm: number; inSelectedRange: boolean }[] = [];
+    for (let idx = startIdx; idx <= endIdx; idx++) {
+      const y = Math.floor(idx / 12);
+      const m = (idx % 12) + 1;
+      const ym = `${y}-${String(m).padStart(2, '0')}`;
+      const c = countsByYm.get(ym) ?? { modis: 0, viirs: 0, harm: 0 };
+      items.push({
+        key: ym,
+        label: `${monthShort[m - 1] ?? String(m)} '${String(y).slice(-2)}`,
+        modis: c.modis,
+        viirs: c.viirs,
+        harm: c.harm,
+        inSelectedRange: true
+      });
+    }
+
+    return this.finalizeChartSeries(items);
+  });
+
+  private finalizeChartSeries(
+    items: { key: string; label: string; modis: number; viirs: number; harm: number; inSelectedRange: boolean }[]
+  ): ChartSeriesPoint[] {
+    if (items.length === 0) return [];
+    const n = items.length;
+    const mean = items.reduce((sum, item) => sum + item.harm, 0) / n;
+    const variance = items.reduce((sum, item) => sum + Math.pow(item.harm - mean, 2), 0) / n;
+    const std = Math.sqrt(variance);
+
+    return items.map(item => {
+      const pct = mean > 0 ? ((item.harm - mean) / mean) * 100 : 0;
+      const z = std > 0 ? (item.harm - mean) / std : 0;
+      return {
+        key: item.key,
+        label: item.label,
+        rawModisCount: item.modis,
+        rawViirsCount: item.viirs,
+        harmonizedCount: item.harm,
+        avgCount: Number(mean.toFixed(1)),
+        anomalyPct: Number(pct.toFixed(1)),
+        anomalyZScore: Number(z.toFixed(2)),
+        inSelectedRange: item.inSelectedRange
+      };
+    });
+  }
+
   /** Summary KPI figures for the selected region & date range. */
   readonly summary = computed<HotspotAnalyticsSummary>(() => {
     const area = this.bboxArea();
@@ -392,6 +599,24 @@ export class HotspotAnalyticsService {
       const anomalyPct = expectedTotal > 0 ? Number((((harm - expectedTotal) / expectedTotal) * 100).toFixed(1)) : 0;
 
       const activeDataset = this.state.activeDataset();
+      const isMixed = this.state.isMixedSensorRange();
+      let activeDatasetFires = activeDataset === 'VIIRS' ? viirs : modis;
+      if (isMixed) {
+        let preModis = 0;
+        let postViirs = 0;
+        const fromYm = sel.from;
+        const toYm = sel.to;
+        for (let i = 0; i < backend.months.length; i++) {
+          const ym = backend.months[i];
+          if (ym < fromYm || ym > toYm) continue;
+          if (ym < '2012-01') {
+            preModis += backend.series.rawModis[i] ?? 0;
+          } else {
+            postViirs += backend.series.rawViirs[i] ?? 0;
+          }
+        }
+        activeDatasetFires = Math.round((preModis + postViirs) * ratio);
+      }
       return {
         totalRecords: modis + viirs,
         harmonizedFires: harm,
@@ -408,7 +633,7 @@ export class HotspotAnalyticsService {
         areaKm2: area.km2,
         areaHa: area.ha,
         activeDataset,
-        activeDatasetFires: activeDataset === 'VIIRS' ? viirs : modis
+        activeDatasetFires
       };
     }
 
@@ -452,6 +677,15 @@ export class HotspotAnalyticsService {
     const anomalyPct = expectedTotal > 0 ? Number((((harm - expectedTotal) / expectedTotal) * 100).toFixed(1)) : 0;
 
     const activeDataset = this.state.activeDataset();
+    const isMixed = this.state.isMixedSensorRange();
+    const activeDatasetFires = isMixed
+      ? records.reduce(
+          (sum, r) => sum + (r.date < VIIRS_FIRST_DATE ? r.rawModisCount : r.rawViirsCount),
+          0
+        )
+      : activeDataset === 'VIIRS'
+        ? viirs
+        : modis;
     return {
       totalRecords: records.length,
       harmonizedFires: harm,
@@ -468,7 +702,7 @@ export class HotspotAnalyticsService {
       areaKm2: area.km2,
       areaHa: area.ha,
       activeDataset,
-      activeDatasetFires: activeDataset === 'VIIRS' ? viirs : modis
+      activeDatasetFires
     };
   });
 
@@ -976,7 +1210,7 @@ export class HotspotAnalyticsService {
     const t = this.i18n.t();
     const s = this.summary();
     const cal = this.burningCalendar();
-    const yearly = this.yearlyComparison();
+    const series = this.chartSeries();
     const rampId = this.state.colorRamp();
     const [w, south, e, n] = this.state.regionBbox() ?? [-180, -85, 180, 85];
 
@@ -1049,42 +1283,44 @@ export class HotspotAnalyticsService {
     // Historical Fires Chart (Left bottom) + Anomaly Z-Score Chart (Right bottom)
     const chartY = 582;
     const chartH = 220;
-    const maxYVal = Math.max(1, ...yearly.map(y => Math.max(y.harmonizedCount, y.rawModisCount, y.multiYearAvgCount)));
-    const barSlot = 510 / Math.max(1, yearly.length);
+    const maxYVal = Math.max(1, ...series.map(y => Math.max(y.harmonizedCount, y.rawModisCount, y.avgCount)));
+    const barSlot = 510 / Math.max(1, series.length);
 
-    const histBarsSvg = yearly
+    const histBarsSvg = series
       .map((y, idx) => {
-        const bx = 66 + idx * barSlot;
+        const barW = Math.min(68, Math.max(4, barSlot - 4));
+        const bx = 66 + idx * barSlot + (barSlot - barW) / 2;
         const hHarm = (y.harmonizedCount / maxYVal) * (chartH - 34);
         const hModis = (y.rawModisCount / maxYVal) * (chartH - 34);
         const byHarm = chartY + chartH - 24 - hHarm;
         const byModis = chartY + chartH - 24 - hModis;
-        const barW = Math.max(4, barSlot - 4);
         const fill = y.inSelectedRange ? '#d37400' : '#94a3b8';
+        const showLabel = series.length <= 8 || idx % Math.ceil(series.length / 7) === 0;
         return `
           <rect x="${bx}" y="${byHarm}" width="${barW}" height="${hHarm}" rx="2" fill="${fill}" opacity="${y.inSelectedRange ? 0.9 : 0.45}"/>
           <rect x="${bx + barW * 0.2}" y="${byModis}" width="${barW * 0.6}" height="${hModis}" rx="1" fill="#0f172a" opacity="0.28"/>
-          ${idx % Math.max(1, Math.floor(yearly.length / 7)) === 0 ? `<text x="${bx + barW / 2}" y="${chartY + chartH - 8}" font-size="9" text-anchor="middle" fill="#64748b">${y.year}</text>` : ''}
+          ${showLabel ? `<text x="${bx + barW / 2}" y="${chartY + chartH - 8}" font-size="9" text-anchor="middle" fill="#64748b">${esc(y.label)}</text>` : ''}
         `;
       })
       .join('');
 
-    const avgLineY = yearly.length > 0
-      ? chartY + chartH - 24 - (yearly[0].multiYearAvgCount / maxYVal) * (chartH - 34)
+    const avgLineY = series.length > 0
+      ? chartY + chartH - 24 - (series[0].avgCount / maxYVal) * (chartH - 34)
       : chartY + chartH - 24;
 
-    const maxAbsZ = Math.max(2, ...yearly.map(y => Math.abs(y.anomalyZScore)));
+    const maxAbsZ = Math.max(1, ...series.map(y => Math.abs(y.anomalyZScore)));
     const zeroY = chartY + (chartH - 24) / 2;
-    const anomBarsSvg = yearly
+    const anomBarsSvg = series
       .map((y, idx) => {
-        const bx = 636 + idx * barSlot;
+        const barW = Math.min(68, Math.max(4, barSlot - 4));
+        const bx = 636 + idx * barSlot + (barSlot - barW) / 2;
         const mag = (Math.abs(y.anomalyZScore) / maxAbsZ) * ((chartH - 40) / 2);
         const by = y.anomalyZScore >= 0 ? zeroY - mag : zeroY;
-        const barW = Math.max(4, barSlot - 4);
         const fill = y.anomalyZScore >= 0 ? this.ramps.anomalyPositiveHex : this.ramps.anomalyNegativeHex;
+        const showLabel = series.length <= 8 || idx % Math.ceil(series.length / 7) === 0;
         return `
           <rect x="${bx}" y="${by}" width="${barW}" height="${Math.max(1.5, mag)}" rx="2" fill="${fill}" opacity="${y.inSelectedRange ? 0.92 : 0.45}"/>
-          ${idx % Math.max(1, Math.floor(yearly.length / 7)) === 0 ? `<text x="${bx + barW / 2}" y="${chartY + chartH - 8}" font-size="9" text-anchor="middle" fill="#64748b">${y.year}</text>` : ''}
+          ${showLabel ? `<text x="${bx + barW / 2}" y="${chartY + chartH - 8}" font-size="9" text-anchor="middle" fill="#64748b">${esc(y.label)}</text>` : ''}
         `;
       })
       .join('');
@@ -1105,7 +1341,7 @@ export class HotspotAnalyticsService {
 
   <text x="44" y="54" font-size="20" font-weight="700" fill="#0f172a">KMD · ${esc(t.analyticsTitle)}</text>
   <text x="44" y="78" font-size="12" fill="#475569">
-    ${esc(t.regionBboxLabel)}: [${w.toFixed(2)}°, ${south.toFixed(2)}°, ${e.toFixed(2)}°, ${n.toFixed(2)}°] · ${esc(t.dateRangeLabel)}: ${esc(this.state.dateStart())} → ${esc(this.state.dateEnd())}
+    ${esc(t.regionBboxLabel)}: [${w.toFixed(2)}°, ${south.toFixed(2)}°, ${e.toFixed(2)}°, ${n.toFixed(2)}°] · ${esc(t.dateRangeLabel)}: ${esc(formatLocaleDate(this.state.dateStart(), 'full', this.i18n.dateLocale()))} → ${esc(formatLocaleDate(this.state.dateEnd(), 'full', this.i18n.dateLocale()))}
   </text>
   <text x="1156" y="54" font-size="11" text-anchor="end" fill="#64748b" font-family="monospace">${esc(this.data.isCustomDataset() ? this.data.hotspotDatasetName() : 'NASA FIRMS MODIS+VIIRS')}</text>
   <text x="1156" y="78" font-size="11" text-anchor="end" fill="#64748b">${esc(t.colorRampLabel)}: ${esc(rampId.toUpperCase())}</text>

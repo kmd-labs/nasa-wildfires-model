@@ -127,12 +127,22 @@ class CalendarService:
         job = self._job(region)
         if job is None or (job["finished"] and job["error"] is None and self._needs_sync(region)) or (job["finished"] and job["error"]):
             job = self._start(region, priority_window=priority_window)
+        elif priority_window is not None:
+            job["priority_window"] = priority_window
         if wait:
             job["thread"].join()
         if job["error"] and not region.has_data:
             raise FirmsError(job["error"])
         if not region.has_data:
             raise NotReady({"done": job["done"], "total": job["total"]})
+        if priority_window is not None and not job["finished"]:
+            from .firms import FirmsError as _FirmsError, today_utc
+            try:
+                avail = self.client.availability()
+            except _FirmsError:
+                return region
+            if region.pending_in_window_count(avail, today_utc(), priority_window) > 0:
+                raise NotReady({"done": job["done"], "total": job["total"]})
         return region
 
     def _needs_sync(self, region: Region) -> bool:
@@ -140,7 +150,14 @@ class CalendarService:
         return bool(region.plan(self.client.availability(), today_utc()))
 
     def _start(self, region: Region, priority_window: tuple[dt.date, dt.date] | None = None) -> dict:
-        job = {"done": 0, "total": 0, "finished": False, "error": None, "failed": []}
+        job = {
+            "done": 0,
+            "total": 0,
+            "finished": False,
+            "error": None,
+            "failed": [],
+            "priority_window": priority_window,
+        }
 
         def work() -> None:
             try:
@@ -148,6 +165,7 @@ class CalendarService:
                     self.client,
                     progress=lambda done, total: job.update(done=done, total=total),
                     priority_window=priority_window,
+                    get_priority_window=lambda: job["priority_window"],
                 )
                 job["failed"] = outcome["failed"]
             except Exception as exc:  # the thread must always finish the job record
@@ -361,28 +379,45 @@ class CalendarService:
 
         pixel_df = h["pixel_df"]
         pixel_win = pixel_df[(pixel_df.date >= first) & (pixel_df.date <= last)]
+        viirs_start = pd.Timestamp("2012-01-20")
         pixels = []
+
+        def _append_pixel_groups(df_slice: pd.DataFrame, sensor_name: str, pre_viirs: bool, cap: int) -> None:
+            if not len(df_slice):
+                return
+            grp = pd.DataFrame({
+                "lat": df_slice.latitude.round(4),
+                "lon": df_slice.longitude.round(4),
+                "frp": df_slice.frp.fillna(0.0),
+                "n": 1,
+            }).groupby(["lat", "lon"], as_index=False).sum()
+            if len(grp) > cap:
+                grp = grp.nlargest(cap, "frp")
+            for row in grp.itertuples(index=False):
+                pixels.append({
+                    "lon": float(row.lon),
+                    "lat": float(row.lat),
+                    "sensor": sensor_name,
+                    "preViirs": pre_viirs,
+                    "count": int(row.n),
+                    "frpMw": round(float(row.frp), 1),
+                })
+
         if len(pixel_win):
-            for sensor_name, plat_tuple in (("VIIRS", hz.VIIRS), ("MODIS", hz.MODIS)):
-                sub = pixel_win[pixel_win.platform.isin(plat_tuple)]
-                if not len(sub):
-                    continue
-                grp = pd.DataFrame({
-                    "lat": sub.latitude.round(4),
-                    "lon": sub.longitude.round(4),
-                    "frp": sub.frp.fillna(0.0),
-                    "n": 1,
-                }).groupby(["lat", "lon"], as_index=False).sum()
-                if len(grp) > 2500:
-                    grp = grp.nlargest(2500, "frp")
-                for row in grp.itertuples(index=False):
-                    pixels.append({
-                        "lon": float(row.lon),
-                        "lat": float(row.lat),
-                        "sensor": sensor_name,
-                        "count": int(row.n),
-                        "frpMw": round(float(row.frp), 1),
-                    })
+            viirs_sub = pixel_win[pixel_win.platform.isin(hz.VIIRS)]
+            _append_pixel_groups(viirs_sub, "VIIRS", False, 2500)
+
+            modis_sub = pixel_win[pixel_win.platform.isin(hz.MODIS)]
+            if len(modis_sub):
+                pre_sub = modis_sub[modis_sub.date < viirs_start]
+                post_sub = modis_sub[modis_sub.date >= viirs_start]
+                if len(pre_sub) and len(post_sub):
+                    _append_pixel_groups(pre_sub, "MODIS", True, 1500)
+                    _append_pixel_groups(post_sub, "MODIS", False, 1500)
+                elif len(pre_sub):
+                    _append_pixel_groups(pre_sub, "MODIS", True, 2500)
+                else:
+                    _append_pixel_groups(post_sub, "MODIS", False, 2500)
 
         job = self._job(region)
         return {

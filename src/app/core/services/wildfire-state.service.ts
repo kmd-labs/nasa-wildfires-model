@@ -1,19 +1,25 @@
-import { Injectable, computed, effect, inject, signal } from '@angular/core';
+import { Injectable, NgZone, computed, effect, inject, signal } from '@angular/core';
+import { PopupService } from '@kmd/design-system';
 import {
   ActiveFireDataset,
   BoundingBox,
   CalendarGranularity,
   CameraFocusId,
+  ChartGranularity,
   ColorRampId,
   MapRenderMode,
   MultiPolygonCoords,
   PolygonCoords,
   PolygonRing,
+  PredefinedCountry,
   WildfireViewMode
 } from '../models/wildfire.model';
+import { I18nService } from '../i18n/i18n.service';
 import { WildfireDataService } from './wildfire-data.service';
 
 export const VIIRS_FIRST_DATE = '2012-01-20';
+const LARGE_BBOX_DEG2_THRESHOLD = 20;
+const HUGE_TIME_RANGE_DAYS_THRESHOLD = 730;
 
 const COLOR_RAMP_STORAGE_KEY = 'nasa-wildfires-model.colorRamp';
 const BBOX_STORAGE_KEY = 'nasa-wildfires-model.bbox';
@@ -21,21 +27,27 @@ const POLYGON_STORAGE_KEY = 'nasa-wildfires-model.polygon';
 const DATE_START_STORAGE_KEY = 'nasa-wildfires-model.dateStart';
 const DATE_END_STORAGE_KEY = 'nasa-wildfires-model.dateEnd';
 const UI_STORAGE_KEY = 'nasa-wildfires-model.ui';
+const PREFILL_VERSION_KEY = 'nasa-wildfires-model.prefillVersion';
+const CURRENT_PREFILL_VERSION = '3';
 
 const VALID_COLOR_RAMPS = new Set<ColorRampId>(['okabeIto', 'cividis', 'viridis', 'ylOrRd']);
 const VALID_CALENDAR_MODES = new Set<CalendarGranularity>(['daily', 'monthly']);
+const VALID_CHART_MODES = new Set<ChartGranularity>(['monthly', 'yearly']);
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-// Prefill with one summer month (August 2025) and a 5-edge polygon over Piódão / Serra do Açor in Iberia
-const DEFAULT_PREFILL_BBOX: BoundingBox = [-8.11, 40.0, -7.62, 40.43];
-const DEFAULT_PREFILL_POLYGON: PolygonRing = [
-  [-8.11, 40.06],
-  [-7.68, 40.0],
-  [-7.62, 40.28],
-  [-7.84, 40.43],
-  [-8.08, 40.32]
+const LEGACY_PREFILL_BBOX: BoundingBox = [-8.11, 40.0, -7.62, 40.43];
+
+// Prefill with 6-edge polygon encompassing the entire Iberian Peninsula & 2025 fire season (Jun–Sep 2025)
+export const DEFAULT_PREFILL_BBOX: BoundingBox = [-9.55, 36.0, 3.45, 43.8];
+export const DEFAULT_PREFILL_POLYGON: PolygonRing = [
+  [-9.55, 37.0],
+  [-5.6, 36.0],
+  [0.45, 37.25],
+  [3.45, 42.35],
+  [-1.8, 43.65],
+  [-9.4, 43.8]
 ];
-const DEFAULT_PREFILL_DATES = { start: '2025-08-01', end: '2025-08-31' };
+export const DEFAULT_PREFILL_DATES = { start: '2025-06-01', end: '2025-09-30' };
 
 export function bboxToPolygonRing(bbox: BoundingBox): PolygonRing {
   const [w, s, e, n] = bbox;
@@ -83,6 +95,7 @@ interface StoredUiSettings {
   analyticsMinimized: boolean;
   analyticsExpanded: boolean;
   showRegionForm: boolean;
+  showDataSection: boolean;
   showCoordsInputs: boolean;
   showLayersSection: boolean;
   showAnalysisSection: boolean;
@@ -91,6 +104,7 @@ interface StoredUiSettings {
   showLandOrtho: boolean;
   showBorders: boolean;
   calendarGranularity: CalendarGranularity;
+  chartGranularity: ChartGranularity;
 }
 
 const DEFAULT_UI_SETTINGS: StoredUiSettings = {
@@ -98,14 +112,16 @@ const DEFAULT_UI_SETTINGS: StoredUiSettings = {
   analyticsMinimized: false,
   analyticsExpanded: false,
   showRegionForm: true,
+  showDataSection: true,
   showCoordsInputs: true,
-  showLayersSection: true,
+  showLayersSection: false,
   showAnalysisSection: true,
   showHotspotsOnGlobe: true,
   showRegionBbox: true,
   showLandOrtho: true,
   showBorders: true,
-  calendarGranularity: 'daily'
+  calendarGranularity: 'daily',
+  chartGranularity: 'monthly'
 };
 
 @Injectable({
@@ -113,8 +129,14 @@ const DEFAULT_UI_SETTINGS: StoredUiSettings = {
 })
 export class WildfireStateService {
   private readonly data = inject(WildfireDataService);
+  private readonly popup = inject(PopupService);
+  private readonly i18n = inject(I18nService);
+  private readonly ngZone = inject(NgZone);
 
-  private readonly initialDates = this.resolveInitialDateRange();
+  private readonly initialDates = (() => {
+    this.migrateLegacyPrefillIfNeeded();
+    return this.resolveInitialDateRange();
+  })();
   private readonly initialUi = this.resolveInitialUiSettings();
 
   readonly mapMode = signal<MapRenderMode>(this.initialUi.mapMode);
@@ -127,6 +149,9 @@ export class WildfireStateService {
 
   /** Accepted region polygon vertices (4+ unique [lon, lat] vertices), or null. */
   readonly regionPolygon = signal<PolygonRing | null>(this.resolveInitialPolygon(this.regionBbox()));
+
+  /** Exact Natural Earth country/area MultiPolygon border geometry when a predefined country is active. */
+  readonly regionBorderMultiPolygon = signal<MultiPolygonCoords | null>(null);
 
   /** Unaccepted draft polygon currently being edited on the globe before clicking Accept & Calculate. */
   readonly draftPolygon = signal<PolygonRing | null>(null);
@@ -142,6 +167,10 @@ export class WildfireStateService {
   });
 
   readonly regionMultiPolygon = computed<MultiPolygonCoords>(() => {
+    const border = this.regionBorderMultiPolygon();
+    if (border && border.length > 0) {
+      return border;
+    }
     const poly = this.regionPolygon();
     if (poly && poly.length >= 3) {
       return [ringToClosedPolygonCoords(poly)];
@@ -154,6 +183,36 @@ export class WildfireStateService {
   readonly dateEnd = signal<string>(this.initialDates.end);
   readonly draftDateStart = signal<string>(this.initialDates.start);
   readonly draftDateEnd = signal<string>(this.initialDates.end);
+  readonly missingInputsPrompt = signal<boolean>(false);
+
+  readonly hasValidDraftDateStart = computed<boolean>(() => {
+    const s = this.draftDateStart();
+    const e = this.draftDateEnd();
+    return Boolean(s && ISO_DATE_RE.test(s) && (!e || !ISO_DATE_RE.test(e) || s <= e));
+  });
+  readonly hasValidDraftDateEnd = computed<boolean>(() => {
+    const s = this.draftDateStart();
+    const e = this.draftDateEnd();
+    return Boolean(e && ISO_DATE_RE.test(e) && (!s || !ISO_DATE_RE.test(s) || s <= e));
+  });
+  readonly hasValidDraftDates = computed<boolean>(
+    () => this.hasValidDraftDateStart() && this.hasValidDraftDateEnd()
+  );
+  readonly hasAnyRegionGeometry = computed<boolean>(
+    () => Boolean(this.draftPolygon() || this.regionBbox())
+  );
+  readonly canRecalculate = computed<boolean>(
+    () => this.hasValidDraftDates() && this.hasAnyRegionGeometry()
+  );
+  readonly missingDateStart = computed<boolean>(
+    () => !this.hasValidDraftDateStart() && (this.missingInputsPrompt() || this.hasAnyRegionGeometry())
+  );
+  readonly missingDateEnd = computed<boolean>(
+    () => !this.hasValidDraftDateEnd() && (this.missingInputsPrompt() || this.hasAnyRegionGeometry())
+  );
+  readonly missingRegion = computed<boolean>(
+    () => !this.hasAnyRegionGeometry() && (this.missingInputsPrompt() || this.hasValidDraftDates())
+  );
 
   readonly hasPendingDateChanges = computed<boolean>(
     () => this.draftDateStart() !== this.dateStart() || this.draftDateEnd() !== this.dateEnd()
@@ -163,8 +222,8 @@ export class WildfireStateService {
   );
 
   readonly isViirsAvailable = computed<boolean>(() => {
-    const s = this.dateStart();
-    return !s || s >= VIIRS_FIRST_DATE;
+    const e = this.dateEnd();
+    return !e || e >= VIIRS_FIRST_DATE;
   });
 
   readonly preferredDataset = signal<ActiveFireDataset>('VIIRS');
@@ -172,6 +231,19 @@ export class WildfireStateService {
   readonly activeDataset = computed<ActiveFireDataset>(() =>
     this.isViirsAvailable() ? this.preferredDataset() : 'MODIS'
   );
+
+  /**
+   * True when the best-quality preference ('VIIRS') is active over a range spanning the
+   * 2012-01-20 VIIRS launch, so MODIS 1 km is used pre-2012 and VIIRS 375 m from 2012 onward.
+   */
+  readonly isMixedSensorRange = computed<boolean>(() => {
+    const s = this.dateStart();
+    const e = this.dateEnd();
+    return (
+      this.activeDataset() === 'VIIRS' &&
+      Boolean(s && e && s < VIIRS_FIRST_DATE && e >= VIIRS_FIRST_DATE)
+    );
+  });
 
   readonly hasBoundingBox = computed<boolean>(() => this.regionBbox() !== null);
   readonly hasDateRange = computed<boolean>(() => {
@@ -191,6 +263,7 @@ export class WildfireStateService {
   readonly isAnalyticsMinimized = signal<boolean>(this.initialUi.analyticsMinimized);
   readonly isAnalyticsExpanded = signal<boolean>(this.initialUi.analyticsExpanded);
   readonly showRegionForm = signal<boolean>(this.initialUi.showRegionForm);
+  readonly showDataSection = signal<boolean>(this.initialUi.showDataSection);
   readonly showCoordsInputs = signal<boolean>(this.initialUi.showCoordsInputs);
   readonly showLayersSection = signal<boolean>(this.initialUi.showLayersSection);
   readonly showAnalysisSection = signal<boolean>(this.initialUi.showAnalysisSection);
@@ -201,8 +274,11 @@ export class WildfireStateService {
   readonly showRegionBbox = signal<boolean>(this.initialUi.showRegionBbox);
   readonly showLandOrtho = signal<boolean>(this.initialUi.showLandOrtho);
   readonly showBorders = signal<boolean>(this.initialUi.showBorders);
+  readonly showUserLocation = signal<boolean>(false);
+  readonly userLocation = signal<{ lon: number; lat: number } | null>(null);
   readonly activeTileZoom = signal<number>(3);
   readonly calendarGranularity = signal<CalendarGranularity>(this.initialUi.calendarGranularity);
+  readonly chartGranularity = signal<ChartGranularity>(this.initialUi.chartGranularity);
   readonly mapLoaded = signal<boolean>(false);
 
   readonly bboxCenter = computed<[number, number]>(() => {
@@ -223,6 +299,7 @@ export class WildfireStateService {
         analyticsMinimized: this.isAnalyticsMinimized(),
         analyticsExpanded: this.isAnalyticsExpanded(),
         showRegionForm: this.showRegionForm(),
+        showDataSection: this.showDataSection(),
         showCoordsInputs: this.showCoordsInputs(),
         showLayersSection: this.showLayersSection(),
         showAnalysisSection: this.showAnalysisSection(),
@@ -230,7 +307,8 @@ export class WildfireStateService {
         showRegionBbox: this.showRegionBbox(),
         showLandOrtho: this.showLandOrtho(),
         showBorders: this.showBorders(),
-        calendarGranularity: this.calendarGranularity()
+        calendarGranularity: this.calendarGranularity(),
+        chartGranularity: this.chartGranularity()
       };
       try {
         localStorage.setItem(COLOR_RAMP_STORAGE_KEY, ramp);
@@ -261,6 +339,41 @@ export class WildfireStateService {
     });
   }
 
+  private migrateLegacyPrefillIfNeeded(): void {
+    try {
+      if (localStorage.getItem(PREFILL_VERSION_KEY) === CURRENT_PREFILL_VERSION) return;
+      const rawBox = localStorage.getItem(BBOX_STORAGE_KEY);
+      if (rawBox) {
+        const parsed = JSON.parse(rawBox);
+        if (
+          Array.isArray(parsed) &&
+          parsed.length === 4 &&
+          LEGACY_PREFILL_BBOX.every((v, i) => typeof parsed[i] === 'number' && Math.abs(parsed[i] - v) < 1e-3)
+        ) {
+          localStorage.removeItem(BBOX_STORAGE_KEY);
+          localStorage.removeItem(POLYGON_STORAGE_KEY);
+          localStorage.removeItem(DATE_START_STORAGE_KEY);
+          localStorage.removeItem(DATE_END_STORAGE_KEY);
+        }
+      }
+      const rawUi = localStorage.getItem(UI_STORAGE_KEY);
+      if (rawUi) {
+        try {
+          const parsedUi = JSON.parse(rawUi);
+          if (parsedUi && typeof parsedUi === 'object') {
+            parsedUi.showLayersSection = false;
+            localStorage.setItem(UI_STORAGE_KEY, JSON.stringify(parsedUi));
+          }
+        } catch {
+          // ignore malformed stored ui
+        }
+      }
+      localStorage.setItem(PREFILL_VERSION_KEY, CURRENT_PREFILL_VERSION);
+    } catch {
+      // localStorage unavailable
+    }
+  }
+
   private resolveInitialUiSettings(): StoredUiSettings {
     try {
       const raw = localStorage.getItem(UI_STORAGE_KEY);
@@ -284,6 +397,10 @@ export class WildfireStateService {
               typeof parsed.showRegionForm === 'boolean'
                 ? parsed.showRegionForm
                 : DEFAULT_UI_SETTINGS.showRegionForm,
+            showDataSection:
+              typeof parsed.showDataSection === 'boolean'
+                ? parsed.showDataSection
+                : DEFAULT_UI_SETTINGS.showDataSection,
             showCoordsInputs:
               typeof parsed.showCoordsInputs === 'boolean'
                 ? parsed.showCoordsInputs
@@ -315,7 +432,11 @@ export class WildfireStateService {
             calendarGranularity:
               parsed.calendarGranularity && VALID_CALENDAR_MODES.has(parsed.calendarGranularity)
                 ? parsed.calendarGranularity
-                : DEFAULT_UI_SETTINGS.calendarGranularity
+                : DEFAULT_UI_SETTINGS.calendarGranularity,
+            chartGranularity:
+              parsed.chartGranularity && VALID_CHART_MODES.has(parsed.chartGranularity)
+                ? parsed.chartGranularity
+                : DEFAULT_UI_SETTINGS.chartGranularity
           };
         }
       }
@@ -334,7 +455,7 @@ export class WildfireStateService {
     } catch {
       // localStorage unavailable
     }
-    return 'okabeIto';
+    return 'ylOrRd';
   }
 
   private resolveInitialBbox(): BoundingBox | null {
@@ -414,9 +535,9 @@ export class WildfireStateService {
   isPointInRegion(lon: number, lat: number): boolean {
     const b = this.regionBbox();
     if (!b || lon < b[0] || lon > b[2] || lat < b[1] || lat > b[3]) return false;
-    const poly = this.regionPolygon();
-    if (!poly || poly.length < 3) return true;
-    return isPointInPolygonCoords(lon, lat, ringToClosedPolygonCoords(poly));
+    const multi = this.regionMultiPolygon();
+    if (multi.length === 0) return true;
+    return multi.some(poly => isPointInPolygonCoords(lon, lat, poly));
   }
 
   private clampLonLat([lon, lat]: [number, number]): [number, number] {
@@ -448,6 +569,7 @@ export class WildfireStateService {
   setCustomBbox(bbox: BoundingBox, flyTo = false) {
     const clean = this.sanitizeBbox(bbox);
     this.draftPolygon.set(null);
+    this.regionBorderMultiPolygon.set(null);
     this.regionPolygon.set(bboxToPolygonRing(clean));
     this.regionBbox.set(clean);
     if (flyTo) {
@@ -460,20 +582,19 @@ export class WildfireStateService {
     this.preferredDataset.set(dataset);
   }
 
-  private syncDatasetForStartDate(prevStart: string, nextStart: string) {
-    const wasAvail = !prevStart || prevStart >= VIIRS_FIRST_DATE;
-    const isAvail = !nextStart || nextStart >= VIIRS_FIRST_DATE;
+  private syncDatasetForEndDate(prevEnd: string, nextEnd: string) {
+    const wasAvail = !prevEnd || prevEnd >= VIIRS_FIRST_DATE;
+    const isAvail = !nextEnd || nextEnd >= VIIRS_FIRST_DATE;
     if (!wasAvail && isAvail) {
       this.preferredDataset.set('VIIRS');
     }
   }
 
   setDateStart(start: string) {
-    const prev = this.dateStart();
+    const prevEnd = this.dateEnd();
     if (!start) {
       this.dateStart.set('');
       this.draftDateStart.set('');
-      this.syncDatasetForStartDate(prev, '');
       return;
     }
     const end = this.dateEnd();
@@ -482,19 +603,19 @@ export class WildfireStateService {
       this.dateEnd.set(start);
       this.draftDateStart.set(end);
       this.draftDateEnd.set(start);
-      this.syncDatasetForStartDate(prev, end);
+      this.syncDatasetForEndDate(prevEnd, start);
     } else {
       this.dateStart.set(start);
       this.draftDateStart.set(start);
-      this.syncDatasetForStartDate(prev, start);
     }
   }
 
   setDateEnd(end: string) {
-    const prev = this.dateStart();
+    const prevEnd = this.dateEnd();
     if (!end) {
       this.dateEnd.set('');
       this.draftDateEnd.set('');
+      this.syncDatasetForEndDate(prevEnd, '');
       return;
     }
     const start = this.dateStart();
@@ -503,15 +624,16 @@ export class WildfireStateService {
       this.dateEnd.set(start);
       this.draftDateStart.set(end);
       this.draftDateEnd.set(start);
-      this.syncDatasetForStartDate(prev, end);
+      this.syncDatasetForEndDate(prevEnd, start);
     } else {
       this.dateEnd.set(end);
       this.draftDateEnd.set(end);
+      this.syncDatasetForEndDate(prevEnd, end);
     }
   }
 
   setDateRange(start: string, end: string) {
-    const prev = this.dateStart();
+    const prevEnd = this.dateEnd();
     if (!start || !end) {
       const nextStart = start || '';
       const nextEnd = end || '';
@@ -519,7 +641,7 @@ export class WildfireStateService {
       this.dateEnd.set(nextEnd);
       this.draftDateStart.set(nextStart);
       this.draftDateEnd.set(nextEnd);
-      this.syncDatasetForStartDate(prev, nextStart);
+      this.syncDatasetForEndDate(prevEnd, nextEnd);
       return;
     }
     if (start <= end) {
@@ -527,13 +649,13 @@ export class WildfireStateService {
       this.dateEnd.set(end);
       this.draftDateStart.set(start);
       this.draftDateEnd.set(end);
-      this.syncDatasetForStartDate(prev, start);
+      this.syncDatasetForEndDate(prevEnd, end);
     } else {
       this.dateStart.set(end);
       this.dateEnd.set(start);
       this.draftDateStart.set(end);
       this.draftDateEnd.set(start);
-      this.syncDatasetForStartDate(prev, end);
+      this.syncDatasetForEndDate(prevEnd, start);
     }
   }
 
@@ -612,34 +734,212 @@ export class WildfireStateService {
 
   /** Commit any pending polygon/bbox or date-range edits and trigger calculation. */
   recalculateSelection(): void {
-    const draft = this.draftPolygon();
-    if (draft && draft.length >= 3) {
-      let minW = 180, minS = 85, maxE = -180, maxN = -85;
-      for (const [lon, lat] of draft) {
-        if (lon < minW) minW = lon;
-        if (lon > maxE) maxE = lon;
-        if (lat < minS) minS = lat;
-        if (lat > maxN) maxN = lat;
-      }
-      const cleanPoly = draft.map(p => this.clampLonLat(p));
-      this.regionPolygon.set(cleanPoly);
-      this.regionBbox.set(this.sanitizeBbox([minW, minS, maxE, maxN]));
-      this.draftPolygon.set(null);
-    }
-    if (this.hasPendingDateChanges()) {
-      this.setDateRange(this.draftDateStart(), this.draftDateEnd());
-    }
-    this.isDrawingBbox.set(false);
-    this.liveDrawBbox.set(null);
-    if (this.autoRestoreAfterDraw()) {
+    if (!this.canRecalculate()) {
+      this.missingInputsPrompt.set(true);
       this.isAnalyticsMinimized.set(false);
-      this.autoRestoreAfterDraw.set(false);
+      this.showRegionForm.set(true);
+      this.showDataSection.set(true);
+      return;
     }
+    this.missingInputsPrompt.set(false);
+    const draft = this.draftPolygon();
+    const hasDraftPoly = Boolean(draft && draft.length >= 3);
+    const hasDateDiff = this.hasPendingDateChanges();
+
+    const cleanPoly = draft && draft.length >= 3 ? draft.map(p => this.clampLonLat(p)) : null;
+    const nextBbox = cleanPoly ? (this.computeRingEnvelope(cleanPoly) ?? this.regionBbox()) : this.regionBbox();
+    const nextStart = hasDateDiff ? this.draftDateStart() : this.dateStart();
+    const nextEnd = hasDateDiff ? this.draftDateEnd() : this.dateEnd();
+
+    const commit = () => {
+      if (cleanPoly && nextBbox) {
+        this.regionBorderMultiPolygon.set(null);
+        this.regionPolygon.set(cleanPoly);
+        this.regionBbox.set(nextBbox);
+        this.draftPolygon.set(null);
+      }
+      if (hasDateDiff) {
+        this.setDateRange(nextStart, nextEnd);
+      }
+      this.isDrawingBbox.set(false);
+      this.liveDrawBbox.set(null);
+      if (this.autoRestoreAfterDraw()) {
+        this.isAnalyticsMinimized.set(false);
+        this.autoRestoreAfterDraw.set(false);
+      }
+    };
+
+    if ((hasDraftPoly || hasDateDiff) && nextBbox) {
+      this.confirmLargeSelection(nextBbox, nextStart, nextEnd, commit);
+    } else {
+      commit();
+    }
+  }
+
+  private confirmLargeSelection(bbox: BoundingBox, dateStart: string, dateEnd: string, onContinue: () => void): void {
+    if (this.data.isCustomDataset() || this.data.isDefaultCachedQuery(bbox, dateStart, dateEnd)) {
+      onContinue();
+      return;
+    }
+    const bboxAreaDeg2 = Math.max(0, bbox[2] - bbox[0]) * Math.max(0, bbox[3] - bbox[1]);
+    const startMs = Date.parse(`${dateStart}T00:00:00Z`);
+    const endMs = Date.parse(`${dateEnd}T00:00:00Z`);
+    const rangeDays =
+      Number.isFinite(startMs) && Number.isFinite(endMs)
+        ? Math.floor(Math.abs(endMs - startMs) / 86_400_000) + 1
+        : 0;
+
+    if (bboxAreaDeg2 < LARGE_BBOX_DEG2_THRESHOLD && rangeDays < HUGE_TIME_RANGE_DAYS_THRESHOLD) {
+      onContinue();
+      return;
+    }
+
+    this.popup.open({
+      id: 'large-selection-notice',
+      size: 'sm',
+      title: computed(() => this.i18n.t().largeSelectionTitle),
+      subtitle: computed(() => this.i18n.t().largeSelectionSubtitle),
+      description: computed(() => this.i18n.t().largeSelectionDesc),
+      actions: [
+        {
+          label: computed(() => this.i18n.t().largeSelectionCancelBtn),
+          variant: 'default'
+        },
+        {
+          label: computed(() => this.i18n.t().largeSelectionContinueBtn),
+          variant: 'default',
+          hot: true,
+          onClick: onContinue
+        }
+      ]
+    });
   }
 
   /** Commit the draft polygon and trigger calculation. */
   acceptDraftPolygon(): void {
     this.recalculateSelection();
+  }
+
+  selectDefaultIberia(): void {
+    const poly = DEFAULT_PREFILL_POLYGON.map(([lon, lat]) => [lon, lat] as [number, number]);
+    const bbox: BoundingBox = [...DEFAULT_PREFILL_BBOX];
+    this.confirmAndApplyPredefinedRegion(poly, null, bbox);
+  }
+
+  selectPredefinedCountry(country: PredefinedCountry): void {
+    const borderPolys = this.extractMainCountryPolygons(country);
+    if (borderPolys.length > 0) {
+      const bbox = this.computeMultiEnvelope(borderPolys) ?? this.sanitizeBbox(country.primaryBbox);
+      this.confirmAndApplyPredefinedRegion(null, borderPolys, bbox);
+      return;
+    }
+    const clean = this.sanitizeBbox(country.primaryBbox);
+    this.confirmAndApplyPredefinedRegion(bboxToPolygonRing(clean), null, clean);
+  }
+
+  private confirmAndApplyPredefinedRegion(
+    poly: PolygonRing | null,
+    borderMulti: MultiPolygonCoords | null,
+    bbox: BoundingBox
+  ): void {
+    const useDefaultDates = !this.hasValidDraftDates();
+    const nextStart = useDefaultDates
+      ? DEFAULT_PREFILL_DATES.start
+      : this.hasPendingDateChanges()
+        ? this.draftDateStart()
+        : this.dateStart();
+    const nextEnd = useDefaultDates
+      ? DEFAULT_PREFILL_DATES.end
+      : this.hasPendingDateChanges()
+        ? this.draftDateEnd()
+        : this.dateEnd();
+
+    this.confirmLargeSelection(bbox, nextStart, nextEnd, () => {
+      this.missingInputsPrompt.set(false);
+      this.draftPolygon.set(null);
+      this.isDrawingBbox.set(false);
+      this.liveDrawBbox.set(null);
+      this.regionBorderMultiPolygon.set(borderMulti);
+      this.regionPolygon.set(poly);
+      this.regionBbox.set(bbox);
+      if (useDefaultDates || this.hasPendingDateChanges()) {
+        this.setDateRange(nextStart, nextEnd);
+      }
+      this.requestFlyToBbox();
+    });
+  }
+
+  private extractMainCountryPolygons(country: PredefinedCountry): MultiPolygonCoords {
+    const polys = country.polygons ?? [];
+    if (polys.length === 0) return [];
+    const withBox = polys
+      .filter(p => Array.isArray(p[0]) && p[0].length >= 4)
+      .map(poly => {
+        const env = this.computeRingEnvelope(poly[0]);
+        const area = env ? (env[2] - env[0]) * (env[3] - env[1]) : 0;
+        return { poly, env, area };
+      })
+      .filter((x): x is { poly: PolygonCoords; env: BoundingBox; area: number } => x.env !== null)
+      .sort((a, b) => b.area - a.area);
+    if (withBox.length === 0) return [];
+    const main = withBox[0].env;
+    // Keep mainland plus nearby coastal islands within 4 degrees, preserving exact border vertices
+    return withBox
+      .filter((item, idx) => {
+        if (idx === 0) return true;
+        const b = item.env;
+        const dx = Math.max(0, main[0] - b[2], b[0] - main[2]);
+        const dy = Math.max(0, main[1] - b[3], b[1] - main[3]);
+        return Math.hypot(dx, dy) <= 4.0;
+      })
+      .map(item => item.poly);
+  }
+
+  private computeMultiEnvelope(multi: MultiPolygonCoords): BoundingBox | null {
+    let minW = 180;
+    let minS = 85;
+    let maxE = -180;
+    let maxN = -85;
+    let count = 0;
+    for (const poly of multi) {
+      const outer = poly[0];
+      if (!outer) continue;
+      for (const [lon, lat] of outer) {
+        if (lon < minW) minW = lon;
+        if (lon > maxE) maxE = lon;
+        if (lat < minS) minS = lat;
+        if (lat > maxN) maxN = lat;
+        count++;
+      }
+    }
+    if (count < 3) return null;
+    // Round outward to 0.01 deg so extreme coastal points (e.g. Swinoujscie) are never clipped
+    return this.sanitizeBbox([
+      Math.floor(minW * 100) / 100,
+      Math.floor(minS * 100) / 100,
+      Math.ceil(maxE * 100) / 100,
+      Math.ceil(maxN * 100) / 100
+    ]);
+  }
+
+  private computeRingEnvelope(ring: PolygonRing): BoundingBox | null {
+    if (ring.length < 3) return null;
+    let minW = 180;
+    let minS = 85;
+    let maxE = -180;
+    let maxN = -85;
+    for (const [lon, lat] of ring) {
+      if (lon < minW) minW = lon;
+      if (lon > maxE) maxE = lon;
+      if (lat < minS) minS = lat;
+      if (lat > maxN) maxN = lat;
+    }
+    return this.sanitizeBbox([
+      Math.floor(minW * 100) / 100,
+      Math.floor(minS * 100) / 100,
+      Math.ceil(maxE * 100) / 100,
+      Math.ceil(maxN * 100) / 100
+    ]);
   }
 
   requestFlyToBbox() {
@@ -649,7 +949,9 @@ export class WildfireStateService {
   }
 
   resetRegionAndDates() {
+    this.missingInputsPrompt.set(false);
     this.regionBbox.set(null);
+    this.regionBorderMultiPolygon.set(null);
     this.regionPolygon.set(null);
     this.draftPolygon.set(null);
     this.liveDrawBbox.set(null);
@@ -664,5 +966,62 @@ export class WildfireStateService {
     this.showRegionBbox.set(true);
     this.showLandOrtho.set(true);
     this.showBorders.set(true);
+    this.showUserLocation.set(false);
+    this.colorRamp.set('ylOrRd');
+  }
+
+  /**
+   * Toggle the user-location pin layer. Enabling it triggers the browser's native geolocation
+   * permission prompt directly and displays a pin once coordinates are granted.
+   */
+  setUserLocationEnabled(enabled: boolean): void {
+    if (!enabled) {
+      this.showUserLocation.set(false);
+      return;
+    }
+
+    this.requestBrowserGeolocation();
+  }
+
+  private requestBrowserGeolocation(): void {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      this.showLocationUnavailablePopup();
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        this.ngZone.run(() => {
+          this.userLocation.set({
+            lon: pos.coords.longitude,
+            lat: pos.coords.latitude
+          });
+          this.showUserLocation.set(true);
+        });
+      },
+      () => {
+        this.ngZone.run(() => {
+          this.showUserLocation.set(false);
+          this.showLocationUnavailablePopup();
+        });
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+    );
+  }
+
+  private showLocationUnavailablePopup(): void {
+    this.popup.open({
+      id: 'user-location-error',
+      size: 'sm',
+      title: computed(() => this.i18n.t().locationErrorTitle),
+      description: computed(() => this.i18n.t().locationErrorDesc),
+      actions: [
+        {
+          label: computed(() => this.i18n.t().locationErrorOkBtn),
+          variant: 'default',
+          hot: true
+        }
+      ]
+    });
   }
 }

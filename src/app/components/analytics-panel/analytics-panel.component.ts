@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, ElementRef, HostListener, ViewChild, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   LucideAngularModule,
@@ -16,50 +16,81 @@ import {
   CheckCircle2,
   CircleDashed,
   Compass,
-  Check
+  Check,
+  Loader2,
+  Globe,
+  Search,
+  Download,
+  Calendar,
+  X
 } from 'lucide-angular';
-import { ButtonComponent, DropdownComponent, DropdownOption, SwitcherComponent, SwitcherOption } from '@kmd/design-system';
+import {
+  ButtonComponent,
+  DateRangeSliderComponent,
+  DropdownComponent,
+  DropdownOption,
+  PopupService,
+  SwitcherComponent,
+  SwitcherOption
+} from '@kmd/design-system';
+import { openExportPopup } from '../data-popup/data-popup.component';
 import { I18nService } from '../../core/i18n/i18n.service';
-import { WildfireStateService } from '../../core/services/wildfire-state.service';
+import { DEFAULT_PREFILL_BBOX, WildfireStateService } from '../../core/services/wildfire-state.service';
+import { USER_LOCATION_PIN_COLOR } from '../../core/utils/location-pin';
 import { WildfireDataService } from '../../core/services/wildfire-data.service';
 import { HotspotAnalyticsService } from '../../core/services/hotspot-analytics.service';
 import { ColorRampService } from '../../core/services/color-ramp.service';
+import { LocaleDatePipe } from '../../core/pipes/locale-date.pipe';
 import {
   ActiveFireDataset,
   BurningCalendarCell,
   CalendarGranularity,
+  ChartGranularity,
+  ChartSeriesPoint,
   ColorRampId,
-  YearlyComparisonPoint
+  PredefinedCountry
 } from '../../core/models/wildfire.model';
 
 @Component({
   selector: 'app-analytics-panel',
   standalone: true,
-  imports: [CommonModule, LucideAngularModule, ButtonComponent, DropdownComponent, SwitcherComponent],
+  imports: [CommonModule, LucideAngularModule, ButtonComponent, DateRangeSliderComponent, DropdownComponent, SwitcherComponent, LocaleDatePipe],
   templateUrl: './analytics-panel.component.html',
   styleUrl: './analytics-panel.component.scss'
 })
 export class AnalyticsPanelComponent {
+  @ViewChild('scrollContainer') scrollContainerRef?: ElementRef<HTMLDivElement>;
+  @ViewChild('regionAnchor') regionAnchorRef?: ElementRef<HTMLElement>;
+  @ViewChild('dataAnchor') dataAnchorRef?: ElementRef<HTMLElement>;
+  @ViewChild('layersAnchor') layersAnchorRef?: ElementRef<HTMLElement>;
+  @ViewChild('analysisAnchor') analysisAnchorRef?: ElementRef<HTMLElement>;
+  @ViewChild('areaPicker') areaPickerRef?: ElementRef<HTMLElement>;
+
+  readonly maxSelectableDate = new Date().toISOString().slice(0, 10);
   readonly i18n = inject(I18nService);
   readonly state = inject(WildfireStateService);
   readonly data = inject(WildfireDataService);
   readonly analytics = inject(HotspotAnalyticsService);
   readonly ramps = inject(ColorRampService);
+  private readonly popup = inject(PopupService);
   readonly Math = Math;
 
   readonly expanded = this.state.isAnalyticsExpanded;
   readonly showForm = this.state.showRegionForm;
-  readonly showCoordsInputs = this.state.showCoordsInputs;
+  readonly showDataSection = this.state.showDataSection;
   readonly showLayersSection = this.state.showLayersSection;
   readonly showAnalysisSection = this.state.showAnalysisSection;
   readonly hoveredCell = signal<BurningCalendarCell | null>(null);
-  readonly hoveredYear = signal<YearlyComparisonPoint | null>(null);
+  readonly hoveredChartPoint = signal<ChartSeriesPoint | null>(null);
 
   readonly draftW = signal<string>('');
   readonly draftS = signal<string>('');
   readonly draftE = signal<string>('');
   readonly draftN = signal<string>('');
   readonly coordError = signal<boolean>(false);
+  readonly areaDropdownOpen = signal<boolean>(false);
+  readonly areaSearchQuery = signal<string>('');
+  readonly selectedCountryCode = signal<string | null>('__IBERIA__');
 
   // Icons
   readonly chartIcon = BarChart3;
@@ -77,6 +108,12 @@ export class AnalyticsPanelComponent {
   readonly circleDashedIcon = CircleDashed;
   readonly compassIcon = Compass;
   readonly checkIcon = Check;
+  readonly loaderIcon = Loader2;
+  readonly globeIcon = Globe;
+  readonly searchIcon = Search;
+  readonly downloadIcon = Download;
+  readonly calendarIcon = Calendar;
+  readonly closeIcon = X;
 
   constructor() {
     effect(() => {
@@ -113,30 +150,48 @@ export class AnalyticsPanelComponent {
         checked: this.state.showRegionBbox(),
         setChecked: (v: boolean) => this.state.showRegionBbox.set(v)
       },
-      ...(this.state.mapMode() === 'globe'
+      {
+        id: 'ortho',
+        label: t.layerLandOrtho,
+        swatch: '#2f6f4e',
+        checked: this.state.showLandOrtho(),
+        setChecked: (v: boolean) => this.state.showLandOrtho.set(v)
+      },
+      ...(this.state.showLandOrtho()
         ? [
             {
-              id: 'ortho',
-              label: t.layerLandOrtho,
-              swatch: '#2f6f4e',
-              checked: this.state.showLandOrtho(),
-              setChecked: (v: boolean) => this.state.showLandOrtho.set(v)
-            },
-            ...(this.state.showLandOrtho()
-              ? [
-                  {
-                    id: 'borders',
-                    label: t.layerBorders,
-                    swatch: '#cbd5e1',
-                    checked: this.state.showBorders(),
-                    setChecked: (v: boolean) => this.state.showBorders.set(v)
-                  }
-                ]
-              : [])
+              id: 'borders',
+              label: t.layerBorders,
+              swatch: '#cbd5e1',
+              checked: this.state.showBorders(),
+              setChecked: (v: boolean) => this.state.showBorders.set(v)
+            }
           ]
-        : [])
+        : []),
+      {
+        id: 'userLocation',
+        label: t.layerUserLocation,
+        swatch: USER_LOCATION_PIN_COLOR,
+        checked: this.state.showUserLocation(),
+        setChecked: (v: boolean) => this.state.setUserLocationEnabled(v)
+      }
     ];
   });
+
+  onLayerToggle(
+    item: { id: string; setChecked: (v: boolean) => void },
+    inputEl: HTMLInputElement
+  ): void {
+    const next = inputEl.checked;
+    item.setChecked(next);
+    if (item.id === 'userLocation') {
+      inputEl.checked = this.state.showUserLocation();
+    }
+  }
+
+  readonly activeLayersCount = computed<number>(
+    () => this.layerItems().filter(item => item.checked).length
+  );
 
   readonly datasetOptions = computed<SwitcherOption<ActiveFireDataset>[]>(() => {
     const t = this.i18n.t();
@@ -156,11 +211,25 @@ export class AnalyticsPanelComponent {
     ];
   });
 
+  readonly activeDatasetDisplayLabel = computed<string>(() => {
+    const t = this.i18n.t();
+    if (this.state.isMixedSensorRange()) return t.datasetMixedLabel;
+    return this.state.activeDataset() === 'VIIRS' ? t.datasetViirsBtn : t.datasetModisBtn;
+  });
+
   readonly calendarModeOptions = computed<SwitcherOption<CalendarGranularity>[]>(() => {
     const t = this.i18n.t();
     return [
       { value: 'monthly', label: t.calendarMonthly },
       { value: 'daily', label: t.calendarDaily }
+    ];
+  });
+
+  readonly chartModeOptions = computed<SwitcherOption<ChartGranularity>[]>(() => {
+    const t = this.i18n.t();
+    return [
+      { value: 'monthly', label: t.chartMonthly },
+      { value: 'yearly', label: t.chartYearly }
     ];
   });
 
@@ -190,14 +259,111 @@ export class AnalyticsPanelComponent {
   });
 
   readonly historyMaxVal = computed(() => {
-    const list = this.analytics.yearlyComparison();
-    return Math.max(1, ...list.map(y => Math.max(y.harmonizedCount, y.rawModisCount, y.multiYearAvgCount)));
+    const list = this.analytics.chartSeries();
+    return Math.max(1, ...list.map(y => Math.max(y.harmonizedCount, y.rawModisCount, y.avgCount)));
   });
 
   readonly anomalyMaxAbsZ = computed(() => {
-    const list = this.analytics.yearlyComparison();
-    return Math.max(2, ...list.map(y => Math.abs(y.anomalyZScore)));
+    const list = this.analytics.chartSeries();
+    return Math.max(1, ...list.map(y => Math.abs(y.anomalyZScore)));
   });
+
+  private readonly regionDisplayNames = computed(() => {
+    const lang = this.i18n.lang();
+    try {
+      return typeof Intl !== 'undefined' && 'DisplayNames' in Intl
+        ? new Intl.DisplayNames([lang], { type: 'region' })
+        : null;
+    } catch {
+      return null;
+    }
+  });
+
+  readonly filteredCountries = computed<PredefinedCountry[]>(() => {
+    const all = this.data.countries();
+    const q = this.areaSearchQuery().trim().toLowerCase();
+    if (!q) return all;
+    return all.filter(c => {
+      const loc = this.countryLabel(c).toLowerCase();
+      return (
+        loc.includes(q) ||
+        c.name.toLowerCase().includes(q) ||
+        c.code.toLowerCase().includes(q) ||
+        (c.iso2?.toLowerCase().includes(q) ?? false)
+      );
+    });
+  });
+
+  readonly showIberiaOption = computed<boolean>(() => {
+    const q = this.areaSearchQuery().trim().toLowerCase();
+    if (!q) return true;
+    const t = this.i18n.t();
+    return (
+      t.regionIberiaDefault.toLowerCase().includes(q) ||
+      t.regionIberiaAll.toLowerCase().includes(q) ||
+      'iberian peninsula'.includes(q) ||
+      'iberia'.includes(q) ||
+      'ibr'.includes(q)
+    );
+  });
+
+  readonly activeRegionName = computed<string>(() => {
+    const b = this.state.regionBbox();
+    if (!b) return '';
+    if (DEFAULT_PREFILL_BBOX.every((v, idx) => Math.abs(b[idx] - v) <= 0.02)) {
+      return this.i18n.t().regionIberiaDefault;
+    }
+    const code = this.selectedCountryCode();
+    if (code && code !== '__IBERIA__') {
+      const found = this.data.countries().find(c => c.code === code);
+      if (found && found.primaryBbox.every((v, idx) => Math.abs(b[idx] - v) <= 0.6)) {
+        return `${this.countryLabel(found)} (${found.code})`;
+      }
+    }
+    return '';
+  });
+
+  countryLabel(country: PredefinedCountry): string {
+    if (country.iso2) {
+      const localized = this.regionDisplayNames()?.of(country.iso2);
+      if (localized) return localized;
+    }
+    return country.name;
+  }
+
+  toggleAreaDropdown(): void {
+    this.areaDropdownOpen.update(v => !v);
+  }
+
+  chooseIberiaDefault(): void {
+    this.selectedCountryCode.set('__IBERIA__');
+    this.areaSearchQuery.set('');
+    this.areaDropdownOpen.set(false);
+    this.state.selectDefaultIberia();
+  }
+
+  chooseCountry(country: PredefinedCountry): void {
+    this.selectedCountryCode.set(country.code);
+    this.areaSearchQuery.set('');
+    this.areaDropdownOpen.set(false);
+    this.state.selectPredefinedCountry(country);
+  }
+
+  @HostListener('document:pointerdown', ['$event'])
+  onDocumentPointerDown(event: PointerEvent): void {
+    if (!this.areaDropdownOpen()) return;
+    const target = event.target as Node | null;
+    if (target && !this.areaPickerRef?.nativeElement.contains(target)) {
+      this.areaDropdownOpen.set(false);
+    }
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscapeKey(): void {
+    if (this.areaDropdownOpen()) {
+      this.areaDropdownOpen.set(false);
+    }
+  }
 
   onCoordInput(which: 'w' | 's' | 'e' | 'n', value: string) {
     if (which === 'w') this.draftW.set(value);
@@ -205,52 +371,85 @@ export class AnalyticsPanelComponent {
     else if (which === 'e') this.draftE.set(value);
     else this.draftN.set(value);
 
-    const w = Number(this.draftW());
-    const s = Number(this.draftS());
-    const e = Number(this.draftE());
-    const n = Number(this.draftN());
-    if (
-      this.draftW().trim() !== '' &&
-      this.draftS().trim() !== '' &&
-      this.draftE().trim() !== '' &&
-      this.draftN().trim() !== '' &&
-      Number.isFinite(w) &&
-      Number.isFinite(s) &&
-      Number.isFinite(e) &&
-      Number.isFinite(n) &&
-      w < e &&
-      s < n
-    ) {
+    const parseCoord = (raw: string): number | null => {
+      const trimmed = raw.trim();
+      if (!trimmed) return null;
+      const num = Number(trimmed);
+      return Number.isFinite(num) ? num : null;
+    };
+
+    const w = parseCoord(this.draftW());
+    const s = parseCoord(this.draftS());
+    const e = parseCoord(this.draftE());
+    const n = parseCoord(this.draftN());
+    const validCount = [w, s, e, n].filter((v): v is number => v !== null).length;
+
+    if (validCount < 3) {
       this.coordError.set(false);
-      this.state.previewCoordBox([w, s, e, n]);
+      return;
+    }
+
+    const clamp = (val: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, val));
+    const inferSpan = (otherSpan: number) =>
+      Number.isFinite(otherSpan) && otherSpan > 0 ? Math.min(8, Math.max(0.25, otherSpan * 0.75)) : 0.5;
+
+    const lonSpan = w !== null && e !== null ? e - w : 0.6;
+    const latSpan = s !== null && n !== null ? n - s : 0.6;
+
+    const finalW = w ?? clamp(e! - inferSpan(latSpan), -180, 180);
+    const finalE = e ?? clamp(w! + inferSpan(latSpan), -180, 180);
+    const finalS = s ?? clamp(n! - inferSpan(lonSpan), -85, 85);
+    const finalN = n ?? clamp(s! + inferSpan(lonSpan), -85, 85);
+
+    if (finalW < finalE && finalS < finalN) {
+      this.coordError.set(false);
+      this.state.previewCoordBox([finalW, finalS, finalE, finalN]);
+    } else if (validCount === 4) {
+      this.coordError.set(true);
     }
   }
 
-  applyDraftCoords() {
-    const w = Number(this.draftW());
-    const s = Number(this.draftS());
-    const e = Number(this.draftE());
-    const n = Number(this.draftN());
-    if (
-      this.draftW().trim() === '' ||
-      this.draftS().trim() === '' ||
-      this.draftE().trim() === '' ||
-      this.draftN().trim() === '' ||
-      !Number.isFinite(w) ||
-      !Number.isFinite(s) ||
-      !Number.isFinite(e) ||
-      !Number.isFinite(n) ||
-      w >= e ||
-      s >= n
-    ) {
-      this.coordError.set(true);
-      return;
+  onCoordEnter() {
+    this.state.recalculateSelection();
+  }
+
+  openExport(): void {
+    openExportPopup(this.popup, this.i18n);
+  }
+
+  toggleSection(section: 'region' | 'data' | 'layers' | 'analysis'): void {
+    let expanding = false;
+    if (section === 'region') {
+      expanding = !this.showForm();
+      this.showForm.set(expanding);
+    } else if (section === 'data') {
+      expanding = !this.showDataSection();
+      this.showDataSection.set(expanding);
+    } else if (section === 'layers') {
+      expanding = !this.showLayersSection();
+      this.showLayersSection.set(expanding);
+    } else {
+      expanding = !this.showAnalysisSection();
+      this.showAnalysisSection.set(expanding);
     }
-    this.coordError.set(false);
-    this.state.setCustomBbox([w, s, e, n], true);
-    if (this.state.hasPendingDateChanges()) {
-      this.state.recalculateSelection();
-    }
+    if (!expanding) return;
+
+    requestAnimationFrame(() => {
+      const container = this.scrollContainerRef?.nativeElement;
+      const anchor =
+        section === 'region'
+          ? this.regionAnchorRef?.nativeElement
+          : section === 'data'
+            ? this.dataAnchorRef?.nativeElement
+            : section === 'layers'
+              ? this.layersAnchorRef?.nativeElement
+              : this.analysisAnchorRef?.nativeElement;
+      if (!container || !anchor) return;
+
+      const stickyOffset = section === 'layers' ? 0 : section === 'region' ? 38 : section === 'data' ? 76 : 114;
+      const targetTop = Math.max(0, anchor.offsetTop - stickyOffset);
+      container.scrollTo({ top: targetTop, behavior: 'smooth' });
+    });
   }
 
   cellFill(cell: BurningCalendarCell): string {

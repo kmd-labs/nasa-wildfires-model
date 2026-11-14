@@ -154,6 +154,8 @@ def modis_duplicates(df: pd.DataFrame, fraction: float = DEDUPE_TRACK_FRACTION) 
 
 def small_flag(df: pd.DataFrame, thresholds: dict[str, float] | None = None) -> pd.Series:
     """True for VIIRS detections weaker than the small-fire threshold of their stratum (day / night)."""
+    if not len(df) or "frp" not in df:
+        return pd.Series(False, index=df.index)
     thr = thresholds or SMALL_FRP_MW
     stratum = df["stratum"] if "stratum" in df else pd.Series(0, index=df.index)
     limit = np.where(stratum.to_numpy() == 1, thr["N"], thr["D"])
@@ -218,17 +220,18 @@ def build_cube(df: pd.DataFrame, avail: Availability, h3_res: int) -> Cube:
     cell_of = _cells_of(df.latitude.to_numpy(float), df.longitude.to_numpy(float), h3_res) if len(df) else np.array([])
     cells = sorted(set(cell_of.tolist()))
     cell_idx = {c: i for i, c in enumerate(cells)}
-    p_idx = df.platform.map({p: i for i, p in enumerate(PLATFORMS)}).to_numpy()
-    s_idx = df.stratum.to_numpy().astype(np.int64)
+    p_idx = df.platform.map({p: i for i, p in enumerate(PLATFORMS)}).fillna(-1).to_numpy(dtype=np.int64)
+    s_idx = df.stratum.to_numpy(dtype=np.int64)
     c_idx = np.fromiter((cell_idx[c] for c in cell_of), dtype=np.int64, count=len(cell_of))
-    m_idx = _month_index(df.date, months) if len(df) else np.array([], dtype=np.int64)
-    inside = (m_idx >= 0) & (m_idx < len(months))
+    m_idx = _month_index(df.date, months).astype(np.int64) if len(df) else np.empty(0, dtype=np.int64)
+    inside = (p_idx >= 0) & (m_idx >= 0) & (m_idx < len(months))
     shape = (len(PLATFORMS), len(STRATA), len(cells), len(months))
     counts, pct_sum, small = np.zeros(shape), np.zeros(shape), np.zeros(shape)
-    at = (p_idx[inside], s_idx[inside], c_idx[inside], m_idx[inside])
-    np.add.at(counts, at, 1)
-    np.add.at(pct_sum, at, df.frp_pct.to_numpy()[inside])
-    np.add.at(small, at, df.small.to_numpy().astype(float)[inside])
+    if inside.any():
+        at = (p_idx[inside], s_idx[inside], c_idx[inside], m_idx[inside])
+        np.add.at(counts, at, 1)
+        np.add.at(pct_sum, at, df.frp_pct.to_numpy(dtype=float)[inside])
+        np.add.at(small, at, df.small.to_numpy(dtype=float)[inside])
 
     units = {}
     if inside.any():

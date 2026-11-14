@@ -15,14 +15,23 @@ import { WildfireDataService } from '../../core/services/wildfire-data.service';
 import { WildfireStateService, ringToClosedPolygonCoords } from '../../core/services/wildfire-state.service';
 import { HotspotAnalyticsService } from '../../core/services/hotspot-analytics.service';
 import { ColorRampService } from '../../core/services/color-ramp.service';
-import { GlobeTileService } from '../../core/services/globe-tile.service';
+import { GlobeTileService, TileProviderId } from '../../core/services/globe-tile.service';
 import { BoundingBox, MultiPolygonCoords, PolygonCoords, PolygonRing } from '../../core/models/wildfire.model';
 import { ScreenPt, findNearestEdgePx, findNearestVertexPx } from '../../core/utils/polygon-clip';
+import { USER_LOCATION_PIN_COLOR, drawUserLocationPin } from '../../core/utils/location-pin';
 
 interface CachedTile {
   status: 'loading' | 'ready' | 'error';
   img: HTMLImageElement;
   lastUsed: number;
+}
+
+interface BorderRingBbox {
+  ring: [number, number][];
+  minLon: number;
+  maxLon: number;
+  minLat: number;
+  maxLat: number;
 }
 
 const TILE_SIZE = 256;
@@ -63,8 +72,12 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
   private zoom = 9.5;
   private lastReportedTileZoom = -1;
 
-  // Tile cache
+  // Tile & administrative border caches
   private readonly tileCache = new Map<string, CachedTile>();
+  private borderStateRings: BorderRingBbox[] = [];
+  private borderCountryRings: BorderRingBbox[] = [];
+  private bordersLoaded = false;
+  private bordersLoading = false;
 
   // Pointer interaction state
   private isPanning = false;
@@ -86,6 +99,10 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
       this.state.regionPolygon();
       this.state.colorRamp();
       this.state.showHotspotsOnGlobe();
+      this.state.showLandOrtho();
+      this.state.showBorders();
+      this.state.showUserLocation();
+      this.state.userLocation();
       untracked(() => this.requestRender());
     });
 
@@ -293,8 +310,8 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  private getOrFetchTile(z: number, x: number, y: number): CachedTile {
-    const key = `${z}/${x}/${y}`;
+  private getOrFetchTile(provider: TileProviderId, z: number, x: number, y: number): CachedTile {
+    const key = `${provider}/${z}/${x}/${y}`;
     const existing = this.tileCache.get(key);
     if (existing) {
       existing.lastUsed = performance.now();
@@ -326,12 +343,13 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
     img.onerror = () => {
       record.status = 'error';
     };
-    img.src = this.tiles.buildTileUrl('osm', z, x, y);
+    img.src = this.tiles.buildTileUrl(provider, z, x, y);
     return record;
   }
 
   private drawFallbackTile(
     ctx: CanvasRenderingContext2D,
+    provider: TileProviderId,
     z: number,
     wrappedX: number,
     ty: number,
@@ -345,7 +363,7 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
       const factor = 1 << dz;
       const px = Math.floor(wrappedX / factor);
       const py = Math.floor(ty / factor);
-      const ancestor = this.tileCache.get(`${pz}/${px}/${py}`);
+      const ancestor = this.tileCache.get(`${provider}/${pz}/${px}/${py}`);
       if (ancestor?.status === 'ready' && ancestor.img.complete && ancestor.img.naturalWidth > 0) {
         const subSize = TILE_SIZE / factor;
         const sx = (wrappedX % factor) * subSize;
@@ -357,6 +375,117 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  private async ensureBordersLoaded(): Promise<void> {
+    if (this.bordersLoaded || this.bordersLoading) return;
+    this.bordersLoading = true;
+    try {
+      const [statesResp, countriesResp] = await Promise.all([
+        fetch('assets/data/global-states-10m.json'),
+        fetch('assets/data/uk-land-10m.json')
+      ]);
+      const [statesGeo, countriesGeo] = await Promise.all([
+        statesResp.ok ? statesResp.json() : null,
+        countriesResp.ok ? countriesResp.json() : null
+      ]);
+      if (statesGeo) {
+        this.borderStateRings = this.extractRingsWithBbox(statesGeo);
+      }
+      if (countriesGeo) {
+        this.borderCountryRings = this.extractRingsWithBbox(countriesGeo);
+      }
+      this.bordersLoaded = true;
+      this.requestRender();
+    } catch {
+      // ignore vector border fetch failures
+    } finally {
+      this.bordersLoading = false;
+    }
+  }
+
+  private extractRingsWithBbox(geojson: any): BorderRingBbox[] {
+    const out: BorderRingBbox[] = [];
+    const features = geojson?.type === 'FeatureCollection' ? geojson.features : [geojson];
+    const pushRing = (ring: [number, number][]) => {
+      if (!ring || ring.length < 2) return;
+      let minLon = 180;
+      let maxLon = -180;
+      let minLat = 90;
+      let maxLat = -90;
+      for (const [lon, lat] of ring) {
+        if (lon < minLon) minLon = lon;
+        if (lon > maxLon) maxLon = lon;
+        if (lat < minLat) minLat = lat;
+        if (lat > maxLat) maxLat = lat;
+      }
+      out.push({ ring, minLon, maxLon, minLat, maxLat });
+    };
+
+    for (const f of features ?? []) {
+      const g = f?.geometry ?? f;
+      if (!g) continue;
+      if (g.type === 'Polygon') {
+        for (const r of g.coordinates) pushRing(r);
+      } else if (g.type === 'MultiPolygon') {
+        for (const poly of g.coordinates) {
+          for (const r of poly) pushRing(r);
+        }
+      }
+    }
+    return out;
+  }
+
+  private renderBorderRingSet(
+    ctx: CanvasRenderingContext2D,
+    rings: BorderRingBbox[],
+    strokeStyle: string,
+    lineWidth: number,
+    ws: number,
+    cx: number,
+    cy: number,
+    minViewLat: number,
+    maxViewLat: number
+  ): void {
+    if (!rings.length) return;
+    ctx.save();
+    ctx.strokeStyle = strokeStyle;
+    ctx.lineWidth = lineWidth;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+
+    const seamThreshold = ws * 0.4;
+    for (const item of rings) {
+      if (item.maxLat < minViewLat || item.minLat > maxViewLat) continue;
+      let prevSx = 0;
+      for (let i = 0; i < item.ring.length; i++) {
+        const [lon, lat] = item.ring[i];
+        const [sx, sy] = this.lonLatToScreen(lon, lat, ws, cx, cy);
+        if (i === 0 || Math.abs(sx - prevSx) > seamThreshold) {
+          ctx.moveTo(sx, sy);
+        } else {
+          ctx.lineTo(sx, sy);
+        }
+        prevSx = sx;
+      }
+    }
+
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  private renderAdministrativeBorders(ctx: CanvasRenderingContext2D, ws: number, cx: number, cy: number): void {
+    this.ensureBordersLoaded();
+    if (!this.bordersLoaded) return;
+
+    const topWy = cy - this.height * 0.5;
+    const bottomWy = cy + this.height * 0.5;
+    const maxViewLat = this.clampLat(this.worldYToLat(topWy, ws)) + 2;
+    const minViewLat = this.clampLat(this.worldYToLat(bottomWy, ws)) - 2;
+
+    this.renderBorderRingSet(ctx, this.borderStateRings, 'rgba(226, 232, 240, 0.45)', 0.85, ws, cx, cy, minViewLat, maxViewLat);
+    this.renderBorderRingSet(ctx, this.borderCountryRings, 'rgba(248, 250, 252, 0.78)', 1.2, ws, cx, cy, minViewLat, maxViewLat);
+  }
+
   private render(): void {
     const ctx = this.ctx;
     if (!ctx) return;
@@ -365,16 +494,18 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     ctx.imageSmoothingEnabled = true;
 
-    // 1. Neutral airy canvas background before/around OSM tiles
+    // 1. Neutral airy canvas background before/around slippy map tiles
     ctx.fillStyle = '#e5ecf2';
     ctx.fillRect(0, 0, this.width, this.height);
 
-    // 2. Render OSM slippy tile canvas base
+    // 2. Render slippy tile canvas base (Satellite Orthophoto or OSM street map)
+    const provider: TileProviderId = this.state.showLandOrtho() ? 'sat' : 'osm';
     const ws = this.worldSize();
     const cx = this.lonToWorldX(this.centerLon, ws);
     const cy = this.latToWorldY(this.centerLat, ws);
 
-    const tileZ = Math.max(MIN_ZOOM, Math.min(18, Math.round(this.zoom)));
+    const maxProviderZoom = provider === 'sat' ? 17 : 18;
+    const tileZ = Math.max(MIN_ZOOM, Math.min(maxProviderZoom, Math.round(this.zoom)));
     const tilesCount = 1 << tileZ;
     const scale = Math.pow(2, this.zoom - tileZ);
     const tilePx = TILE_SIZE * scale;
@@ -393,13 +524,18 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
       for (let tx = minTx; tx <= maxTx; tx++) {
         const dx = tx * tilePx - topLeftWx;
         const wrappedX = ((tx % tilesCount) + tilesCount) % tilesCount;
-        const tile = this.getOrFetchTile(tileZ, wrappedX, ty);
+        const tile = this.getOrFetchTile(provider, tileZ, wrappedX, ty);
         if (tile.status === 'ready' && tile.img.complete && tile.img.naturalWidth > 0) {
           ctx.drawImage(tile.img, dx, dy, tilePx + 0.5, tilePx + 0.5);
         } else {
-          this.drawFallbackTile(ctx, tileZ, wrappedX, ty, dx, dy, tilePx + 0.5);
+          this.drawFallbackTile(ctx, provider, tileZ, wrappedX, ty, dx, dy, tilePx + 0.5);
         }
       }
+    }
+
+    // 2b. Conditional Administrative Borders overlay when Orthophoto is selected
+    if (this.state.showLandOrtho() && this.state.showBorders()) {
+      this.renderAdministrativeBorders(ctx, ws, cx, cy);
     }
 
     // 3. Render non-overlapping true-scale fire squares clipped cleanly to active region polygon
@@ -408,7 +544,36 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
     // 4. Render region polygon / draft / live draw preview + interactive editing handles
     this.renderRegionOverlay(ctx, ws, cx, cy);
 
+    // 5. Render current user location pin when enabled
+    this.renderUserLocationPin(ctx, ws, cx, cy);
+
     ctx.restore();
+  }
+
+  private renderUserLocationPin(
+    ctx: CanvasRenderingContext2D,
+    ws: number,
+    cx: number,
+    cy: number
+  ): void {
+    if (!this.state.showUserLocation()) return;
+    const loc = this.state.userLocation();
+    if (!loc) return;
+
+    const [sx, sy] = this.lonLatToScreen(loc.lon, loc.lat, ws, cx, cy);
+    if (sx < -40 || sx > this.width + 40 || sy < -40 || sy > this.height + 40) return;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(sx, sy, 9, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(37, 99, 235, 0.18)';
+    ctx.fill();
+    ctx.strokeStyle = USER_LOCATION_PIN_COLOR;
+    ctx.lineWidth = 1.25;
+    ctx.stroke();
+    ctx.restore();
+
+    drawUserLocationPin(ctx, sx, sy, 28);
   }
 
   private tracePolygonPath(
@@ -437,15 +602,17 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
   ): void {
     if (!this.state.showHotspotsOnGlobe()) return;
     const squares = this.analytics.globePixelSquares();
-    const regionPoly = this.state.regionPolygon();
-    if (!squares.length || !regionPoly || regionPoly.length < 3) return;
+    const multi = this.state.regionMultiPolygon();
+    if (!squares.length || multi.length === 0) return;
 
     const rampId = this.state.colorRamp();
     const ordered = [...squares].sort((a, b) => a.normIntensity - b.normIntensity);
 
     ctx.save();
     ctx.beginPath();
-    this.tracePolygonPath(ctx, ringToClosedPolygonCoords(regionPoly), ws, cx, cy);
+    for (const poly of multi) {
+      this.tracePolygonPath(ctx, poly, ws, cx, cy);
+    }
     ctx.clip('evenodd');
 
     for (const sq of ordered) {
@@ -499,8 +666,20 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
     }
 
     const accepted = this.state.regionMultiPolygon();
-    const outer = accepted.length === 1 ? this.stripClosingVertex(accepted[0][0]) : null;
-    return { multi: accepted, isPreview: false, isDraft: false, editableOuter: outer };
+    return { multi: accepted, isPreview: false, isDraft: false, editableOuter: this.getEditableAcceptedOuter(accepted) };
+  }
+
+  private getEditableAcceptedOuter(accepted = this.state.regionMultiPolygon()): PolygonRing | null {
+    if (this.state.regionBorderMultiPolygon()) return null;
+    if (accepted.length !== 1) return null;
+    const outer = this.stripClosingVertex(accepted[0][0]);
+    return outer.length >= 3 && outer.length <= 32 ? outer : null;
+  }
+
+  private getEditableActivePoly(): PolygonRing | null {
+    const draft = this.state.draftPolygon();
+    if (draft && draft.length >= 3) return draft;
+    return this.getEditableAcceptedOuter();
   }
 
   private stripClosingVertex(ring: PolygonRing): PolygonRing {
@@ -609,13 +788,13 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
         }
       });
     } else {
-      const activePoly = this.state.draftPolygon() ?? this.state.regionPolygon();
-      const vertexIdx = activePoly && activePoly.length >= 3 ? this.findHitVertex(ev.clientX, ev.clientY, activePoly) : -1;
+      const activePoly = this.getEditableActivePoly();
+      const vertexIdx = activePoly ? this.findHitVertex(ev.clientX, ev.clientY, activePoly) : -1;
       if (vertexIdx >= 0) {
         this.draggingVertexIdx = vertexIdx;
         canvas.style.cursor = 'grabbing';
         this.ngZone.run(() => this.state.updateDraftVertex(vertexIdx, hitLonLat));
-      } else if (activePoly && activePoly.length >= 3) {
+      } else if (activePoly) {
         const edgeIdx = this.findHitEdge(ev.clientX, ev.clientY, activePoly);
         if (edgeIdx >= 0) {
           canvas.style.cursor = 'grabbing';
@@ -683,8 +862,8 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
       canvas.style.cursor = 'crosshair';
       return;
     }
-    const activePoly = this.state.draftPolygon() ?? this.state.regionPolygon();
-    if (activePoly && activePoly.length >= 3) {
+    const activePoly = this.getEditableActivePoly();
+    if (activePoly) {
       if (this.findHitVertex(ev.clientX, ev.clientY, activePoly) >= 0) {
         canvas.style.cursor = 'pointer';
         return;

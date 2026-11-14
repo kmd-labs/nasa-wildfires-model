@@ -261,3 +261,102 @@ def test_http_api_answers_202_then_200(fake, frozen_today, tmp_path, monkeypatch
     assert csv.status_code == 200 and csv.headers["content-type"].startswith("text/csv")
     assert api.get("/api/calendar?bbox=1,2,3").status_code == 400
     assert api.get("/api/health").json()["cachedRegions"][0]["rows"] > 0
+
+
+def test_empty_detections_calendar_and_build_cube(tmp_path):
+    from backend import harmonization2 as hz2, harmonization3 as hz3
+
+    empty_df = pd.DataFrame(columns=["platform", "date", "latitude", "longitude"])
+    empty_df["date"] = pd.to_datetime(empty_df["date"])
+    for mod in (hz, hz2, hz3):
+        cube = mod.build_cube(empty_df, mod.Availability.default(pd.Timestamp("2026-11-14")), 7)
+        assert len(cube.cells) == 0
+        assert float(cube.counts.sum()) == 0.0
+
+    avail_csv = (
+        "data_id,min_date,max_date\n"
+        "MODIS_SP,2000-11-01,2026-06-30\n"
+        "MODIS_NRT,2026-07-01,2026-11-14\n"
+        "VIIRS_SNPP_SP,2012-01-20,2026-06-30\n"
+        "VIIRS_SNPP_NRT,2026-07-01,2026-11-14\n"
+        "VIIRS_NOAA20_SP,2018-01-01,2026-06-30\n"
+        "VIIRS_NOAA20_NRT,2026-07-01,2026-11-14\n"
+        "VIIRS_NOAA21_SP,2023-01-01,2026-06-30\n"
+        "VIIRS_NOAA21_NRT,2026-07-01,2026-11-14\n"
+    )
+
+    def empty_http(url: str, timeout: float) -> tuple[int, str]:
+        if "/data_availability/" in url:
+            return 200, avail_csv
+        return 200, "latitude,longitude,brightness,scan,track,acq_date,acq_time,satellite,confidence,version,bright_t31,frp,daynight\n"
+
+    svc = CalendarService(RegionStore(tmp_path), FirmsClient(map_key="TESTKEY", http_get=empty_http))
+    res = svc.calendar("16.76,50.87,17.4,51.24", "2000-11", "2026-11", wait=True)
+    assert res["selection"]["hotspots"] == {"harmonized": 0.0, "rawModis": 0, "rawViirs": 0}
+    assert res["selection"]["cells"] == []
+    assert res["selection"]["pixels"] == []
+
+
+def test_http_500_preserves_cors_header(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from backend import server
+
+    def boom(*_args, **_kwargs):
+        raise RuntimeError("unexpected failure")
+
+    monkeypatch.setattr(server.service, "calendar", boom)
+    api = TestClient(server.app)
+    res = api.get("/api/calendar?bbox=16.76,50.87,17.4,51.24&from=2000-11&to=2026-11", headers={"Origin": "http://localhost:4200"})
+    assert res.status_code == 500
+    assert res.headers.get("access-control-allow-origin") == "http://localhost:4200"
+
+
+def test_expanding_time_range_downloads_and_consolidates_new_window(tmp_path):
+    avail_csv = (
+        "data_id,min_date,max_date\n"
+        "MODIS_SP,2024-01-01,2026-06-30\n"
+        "MODIS_NRT,2026-07-01,2026-11-14\n"
+        "VIIRS_SNPP_SP,2024-01-01,2026-06-30\n"
+        "VIIRS_SNPP_NRT,2026-07-01,2026-11-14\n"
+    )
+    viirs_2025 = "51.1,17.0,320.0,0.4,0.4,2025-07-10,1200,N,n,2.0NRT,290.0,15.0,D\n"
+    viirs_2026 = "51.1,17.0,320.0,0.4,0.4,2026-07-10,1200,N,n,2.0NRT,290.0,22.0,D\n"
+
+    def fake_http(url: str, timeout: float) -> tuple[int, str]:
+        if "/data_availability/" in url:
+            return 200, avail_csv
+        if "2024-" in url:
+            time.sleep(0.02)
+        if "VIIRS_SNPP" in url and "2025-07-08" in url:
+            return 200, "latitude,longitude,bright_ti4,scan,track,acq_date,acq_time,satellite,confidence,version,bright_ti5,frp,daynight\n" + viirs_2025
+        if "VIIRS_SNPP" in url and "2026-07-0" in url:
+            return 200, "latitude,longitude,bright_ti4,scan,track,acq_date,acq_time,satellite,confidence,version,bright_ti5,frp,daynight\n" + viirs_2026
+        return 200, "latitude,longitude,brightness,scan,track,acq_date,acq_time,satellite,confidence,version,bright_t31,frp,daynight\n"
+
+    store = RegionStore(tmp_path)
+    region = store.get_or_create((16.76, 50.87, 17.4, 51.24))
+    # Pre-seed an already consolidated 2025 snapshot while 2026 has not yet been consolidated
+    region.manifest["seeded"] = {"MODIS": {"from": "2025-01-01", "finalThrough": "2025-12-31"}, "VIIRS_SNPP": {"from": "2025-01-01", "finalThrough": "2025-12-31"}}
+    pd.DataFrame([{
+        "latitude": "51.1", "longitude": "17.0", "brightness": "320.0", "scan": "0.4", "track": "0.4",
+        "acq_date": "2025-07-10", "acq_time": "1200", "satellite": "N", "confidence": "n",
+        "version": "2.0NRT", "frp": "15.0", "daynight": "D",
+    }]).to_csv(region.path / "detections.csv.gz", index=False)
+    region.save()
+
+    svc = CalendarService(store, FirmsClient(map_key="TESTKEY", http_get=fake_http))
+    saw_not_ready = False
+    deadline = time.time() + 30
+    res = None
+    while time.time() < deadline:
+        try:
+            res = svc.calendar("16.76,50.87,17.4,51.24", "2025-06", "2026-11")
+            break
+        except NotReady:
+            saw_not_ready = True
+            time.sleep(0.02)
+    assert res is not None
+    assert saw_not_ready
+    idx_2026 = res["months"].index("2026-07")
+    assert res["series"]["rawViirs"][idx_2026] >= 1

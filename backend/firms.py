@@ -29,7 +29,7 @@ import math
 import os
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
@@ -146,12 +146,18 @@ class Task:
     final: bool
 
 
+def _overlaps_window(chunk_start: dt.date, window: tuple[dt.date, dt.date], chunk_days: int = CHUNK_DAYS) -> bool:
+    return chunk_start <= window[1] and chunk_start + dt.timedelta(days=chunk_days - 1) >= window[0]
+
+
 class Region:
     """One cached bounding box: chunk files, an optional seed file and a manifest."""
 
     def __init__(self, path: Path):
         self.path = path
         self.lock = threading.Lock()
+        self._state_lock = threading.Lock()
+        self._unconsolidated: dict[str, dt.date] = {}
         self.manifest = json.loads((path / "manifest.json").read_text(encoding="utf-8"))
         self._frame: tuple[int, pd.DataFrame] | None = None
 
@@ -181,7 +187,9 @@ class Region:
     def plan(self, availability: dict[str, tuple[dt.date, dt.date]], today: dt.date, chunk_days: int = CHUNK_DAYS) -> list[Task]:
         """Chunks that are missing or stale. Final chunks and chunks covered by the seed are skipped."""
         tasks, now = [], time.time()
-        chunks, seeded = self.manifest["chunks"], self.manifest.get("seeded", {})
+        with self._state_lock:
+            chunks = dict(self.manifest["chunks"])
+        seeded = self.manifest.get("seeded", {})
         for sensor, epoch in SENSOR_EPOCH.items():
             sp, nrt = availability.get(f"{sensor}_SP"), availability.get(f"{sensor}_NRT")
             if not sp and not nrt:
@@ -213,6 +221,18 @@ class Region:
                 start += dt.timedelta(days=chunk_days)
         return tasks
 
+    def pending_in_window_count(
+        self,
+        availability: dict[str, tuple[dt.date, dt.date]],
+        today: dt.date,
+        window: tuple[dt.date, dt.date],
+    ) -> int:
+        """Number of chunks overlapping `window` that are not yet fetched and consolidated."""
+        unfetched = sum(1 for t in self.plan(availability, today) if _overlaps_window(t.start, window))
+        with self._state_lock:
+            unconsolidated = sum(1 for start in self._unconsolidated.values() if _overlaps_window(start, window))
+        return unfetched + unconsolidated
+
     # -- download ------------------------------------------------------------------------------
 
     def sync(
@@ -221,6 +241,7 @@ class Region:
         progress: Callable[[int, int], None] | None = None,
         workers: int = WORKERS,
         priority_window: tuple[dt.date, dt.date] | None = None,
+        get_priority_window: Callable[[], tuple[dt.date, dt.date] | None] | None = None,
     ) -> dict:
         """Download what `plan` asks for, then rebuild the consolidated file. Safe to call again after a failure."""
         with self.lock:
@@ -229,12 +250,25 @@ class Region:
             avail = _platform_availability(availability, today)
             tasks = self.plan(availability, today)
 
-            def _task_priority(t: Task) -> tuple[int, int, str]:
-                t_end = t.start + dt.timedelta(days=CHUNK_DAYS - 1)
-                in_prio = 0 if (priority_window and t.start <= priority_window[1] and t_end >= priority_window[0]) else 1
-                return (in_prio, -t.start.toordinal(), t.sensor)
+            def _in_win(t: Task, win: tuple[dt.date, dt.date] | None) -> bool:
+                return bool(win and _overlaps_window(t.start, win))
 
-            tasks.sort(key=_task_priority)
+            def _sort_tasks(items: list[Task], win: tuple[dt.date, dt.date] | None) -> None:
+                items.sort(key=lambda t: (0 if _in_win(t, win) else 1, -t.start.toordinal(), t.sensor))
+
+            active_win = get_priority_window() if get_priority_window else priority_window
+            remaining = list(tasks)
+            _sort_tasks(remaining, active_win)
+
+            def _prio_stats(win: tuple[dt.date, dt.date] | None, inflight_tasks: list[Task]) -> tuple[int, int]:
+                if not win:
+                    return 0, 0
+                pending = sum(1 for t in remaining if _in_win(t, win)) + sum(1 for t in inflight_tasks if _in_win(t, win))
+                total_w = sum(1 for t in tasks if _in_win(t, win))
+                if total_w == 0:
+                    return 0, 0
+                return max(0, total_w - pending), total_w
+
             progressive = client.http_get is _requests_get
             if progressive and not self.has_data and self.manifest.get("chunks"):
                 self.manifest["availability"] = avail.to_json()
@@ -243,38 +277,77 @@ class Region:
 
             failed: list[str] = []
             done = 0
+            prio_done, prio_total = _prio_stats(active_win, [])
             if progress:
-                progress(0, len(tasks))
+                if prio_total > 0:
+                    progress(0, prio_total)
+                else:
+                    progress(0, len(tasks))
 
             def run(task: Task) -> tuple[Task, pd.DataFrame]:
                 frames = [client.area(src, self.bbox, start, n) for src, start, n in task.runs]
                 frames = [f for f in frames if len(f)]
                 return task, (pd.concat(frames, ignore_index=True) if frames else pd.DataFrame())
 
+            max_inflight = max(1, workers) * 2
             with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
-                futures = {pool.submit(run, t): t for t in tasks}
-                for future in as_completed(futures):
-                    task = futures[future]
-                    key = f"{task.sensor}|{task.start}"
-                    try:
-                        _, df = future.result()
-                    except FirmsError as exc:
-                        failed.append(f"{key}: {exc}")
-                    else:
-                        path = self.path / "chunks" / task.sensor / f"{task.start}.csv.gz"
-                        path.parent.mkdir(parents=True, exist_ok=True)
-                        if len(df):
-                            tmp = path.with_name(f"{task.start}.tmp.csv.gz")
-                            df[[c for c in KEEP_COLUMNS if c in df]].to_csv(tmp, index=False)
-                            tmp.replace(path)
-                        elif path.exists():
-                            path.unlink()
-                        spans = [[f"{start:%Y-%m-%d}", n] for _, start, n in task.runs]
-                        self.manifest["chunks"][key] = {"spans": spans, "rows": len(df), "final": task.final, "fetched": time.time()}
-                    done += 1
+                inflight: dict = {}
+
+                def fill_pool() -> None:
+                    nonlocal active_win
+                    cur_win = get_priority_window() if get_priority_window else priority_window
+                    if cur_win != active_win:
+                        active_win = cur_win
+                        _sort_tasks(remaining, active_win)
+                    while remaining and len(inflight) < max_inflight:
+                        t = remaining.pop(0)
+                        inflight[pool.submit(run, t)] = t
+
+                fill_pool()
+                while inflight:
+                    done_futs, _ = wait(inflight, return_when=FIRST_COMPLETED)
+                    for future in done_futs:
+                        task = inflight.pop(future)
+                        key = f"{task.sensor}|{task.start}"
+                        try:
+                            _, df = future.result()
+                        except FirmsError as exc:
+                            failed.append(f"{key}: {exc}")
+                        else:
+                            path = self.path / "chunks" / task.sensor / f"{task.start}.csv.gz"
+                            path.parent.mkdir(parents=True, exist_ok=True)
+                            if len(df):
+                                tmp = path.with_name(f"{task.start}.tmp.csv.gz")
+                                df[[c for c in KEEP_COLUMNS if c in df]].to_csv(tmp, index=False)
+                                tmp.replace(path)
+                            elif path.exists():
+                                path.unlink()
+                            spans = [[f"{start:%Y-%m-%d}", n] for _, start, n in task.runs]
+                            with self._state_lock:
+                                self.manifest["chunks"][key] = {"spans": spans, "rows": len(df), "final": task.final, "fetched": time.time()}
+                                self._unconsolidated[key] = task.start
+                        done += 1
+
+                    fill_pool()
+                    prio_done, prio_total = _prio_stats(active_win, list(inflight.values()))
+                    with self._state_lock:
+                        has_unconsolidated_prio = bool(
+                            active_win and any(_overlaps_window(d, active_win) for d in self._unconsolidated.values())
+                        )
                     if progress:
-                        progress(done, len(tasks))
-                    if progressive and ((not self.has_data and done == min(24, len(tasks))) or (done % 100 == 0 and len(self.manifest["chunks"]) <= 300)):
+                        if prio_total > 0 and prio_done < prio_total:
+                            progress(prio_done, prio_total)
+                        else:
+                            progress(done, len(tasks))
+                    prio_finished_mid_sync = bool(
+                        remaining and prio_total > 0 and prio_done == prio_total and has_unconsolidated_prio
+                    )
+                    if prio_finished_mid_sync or (
+                        progressive and (
+                            (not self.has_data and done == min(24, len(tasks)))
+                            or (done % 150 == 0)
+                        )
+                    ):
                         self.manifest["availability"] = avail.to_json()
                         self.manifest["dataThrough"] = f"{today:%Y-%m-%d}"
                         self._consolidate()
@@ -298,7 +371,9 @@ class Region:
         large_region = (e - w) * (n - s) > 400.0
         frames = []
         covered: dict[str, set[str]] = {}
-        for key, entry in list(self.manifest["chunks"].items()):
+        with self._state_lock:
+            chunk_items = list(self.manifest["chunks"].items())
+        for key, entry in chunk_items:
             sensor, start = key.split("|")
             for first, days in entry["spans"]:
                 first = dt.date.fromisoformat(first)
@@ -322,6 +397,8 @@ class Region:
         tmp = self.path / "detections.tmp.csv.gz"  # written aside and renamed, so a reader never sees half a file
         df.sort_values(["acq_date", "acq_time"]).to_csv(tmp, index=False)
         tmp.replace(self.path / "detections.csv.gz")
+        with self._state_lock:
+            self._unconsolidated.clear()
         self.manifest["version"] = self.version + 1
         self.manifest["rows"] = len(df)
         self.save()

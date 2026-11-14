@@ -17,6 +17,7 @@ GET /api/burned-area?bbox=W,S,E,N&product=MCD64A1|VNP64A1&from=YYYY-MM&to=YYYY-M
 """
 from __future__ import annotations
 
+import logging
 import os
 
 try:
@@ -53,6 +54,9 @@ def _guard(call):
         return JSONResponse({"error": str(exc)}, status_code=400)
     except (FirmsError, BurnedAreaError) as exc:
         return JSONResponse({"error": str(exc)}, status_code=502)
+    except Exception:
+        logging.getLogger(__name__).exception("Unhandled error in API handler")
+        return JSONResponse({"error": "Internal server error"}, status_code=500)
 
 
 @app.get("/api/health")

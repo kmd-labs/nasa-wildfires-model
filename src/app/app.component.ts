@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, NgZone, OnDestroy, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   LucideAngularModule,
@@ -6,9 +6,10 @@ import {
   Map as MapIcon,
   BookOpen,
   Database,
-  Upload,
+  Download,
   BoxSelect,
-  Check
+  Check,
+  X
 } from 'lucide-angular';
 import {
   BrandComponent,
@@ -26,6 +27,7 @@ import {
   BreakpointService,
   SeoService
 } from '@kmd/design-system';
+import { breakpointPx } from '@kmd/design-system/utils/breakpoints';
 import { I18nService } from './core/i18n/i18n.service';
 import { Lang } from './core/i18n/i18n.types';
 import { MapRenderMode } from './core/models/wildfire.model';
@@ -36,7 +38,7 @@ import { GlobeComponent } from './components/globe/globe.component';
 import { Map2dComponent } from './components/map2d/map2d.component';
 import { GlossaryComponent } from './components/glossary/glossary.component';
 import { SourcesPopupComponent } from './components/sources-popup/sources-popup.component';
-import { DataPopupComponent } from './components/data-popup/data-popup.component';
+import { openExportPopup } from './components/data-popup/data-popup.component';
 import { AnalyticsPanelComponent } from './components/analytics-panel/analytics-panel.component';
 
 @Component({
@@ -59,9 +61,10 @@ import { AnalyticsPanelComponent } from './components/analytics-panel/analytics-
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
-export class AppComponent {
+export class AppComponent implements OnDestroy {
   readonly i18n = inject(I18nService);
   readonly bp = inject(BreakpointService);
+  private readonly ngZone = inject(NgZone);
   readonly popup = inject(PopupService);
   readonly about = inject(AboutService);
   readonly splash = inject(SplashService);
@@ -70,20 +73,62 @@ export class AppComponent {
   readonly data = inject(WildfireDataService);
   readonly analytics = inject(HotspotAnalyticsService);
 
+  readonly isMobileView = signal(false);
+  readonly brandHovered = signal(false);
+  private compactMql: MediaQueryList | null = null;
+  private readonly onCompactMqlChange = (e: MediaQueryListEvent) => {
+    this.ngZone.run(() => this.isMobileView.set(e.matches));
+  };
+
   readonly globeIcon = Globe;
   readonly mapIcon = MapIcon;
   readonly bookOpenIcon = BookOpen;
   readonly databaseIcon = Database;
-  readonly uploadIcon = Upload;
+  readonly downloadIcon = Download;
   readonly boxSelectIcon = BoxSelect;
   readonly checkIcon = Check;
+  readonly closeIcon = X;
+
+  readonly bannerDismissed = signal(false);
+  readonly showRecalculateBanner = computed(
+    () =>
+      this.state.isDrawingBbox() ||
+      this.state.liveDrawBbox() !== null ||
+      (this.state.needsRecalculate() && !this.bannerDismissed())
+  );
 
   constructor() {
+    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+      this.compactMql = window.matchMedia(`(max-width: ${breakpointPx('desktop')}px)`);
+      this.isMobileView.set(this.compactMql.matches);
+      this.compactMql.addEventListener('change', this.onCompactMqlChange);
+    }
+
     this.seo.update({
-      title: 'KMD · Global Wildfire Analytics & Climate Inertia',
-      description: 'Interactive 3D Globe visualization of global wildfires, harmonized MODIS+VIIRS burning calendar, Gulf Stream & El Niño climate inertia, wind-driven spread, and evacuation impact.',
+      title: 'KMD · Wildfire Data Harmonization',
+      description: 'Interactive 2D Map & 3D Globe visualization for Wildfire Data Harmonization across MODIS and VIIRS active fire hotspots with a harmonized burning calendar.',
       image: 'assets/design-system/og-image.png'
     });
+
+    effect(() => {
+      this.state.draftPolygon();
+      this.state.draftDateStart();
+      this.state.draftDateEnd();
+      this.state.isDrawingBbox();
+      this.bannerDismissed.set(false);
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.compactMql?.removeEventListener('change', this.onCompactMqlChange);
+  }
+
+  dismissDrawBanner(): void {
+    if (this.state.isDrawingBbox() || this.state.liveDrawBbox()) {
+      this.state.cancelDrawBoundingBox();
+    } else {
+      this.bannerDismissed.set(true);
+    }
   }
 
   readonly langOptions = computed<DropdownOption<Lang>[]>(() =>
@@ -126,12 +171,6 @@ export class AppComponent {
   }
 
   openDataPopup() {
-    this.popup.open({
-      id: 'data-io',
-      title: computed(() => this.i18n.t().tabInputExport),
-      component: DataPopupComponent,
-      size: 'lg',
-      actions: [{ label: computed(() => this.i18n.t().close), variant: 'default' }]
-    });
+    openExportPopup(this.popup, this.i18n);
   }
 }

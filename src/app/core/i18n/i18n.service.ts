@@ -17,6 +17,23 @@ export class I18nService {
   readonly langs: Lang[] = ['en', 'pl'];
   readonly lang = signal<Lang>(this.resolveInitialLang());
   readonly t = computed(() => DICTS[this.lang()]);
+  readonly dateLocale = computed<string>(() => {
+    const currentLang = this.lang();
+    const fallback = this.t().locale;
+    if (typeof navigator === 'undefined') {
+      return fallback;
+    }
+    const candidates = [
+      ...(Array.isArray(navigator.languages) ? navigator.languages : []),
+      navigator.language
+    ].filter((c): c is string => Boolean(c));
+
+    const regional = candidates.find(candidate => {
+      const norm = candidate.trim().toLowerCase();
+      return norm.startsWith(`${currentLang}-`) && norm.length > currentLang.length + 1;
+    });
+    return regional ?? fallback;
+  });
 
   constructor() {
     effect(() => {

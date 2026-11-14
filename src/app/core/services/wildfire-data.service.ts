@@ -67,6 +67,9 @@ interface TimelineMetaJson {
 }
 
 const DEFAULT_HOSTED_API_BASE = 'https://nasa-wildfires-model-95065765400.europe-west1.run.app';
+const DEFAULT_CACHED_IBERIA_BBOX: BoundingBox = [-9.55, 36.0, 3.45, 43.8];
+const DEFAULT_CACHED_FROM_YM = '2025-06';
+const DEFAULT_CACHED_TO_YM = '2025-09';
 
 /**
  * Fallback AOI registry matching aoi.csv from Issue #22
@@ -169,6 +172,7 @@ export class WildfireDataService {
   readonly backendError = signal<string | null>(null);
 
   private defaultHotspots: HarmonizedHotspotRecord[] = [];
+  private cachedDefaultCalendar: BackendCalendarPayload | null = null;
   private readonly oniByMonth = new Map<string, number>();
   private readonly gsByMonth = new Map<string, number>();
   private loadPromise: Promise<void> | null = null;
@@ -176,6 +180,9 @@ export class WildfireDataService {
   private apiPollTimer: ReturnType<typeof setTimeout> | null = null;
   private activeApiQuery = '';
   private offlineRetryDelayMs = 5000;
+  private bgRefreshCount = 0;
+  private offlineRetryCount = 0;
+  private readonly resolvedCalendarCache = new Map<string, BackendCalendarPayload>();
 
   resolveApiUrl(apiPath: string): string {
     const winBase = typeof window !== 'undefined' ? (window as { __KMD_API_BASE__?: string }).__KMD_API_BASE__ : '';
@@ -197,11 +204,23 @@ export class WildfireDataService {
 
   clearBackendCalendar(): void {
     this.activeApiQuery = '';
+    this.bgRefreshCount = 0;
+    this.offlineRetryCount = 0;
     this.cancelBackendSync();
     this.backendCalendar.set(null);
     this.backendProgress.set(null);
     this.backendError.set(null);
     this.backendStatus.set('idle');
+  }
+
+  private cacheCalendarPayload(queryKey: string, payload: BackendCalendarPayload): void {
+    if (this.resolvedCalendarCache.size >= 10) {
+      const oldestKey = this.resolvedCalendarCache.keys().next().value;
+      if (oldestKey !== undefined) {
+        this.resolvedCalendarCache.delete(oldestKey);
+      }
+    }
+    this.resolvedCalendarCache.set(queryKey, payload);
   }
 
   private formatBboxesParam(bboxOrList: BoundingBox | BoundingBox[]): { bboxStr: string; fallbackStr: string; primaryBox: BoundingBox } {
@@ -231,26 +250,74 @@ export class WildfireDataService {
     return this.resolveApiUrl(`/api/hotspots.csv?${params.toString()}`);
   }
 
-  async syncCalendarFromBackend(bboxOrList: BoundingBox | BoundingBox[], dateStart: string, dateEnd: string): Promise<void> {
+  isDefaultCachedQuery(bboxOrList: BoundingBox | BoundingBox[], dateStart: string, dateEnd: string): boolean {
+    const firstBox: BoundingBox = Array.isArray(bboxOrList[0])
+      ? (bboxOrList as BoundingBox[])[0]
+      : (bboxOrList as BoundingBox);
+    if (!firstBox) return false;
+    const matchesBox = DEFAULT_CACHED_IBERIA_BBOX.every((val, idx) => Math.abs(firstBox[idx] - val) <= 0.02);
+    if (!matchesBox) return false;
+    return dateStart.slice(0, 7) === DEFAULT_CACHED_FROM_YM && dateEnd.slice(0, 7) === DEFAULT_CACHED_TO_YM;
+  }
+
+  async syncCalendarFromBackend(
+    bboxOrList: BoundingBox | BoundingBox[],
+    dateStart: string,
+    dateEnd: string,
+    isBackgroundPoll = false
+  ): Promise<void> {
     if (this.isCustomDataset()) {
       this.cancelBackendSync();
       return;
+    }
+
+    if (this.isDefaultCachedQuery(bboxOrList, dateStart, dateEnd)) {
+      await this.loadAll();
+      if (this.cachedDefaultCalendar) {
+        this.cancelBackendSync();
+        this.activeApiQuery = '';
+        this.bgRefreshCount = 0;
+        this.offlineRetryCount = 0;
+        this.backendCalendar.set(this.cachedDefaultCalendar);
+        this.backendStatus.set('live');
+        this.backendProgress.set(null);
+        this.backendError.set(null);
+        return;
+      }
     }
 
     const { bboxStr, fallbackStr, primaryBox } = this.formatBboxesParam(bboxOrList);
     const fromYm = dateStart.slice(0, 7);
     const toYm = dateEnd.slice(0, 7);
     const queryKey = `${bboxStr}|${fromYm}|${toYm}`;
+    const isSameQuery = this.activeApiQuery === queryKey;
     this.activeApiQuery = queryKey;
+
+    if (!isBackgroundPoll) {
+      this.bgRefreshCount = 0;
+      this.offlineRetryCount = 0;
+      this.offlineRetryDelayMs = 5000;
+      const cached = this.resolvedCalendarCache.get(queryKey);
+      if (cached) {
+        this.cancelBackendSync();
+        this.backendCalendar.set(cached);
+        this.backendStatus.set('live');
+        this.backendProgress.set(null);
+        this.backendError.set(null);
+        return;
+      }
+    } else if (!isSameQuery) {
+      return;
+    }
 
     this.cancelBackendSync();
     const controller = new AbortController();
     this.apiAbort = controller;
 
-    if (!this.isInsideCachedRegion(primaryBox)) {
+    if (!isBackgroundPoll && !this.isInsideCachedRegion(primaryBox)) {
       this.backendCalendar.set(null);
     }
-    if (this.backendStatus() !== 'downloading') {
+    if (!isBackgroundPoll && this.backendStatus() !== 'downloading') {
       this.backendStatus.set('loading');
     }
     this.backendError.set(null);
@@ -270,13 +337,16 @@ export class WildfireDataService {
         }
         this.backendStatus.set('offline');
         this.backendProgress.set(null);
-        const delay = this.offlineRetryDelayMs;
-        this.offlineRetryDelayMs = Math.min(30000, this.offlineRetryDelayMs * 2);
-        this.apiPollTimer = setTimeout(() => {
-          if (this.activeApiQuery === queryKey && !this.isCustomDataset()) {
-            void this.syncCalendarFromBackend(bboxOrList, dateStart, dateEnd);
-          }
-        }, delay);
+        if (this.offlineRetryCount < 5) {
+          this.offlineRetryCount += 1;
+          const delay = this.offlineRetryDelayMs;
+          this.offlineRetryDelayMs = Math.min(30000, this.offlineRetryDelayMs * 2);
+          this.apiPollTimer = setTimeout(() => {
+            if (this.activeApiQuery === queryKey && !this.isCustomDataset()) {
+              void this.syncCalendarFromBackend(bboxOrList, dateStart, dateEnd, true);
+            }
+          }, delay);
+        }
         return;
       }
 
@@ -293,31 +363,57 @@ export class WildfireDataService {
 
       if (resp.status === 202 && body?.status === 'downloading') {
         this.offlineRetryDelayMs = 5000;
+        this.offlineRetryCount = 0;
         if (!this.isInsideCachedRegion(primaryBox)) {
           this.backendCalendar.set(null);
         }
         this.backendStatus.set('downloading');
-        this.backendProgress.set(body.progress ?? { done: 0, total: 0 });
+        const rawProg: BackendDownloadProgress = body.progress ?? { done: 0, total: 0 };
+        const windowEstimate = this.estimateWindowChunks(bboxOrList, fromYm, toYm);
+        const displayTotal =
+          rawProg.total > windowEstimate * 1.5 ? windowEstimate : rawProg.total;
+        this.backendProgress.set({
+          done: Math.min(rawProg.done, displayTotal),
+          total: displayTotal
+        });
         this.apiPollTimer = setTimeout(() => {
           if (this.activeApiQuery === queryKey && !this.isCustomDataset()) {
-            void this.syncCalendarFromBackend(bboxOrList, dateStart, dateEnd);
+            void this.syncCalendarFromBackend(bboxOrList, dateStart, dateEnd, true);
           }
-        }, 2500);
+        }, 3000);
         return;
       }
 
       if (resp.ok && body?.months && body?.selection) {
         this.offlineRetryDelayMs = 5000;
-        this.backendCalendar.set(body as BackendCalendarPayload);
+        this.offlineRetryCount = 0;
+        const payload = body as BackendCalendarPayload;
+        this.backendCalendar.set(payload);
         this.backendStatus.set('live');
         this.backendProgress.set(null);
         this.backendError.set(null);
-        if (body.metadata?.refreshing) {
-          this.apiPollTimer = setTimeout(() => {
-            if (this.activeApiQuery === queryKey && !this.isCustomDataset()) {
-              void this.syncCalendarFromBackend(bboxOrList, dateStart, dateEnd);
-            }
-          }, 3500);
+        if (!body.metadata?.refreshing) {
+          this.cacheCalendarPayload(queryKey, payload);
+        } else {
+          // Backend already returned HTTP 200 live data while a multi-year FIRMS backfill finishes in the
+          // background; avoid polling the full payload every 3.5s and perform at most a bounded delayed check.
+          const selHotspots = body.selection?.hotspots;
+          const hasSelectionHits =
+            (selHotspots?.harmonized ?? 0) > 0 ||
+            (selHotspots?.rawModis ?? 0) > 0 ||
+            (selHotspots?.rawViirs ?? 0) > 0;
+          const maxBgRefreshes = hasSelectionHits ? 3 : 6;
+          if (this.bgRefreshCount < maxBgRefreshes) {
+            this.bgRefreshCount += 1;
+            const delayMs = hasSelectionHits
+              ? Math.min(25000, 8000 * this.bgRefreshCount)
+              : Math.min(25000, 6000 * this.bgRefreshCount);
+            this.apiPollTimer = setTimeout(() => {
+              if (this.activeApiQuery === queryKey && !this.isCustomDataset()) {
+                void this.syncCalendarFromBackend(bboxOrList, dateStart, dateEnd, true);
+              }
+            }, delayMs);
+          }
         }
         return;
       }
@@ -333,14 +429,49 @@ export class WildfireDataService {
       }
       this.backendStatus.set('offline');
       this.backendProgress.set(null);
-      const delay = this.offlineRetryDelayMs;
-      this.offlineRetryDelayMs = Math.min(30000, this.offlineRetryDelayMs * 2);
-      this.apiPollTimer = setTimeout(() => {
-        if (this.activeApiQuery === queryKey && !this.isCustomDataset()) {
-          void this.syncCalendarFromBackend(bboxOrList, dateStart, dateEnd);
-        }
-      }, delay);
+      if (this.offlineRetryCount < 5) {
+        this.offlineRetryCount += 1;
+        const delay = this.offlineRetryDelayMs;
+        this.offlineRetryDelayMs = Math.min(30000, this.offlineRetryDelayMs * 2);
+        this.apiPollTimer = setTimeout(() => {
+          if (this.activeApiQuery === queryKey && !this.isCustomDataset()) {
+            void this.syncCalendarFromBackend(bboxOrList, dateStart, dateEnd, true);
+          }
+        }, delay);
+      }
     }
+  }
+
+  private estimateWindowChunks(bboxOrList: BoundingBox | BoundingBox[], fromYm: string, toYm: string): number {
+    const [fy, fm] = fromYm.split('-').map(Number);
+    const [ty, tm] = toYm.split('-').map(Number);
+    if (!Number.isFinite(fy) || !Number.isFinite(fm) || !Number.isFinite(ty) || !Number.isFinite(tm)) {
+      return 100;
+    }
+    const winStartMs = Date.UTC(fy, fm - 1, 1);
+    const today = new Date();
+    const todayUtcMs = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+    const monthEndMs = Date.UTC(ty, tm, 0);
+    const winEndMs = Math.min(monthEndMs, todayUtcMs);
+    if (winEndMs < winStartMs) return 4;
+
+    const sensorEpochs = [
+      Date.UTC(2000, 10, 1), // MODIS: 2000-11-01
+      Date.UTC(2012, 0, 20), // VIIRS_SNPP: 2012-01-20
+      Date.UTC(2018, 0, 1),  // VIIRS_NOAA20: 2018-01-01
+      Date.UTC(2023, 0, 1)   // VIIRS_NOAA21: 2023-01-01
+    ];
+
+    let chunksPerBox = 0;
+    for (const epochMs of sensorEpochs) {
+      if (epochMs > winEndMs) continue;
+      const startMs = Math.max(winStartMs, epochMs);
+      const overlapDays = Math.floor((winEndMs - startMs) / 86_400_000) + 1;
+      chunksPerBox += Math.max(1, Math.ceil(overlapDays / 5));
+    }
+
+    const boxCount = Array.isArray(bboxOrList[0]) ? Math.max(1, (bboxOrList as BoundingBox[]).length) : 1;
+    return Math.max(1, chunksPerBox * boxCount);
   }
 
   private isInsideCachedRegion(bbox: BoundingBox): boolean {
@@ -539,14 +670,25 @@ export class WildfireDataService {
 
   private async fetchAll(): Promise<void> {
     try {
-      const [cal, inertia, enso, meta, hotspotsPayload, countriesGeo] = await Promise.all([
+      const [cal, inertia, enso, meta, hotspotsPayload, countriesGeo, defaultCal] = await Promise.all([
         this.fetchJson<CalendarSummaryData>('assets/data/calendar-summary.json'),
         this.fetchJson<ClimateInertiaData>('assets/data/climate-inertia.json'),
         this.fetchJson<EnsoHistoryJson>('assets/data/enso-history.json'),
         this.fetchJson<TimelineMetaJson>('assets/data/timeline-meta.json'),
         this.fetchJson<HarmonizedHotspotsPayload>('assets/data/harmonized-hotspots.json'),
-        this.fetchJson<CountryGeoJsonPayload>('assets/data/uk-land-10m.json')
+        this.fetchJson<CountryGeoJsonPayload>('assets/data/uk-land-10m.json'),
+        this.fetchJson<BackendCalendarPayload>('assets/data/default-iberia-calendar.json')
       ]);
+
+      if (defaultCal?.months && defaultCal?.selection) {
+        this.cachedDefaultCalendar = defaultCal;
+        if (!this.isCustomDataset() && !this.backendCalendar()) {
+          this.backendCalendar.set(defaultCal);
+          this.backendStatus.set('live');
+          this.backendProgress.set(null);
+          this.backendError.set(null);
+        }
+      }
 
       if (cal) this.calendar.set(cal);
       if (inertia) this.climateInertia.set(inertia);

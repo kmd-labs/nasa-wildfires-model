@@ -13,6 +13,7 @@ export interface DataSourceItem {
  */
 export interface Dict {
   htmlLang: string;
+  locale: string;
   docTitle: string;
   langName: string;
   appName: string;
@@ -127,12 +128,16 @@ export interface Dict {
   datasetUsedLabel: string;
   datasetViirsBtn: string;
   datasetModisBtn: string;
+  datasetMixedLabel: string;
   datasetViirsDesc: string;
   datasetModisDesc: string;
   viirsUnavailableTooltip: string;
   datasetDetectionsLabel: string;
   searchAreasPlaceholder: string;
   searchNoResults: string;
+  predefinedAreasLabel: string;
+  regionIberiaDefault: string;
+  cachedBadgeLabel: string;
   groupPredefinedAreas: string;
   groupFireEvents: string;
   groupCountries: string;
@@ -148,6 +153,7 @@ export interface Dict {
   removeBoxLabel: string;
   coordsBtn: string;
   coordsTitle: string;
+  dataSectionTitle: string;
   coordWest: string;
   coordSouth: string;
   coordEast: string;
@@ -179,6 +185,7 @@ export interface Dict {
   emptyStatusPending: string;
   clearSelectionBtn: string;
   applyCoordsError: string;
+  missingInputsHint: string;
   globeAltEmpty: string;
   globeAltLoading: string;
   globeAltActive: string;
@@ -203,10 +210,14 @@ export interface Dict {
   calendarMonthly: string;
   calendarDaily: string;
   calendarNoData: string;
+  calendarHoverPlaceholder: string;
   calendarLow: string;
   calendarHigh: string;
   historicalFiresTitle: string;
   historicalFiresSubtitle: string;
+  chartMonthly: string;
+  chartYearly: string;
+  monthNamesShort: readonly string[];
   legendHarmonized: string;
   legendRawModis: string;
   legendMultiYearAvg: string;
@@ -228,15 +239,26 @@ export interface Dict {
   importErrorNoRows: string;
   importErrorParse: string;
   downloadTitle: string;
+  exportBtn: string;
+  exportPopupTitle: string;
   downloadCsvBtn: string;
   downloadJsonBtn: string;
   downloadSvgBtn: string;
   downloadPngBtn: string;
   recordsCountLabel: string;
   backendLiveLabel: string;
+  backendLoadingLabel: string;
   backendDownloadingLabel: string;
   backendOfflineLabel: string;
   backendChunksLabel: string;
+  largeSelectionTitle: string;
+  largeSelectionSubtitle: string;
+  largeSelectionDesc: string;
+  largeSelectionCancelBtn: string;
+  largeSelectionContinueBtn: string;
+  locationErrorTitle: string;
+  locationErrorDesc: string;
+  locationErrorOkBtn: string;
 
   // Map & Globe Layers
   layersBtn: string;
@@ -247,6 +269,7 @@ export interface Dict {
   layersSectionBase: string;
   layerHotspots: string;
   layerRegionBbox: string;
+  layerUserLocation: string;
   layerWindStreamlines: string;
   layerEscapeRoutes: string;
   layerLandOrtho: string;
