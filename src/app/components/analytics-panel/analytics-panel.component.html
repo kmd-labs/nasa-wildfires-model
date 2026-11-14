@@ -611,16 +611,13 @@
               <div class="calendar-year-list">
                 @for (yrGroup of analytics.burningCalendarsDailyByYear(); track yrGroup.year) {
                   @let yOpen = isDailyYearOpen(yrGroup.year);
-                  @let yLocked = isDailyYearLockedOpen(yrGroup.year);
                   @let yCal = yrGroup.calendar;
                   @let yDims = getCalendarSvgDims(yCal);
                   <div class="calendar-year-accordion" [class.calendar-year-accordion--open]="yOpen">
                     <button
                       type="button"
                       class="calendar-year-accordion__trigger"
-                      [class.calendar-year-accordion__trigger--locked]="yLocked"
                       [attr.aria-expanded]="yOpen"
-                      [title]="yLocked ? t.calendarOneYearOpenHint : ''"
                       (click)="toggleDailyYear(yrGroup.year)">
                       <span class="calendar-year-accordion__year">{{ yrGroup.year }}</span>
                       <span class="calendar-year-accordion__count">

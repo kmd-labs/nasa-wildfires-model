@@ -224,7 +224,6 @@ export interface Dict {
   burningCalendarTitle: string;
   calendarMonthly: string;
   calendarDaily: string;
-  calendarOneYearOpenHint: string;
   calendarNoData: string;
   calendarHoverPlaceholder: string;
   calendarLow: string;
