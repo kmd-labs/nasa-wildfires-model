@@ -180,11 +180,12 @@ export class AnalyticsPanelComponent {
     if (status === 'loading') return t.backendLoadingLabel;
     if (status === 'downloading') {
       const prog = this.data.backendProgress();
-      const isAnalyzing = Boolean(prog && prog.total > 0 && prog.done >= prog.total);
-      const label = isAnalyzing ? t.backendAnalyzingLabel : t.backendDownloadingLabel;
+      if (prog && prog.total > 0 && prog.done >= prog.total) {
+        return t.backendAnalyzingLabel;
+      }
       return prog && prog.total > 0
-        ? `${label} (${prog.done}/${prog.total} ${t.backendChunksLabel})`
-        : label;
+        ? `${t.backendDownloadingLabel} (${prog.done}/${prog.total} ${t.backendChunksLabel})`
+        : t.backendDownloadingLabel;
     }
     return '';
   });
