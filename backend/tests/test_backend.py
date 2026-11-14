@@ -361,3 +361,41 @@ def test_expanding_time_range_downloads_and_consolidates_new_window(tmp_path):
     assert saw_not_ready
     idx_2026 = res["months"].index("2026-07")
     assert res["series"]["rawViirs"][idx_2026] >= 1
+
+
+def test_failed_priority_chunk_does_not_loop_202(tmp_path):
+    avail_csv = (
+        "data_id,min_date,max_date\n"
+        "MODIS_SP,2026-07-01,2026-07-10\n"
+        "VIIRS_SNPP_SP,2026-07-01,2026-07-10\n"
+    )
+    area_calls = 0
+
+    def flaky_http(url: str, timeout: float) -> tuple[int, str]:
+        nonlocal area_calls
+        if "/data_availability/" in url:
+            return 200, avail_csv
+        area_calls += 1
+        if "VIIRS_SNPP" in url:
+            return 400, "Bad chunk request"
+        return 200, (
+            "latitude,longitude,brightness,scan,track,acq_date,acq_time,satellite,confidence,version,bright_t31,frp,daynight\n"
+            "51.1,17.0,320.0,0.4,0.4,2026-07-02,1200,T,n,6.1,290.0,18.0,D\n"
+        )
+
+    store = RegionStore(tmp_path)
+    svc = CalendarService(store, FirmsClient(map_key="TESTKEY", http_get=flaky_http))
+    deadline = time.time() + 10
+    res = None
+    while time.time() < deadline:
+        try:
+            res = svc.calendar("16.76,50.87,17.4,51.24", "2026-07", "2026-07")
+            break
+        except NotReady:
+            time.sleep(0.02)
+    assert res is not None
+    calls_after_first = area_calls
+    # Immediate follow-up poll must serve cached data (200) and NOT restart FIRMS download
+    res2 = svc.calendar("16.76,50.87,17.4,51.24", "2026-07", "2026-07")
+    assert res2["selection"]["hotspots"]["rawModis"] >= 1
+    assert area_calls == calls_after_first

@@ -186,6 +186,10 @@ export class WildfireDataService {
   private offlineRetryDelayMs = 5000;
   private bgRefreshCount = 0;
   private offlineRetryCount = 0;
+  private downloadPollCount = 0;
+  private zeroTotalPolls = 0;
+  private lastDownloadDone = -1;
+  private stalledOrResetPolls = 0;
   private readonly resolvedCalendarCache = new Map<string, BackendCalendarPayload>();
 
   resolveApiUrl(apiPath: string): string {
@@ -327,6 +331,10 @@ export class WildfireDataService {
       this.bgRefreshCount = 0;
       this.offlineRetryCount = 0;
       this.offlineRetryDelayMs = 5000;
+      this.downloadPollCount = 0;
+      this.zeroTotalPolls = 0;
+      this.lastDownloadDone = -1;
+      this.stalledOrResetPolls = 0;
       const cached = this.resolvedCalendarCache.get(queryKey);
       if (cached) {
         this.cancelBackendSync();
@@ -388,23 +396,44 @@ export class WildfireDataService {
       if (resp.status === 202 && body?.status === 'downloading') {
         this.offlineRetryDelayMs = 5000;
         this.offlineRetryCount = 0;
+        this.downloadPollCount += 1;
+        const rawProg: BackendDownloadProgress = body.progress ?? { done: 0, total: 0 };
+        if (rawProg.total > 0) {
+          this.zeroTotalPolls = 0;
+          if (rawProg.done > this.lastDownloadDone) {
+            this.stalledOrResetPolls = 0;
+          } else {
+            this.stalledOrResetPolls += 1;
+          }
+        } else {
+          this.zeroTotalPolls += 1;
+          this.stalledOrResetPolls += 1;
+        }
+        this.lastDownloadDone = rawProg.done;
+
+        // Break out of endless 202 download loops if the backend restarts jobs repeatedly or stalls
+        if (this.zeroTotalPolls >= 8 || this.stalledOrResetPolls >= 12 || this.downloadPollCount >= 80) {
+          this.backendProgress.set(null);
+          if (!(await this.tryRestoreOfflineCalendar(queryKey))) {
+            this.backendStatus.set(this.backendCalendar() ? 'cached' : 'offline');
+          }
+          return;
+        }
+
         if (!this.isInsideCachedRegion(primaryBox)) {
           this.backendCalendar.set(null);
         }
         this.backendStatus.set('downloading');
-        const rawProg: BackendDownloadProgress = body.progress ?? { done: 0, total: 0 };
-        const windowEstimate = this.estimateWindowChunks(bboxOrList, fromYm, toYm);
-        const displayTotal =
-          rawProg.total > windowEstimate * 1.5 ? windowEstimate : rawProg.total;
         this.backendProgress.set({
-          done: Math.min(rawProg.done, displayTotal),
-          total: displayTotal
+          done: rawProg.total > 0 ? Math.min(rawProg.done, rawProg.total) : 0,
+          total: Math.max(0, rawProg.total)
         });
+        const pollDelayMs = Math.min(12000, 3000 + Math.floor(this.stalledOrResetPolls / 2) * 1500);
         this.apiPollTimer = setTimeout(() => {
           if (this.activeApiQuery === queryKey && !this.isCustomDataset()) {
             void this.syncCalendarFromBackend(bboxOrList, dateStart, dateEnd, true);
           }
-        }, 3000);
+        }, pollDelayMs);
         return;
       }
 
@@ -480,38 +509,6 @@ export class WildfireDataService {
         }
       }, delay);
     }
-  }
-
-  private estimateWindowChunks(bboxOrList: BoundingBox | BoundingBox[], fromYm: string, toYm: string): number {
-    const [fy, fm] = fromYm.split('-').map(Number);
-    const [ty, tm] = toYm.split('-').map(Number);
-    if (!Number.isFinite(fy) || !Number.isFinite(fm) || !Number.isFinite(ty) || !Number.isFinite(tm)) {
-      return 100;
-    }
-    const winStartMs = Date.UTC(fy, fm - 1, 1);
-    const today = new Date();
-    const todayUtcMs = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
-    const monthEndMs = Date.UTC(ty, tm, 0);
-    const winEndMs = Math.min(monthEndMs, todayUtcMs);
-    if (winEndMs < winStartMs) return 4;
-
-    const sensorEpochs = [
-      Date.UTC(2000, 10, 1), // MODIS: 2000-11-01
-      Date.UTC(2012, 0, 20), // VIIRS_SNPP: 2012-01-20
-      Date.UTC(2018, 0, 1),  // VIIRS_NOAA20: 2018-01-01
-      Date.UTC(2023, 0, 1)   // VIIRS_NOAA21: 2023-01-01
-    ];
-
-    let chunksPerBox = 0;
-    for (const epochMs of sensorEpochs) {
-      if (epochMs > winEndMs) continue;
-      const startMs = Math.max(winStartMs, epochMs);
-      const overlapDays = Math.floor((winEndMs - startMs) / 86_400_000) + 1;
-      chunksPerBox += Math.max(1, Math.ceil(overlapDays / 5));
-    }
-
-    const boxCount = Array.isArray(bboxOrList[0]) ? Math.max(1, (bboxOrList as BoundingBox[]).length) : 1;
-    return Math.max(1, chunksPerBox * boxCount);
   }
 
   private isInsideCachedRegion(bbox: BoundingBox): boolean {

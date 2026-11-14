@@ -46,6 +46,7 @@ CACHE_DIR = Path(os.getenv("FIRMS_CACHE_DIR", REPO / "data" / "cache" / "firms")
 CHUNK_DAYS = int(os.getenv("FIRMS_CHUNK_DAYS", "5"))
 WORKERS = int(os.getenv("FIRMS_WORKERS", "4"))
 REFRESH_HOURS = float(os.getenv("FIRMS_REFRESH_HOURS", "6"))
+FAILED_RETRY_SECONDS = float(os.getenv("FIRMS_FAILED_RETRY_SECONDS", "300"))
 
 # sensor -> first day of its chunk grid. The grid is fixed so that cache keys never move.
 SENSOR_EPOCH = {"MODIS": dt.date(2000, 11, 1), "VIIRS_SNPP": dt.date(2012, 1, 20),
@@ -158,6 +159,7 @@ class Region:
         self.lock = threading.Lock()
         self._state_lock = threading.Lock()
         self._unconsolidated: dict[str, dt.date] = {}
+        self._failed_until: dict[str, float] = {}
         self.manifest = json.loads((path / "manifest.json").read_text(encoding="utf-8"))
         self._frame: tuple[int, pd.DataFrame] | None = None
 
@@ -184,11 +186,18 @@ class Region:
 
     # -- planning ------------------------------------------------------------------------------
 
-    def plan(self, availability: dict[str, tuple[dt.date, dt.date]], today: dt.date, chunk_days: int = CHUNK_DAYS) -> list[Task]:
+    def plan(
+        self,
+        availability: dict[str, tuple[dt.date, dt.date]],
+        today: dt.date,
+        chunk_days: int = CHUNK_DAYS,
+        respect_cooldown: bool = False,
+    ) -> list[Task]:
         """Chunks that are missing or stale. Final chunks and chunks covered by the seed are skipped."""
         tasks, now = [], time.time()
         with self._state_lock:
             chunks = dict(self.manifest["chunks"])
+            failed_until = dict(self._failed_until) if respect_cooldown else {}
         seeded = self.manifest.get("seeded", {})
         for sensor, epoch in SENSOR_EPOCH.items():
             sp, nrt = availability.get(f"{sensor}_SP"), availability.get(f"{sensor}_NRT")
@@ -213,10 +222,12 @@ class Region:
                     if a <= b:
                         runs.append((f"{sensor}_NRT", a, (b - a).days + 1))
                 final = bool(runs) and all(src.endswith("_SP") for src, _, _ in runs) and bool(sp) and start + dt.timedelta(days=chunk_days - 1) <= sp[1]
-                entry = chunks.get(f"{sensor}|{start}")
+                key = f"{sensor}|{start}"
+                entry = chunks.get(key)
                 in_seed = seed is not None and seed_from <= start and start + dt.timedelta(days=chunk_days - 1) <= seed_final
                 fresh = entry is not None and (entry["final"] or now - entry["fetched"] < REFRESH_HOURS * 3600)
-                if runs and not in_seed and not fresh:
+                in_cooldown = respect_cooldown and now < failed_until.get(key, 0.0)
+                if runs and not in_seed and not fresh and not in_cooldown:
                     tasks.append(Task(sensor, start, runs, final))
                 start += dt.timedelta(days=chunk_days)
         return tasks
@@ -228,7 +239,9 @@ class Region:
         window: tuple[dt.date, dt.date],
     ) -> int:
         """Number of chunks overlapping `window` that are not yet fetched and consolidated."""
-        unfetched = sum(1 for t in self.plan(availability, today) if _overlaps_window(t.start, window))
+        unfetched = sum(
+            1 for t in self.plan(availability, today, respect_cooldown=True) if _overlaps_window(t.start, window)
+        )
         with self._state_lock:
             unconsolidated = sum(1 for start in self._unconsolidated.values() if _overlaps_window(start, window))
         return unfetched + unconsolidated
@@ -313,6 +326,8 @@ class Region:
                             _, df = future.result()
                         except FirmsError as exc:
                             failed.append(f"{key}: {exc}")
+                            with self._state_lock:
+                                self._failed_until[key] = time.time() + FAILED_RETRY_SECONDS
                         else:
                             path = self.path / "chunks" / task.sensor / f"{task.start}.csv.gz"
                             path.parent.mkdir(parents=True, exist_ok=True)
@@ -324,6 +339,7 @@ class Region:
                                 path.unlink()
                             spans = [[f"{start:%Y-%m-%d}", n] for _, start, n in task.runs]
                             with self._state_lock:
+                                self._failed_until.pop(key, None)
                                 self.manifest["chunks"][key] = {"spans": spans, "rows": len(df), "final": task.final, "fetched": time.time()}
                                 self._unconsolidated[key] = task.start
                         done += 1
@@ -337,6 +353,8 @@ class Region:
                     if progress:
                         if prio_total > 0 and prio_done < prio_total:
                             progress(prio_done, prio_total)
+                        elif prio_total > 0:
+                            progress(prio_total, prio_total)
                         else:
                             progress(done, len(tasks))
                     prio_finished_mid_sync = bool(
