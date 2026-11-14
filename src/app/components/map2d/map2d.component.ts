@@ -19,6 +19,7 @@ import { GlobeTileService, TileProviderId } from '../../core/services/globe-tile
 import { BoundingBox, MultiPolygonCoords, PolygonCoords, PolygonRing } from '../../core/models/wildfire.model';
 import { ScreenPt, findNearestEdgePx, findNearestVertexPx } from '../../core/utils/polygon-clip';
 import { USER_LOCATION_PIN_COLOR, drawUserLocationPin } from '../../core/utils/location-pin';
+import { getUnobstructedViewportBounds } from '../../core/utils/viewport-framing';
 
 interface CachedTile {
   status: 'loading' | 'ready' | 'error';
@@ -35,8 +36,8 @@ interface BorderRingBbox {
 }
 
 const TILE_SIZE = 256;
-const MIN_ZOOM = 2;
-const MAX_ZOOM = 17.5;
+const MIN_ZOOM = 2.5;
+const MAX_ZOOM = 14;
 const MAX_MERCATOR_LAT = 85.05112878;
 const MAX_CACHED_TILES = 320;
 
@@ -80,6 +81,10 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
   private bordersLoading = false;
 
   // Pointer interaction state
+  private readonly activePointers = new Map<number, { x: number; y: number }>();
+  private lastPinchDist = 0;
+  private lastPinchMidX = 0;
+  private lastPinchMidY = 0;
   private isPanning = false;
   private panLastClientX = 0;
   private panLastClientY = 0;
@@ -114,6 +119,7 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
         return;
       }
       untracked(() => {
+        this.state.userCamera2d.set(null);
         if (focus === 'iberia') {
           const bbox = this.state.regionBbox();
           if (bbox) {
@@ -121,25 +127,45 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
           } else {
             this.centerLon = -5.5;
             this.centerLat = 40.3;
-            this.zoom = 6;
+            this.zoom = Math.max(this.effectiveMinZoom(), 6);
           }
         } else if (focus === 'northAtlantic') {
           this.centerLon = -48;
           this.centerLat = 35;
-          this.zoom = 4;
+          this.zoom = Math.max(this.effectiveMinZoom(), 4);
         } else {
           this.centerLon = -140;
           this.centerLat = 0;
-          this.zoom = 3.2;
+          this.zoom = Math.max(this.effectiveMinZoom(), 3.2);
         }
-        this.syncZoomSignal();
+        this.clampCameraBounds();
         this.requestRender();
       });
     });
 
+    let panelFramingInitialized = false;
+    effect(() => {
+      this.state.isAnalyticsMinimized();
+      this.state.isAnalyticsExpanded();
+      if (!panelFramingInitialized) {
+        panelFramingInitialized = true;
+        return;
+      }
+      untracked(() => {
+        if (!this.ctx || this.state.userCamera2d() !== null) return;
+        const bbox = this.state.regionBbox();
+        if (bbox) {
+          this.fitBboxToViewport(bbox);
+          this.requestRender();
+        }
+      });
+    });
+
+    let lastFlyTrigger = untracked(() => this.state.flyToBboxTrigger());
     effect(() => {
       const trigger = this.state.flyToBboxTrigger();
-      if (trigger > 0) {
+      if (trigger > lastFlyTrigger) {
+        lastFlyTrigger = trigger;
         const bbox = untracked(() => this.state.regionBbox());
         if (bbox) {
           untracked(() => {
@@ -164,8 +190,14 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
     this.ctx = canvas.getContext('2d');
     this.updateCanvasSize();
 
+    const saved = this.state.userCamera2d();
     const initialBbox = this.state.regionBbox();
-    if (initialBbox) {
+    if (saved) {
+      this.centerLon = saved.lon;
+      this.centerLat = saved.lat;
+      this.zoom = saved.zoom;
+      this.clampCameraBounds();
+    } else if (initialBbox) {
       this.fitBboxToViewport(initialBbox);
     }
 
@@ -194,6 +226,16 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
 
   private readonly onResize = () => {
     this.updateCanvasSize();
+    if (this.state.userCamera2d() === null) {
+      const bbox = this.state.regionBbox();
+      if (bbox) {
+        this.fitBboxToViewport(bbox);
+      } else {
+        this.clampCameraBounds();
+      }
+    } else {
+      this.clampCameraBounds();
+    }
     this.requestRender();
   };
 
@@ -272,38 +314,68 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
     return [Number(lon.toFixed(4)), Number(lat.toFixed(4))];
   }
 
+  private effectiveMinZoom(): number {
+    return Math.max(MIN_ZOOM, Math.log2(Math.max(this.width, this.height) / TILE_SIZE));
+  }
+
+  private setCameraCenterFromWorld(wx: number, wy: number, ws = this.worldSize()): void {
+    const halfH = Math.min(ws * 0.5, this.height * 0.5);
+    const clampedWy = Math.max(halfH, Math.min(ws - halfH, wy));
+    this.centerLon = this.wrapLon(this.worldXToLon(wx, ws));
+    this.centerLat = this.clampLat(this.worldYToLat(clampedWy, ws));
+  }
+
+  private clampCameraBounds(): void {
+    this.zoom = Math.max(this.effectiveMinZoom(), Math.min(MAX_ZOOM, this.zoom));
+    const ws = this.worldSize();
+    this.setCameraCenterFromWorld(
+      this.lonToWorldX(this.centerLon, ws),
+      this.latToWorldY(this.centerLat, ws),
+      ws
+    );
+    this.syncZoomSignal();
+  }
+
+  private persistUserCamera(): void {
+    this.ngZone.run(() => {
+      this.state.userCamera2d.set({
+        lon: this.centerLon,
+        lat: this.centerLat,
+        zoom: this.zoom
+      });
+      this.state.cameraTargetLonLat.set([this.centerLon, this.centerLat]);
+    });
+  }
+
   private fitBboxToViewport(bbox: BoundingBox): void {
     const [w, s, e, n] = bbox;
-    // Offset slightly right of the left analytics panel on desktop so AOI is cleanly visible
-    const leftReserve = this.width > 960 && !this.state.isAnalyticsMinimized() ? 360 : 32;
-    const rightReserve = 40;
-    const topReserve = 80;
-    const bottomReserve = 48;
-    const availW = Math.max(160, this.width - leftReserve - rightReserve);
-    const availH = Math.max(160, this.height - topReserve - bottomReserve);
+    const framing = getUnobstructedViewportBounds(
+      this.width,
+      this.height,
+      this.state.isAnalyticsMinimized(),
+      this.state.isAnalyticsExpanded()
+    );
 
     const ws1 = TILE_SIZE;
     const spanX = Math.max(1e-5, (e - w) / 360) * ws1;
     const spanY = Math.max(1e-5, this.latToWorldY(s, ws1) - this.latToWorldY(n, ws1));
-    const zoomX = Math.log2((availW * 0.72) / spanX);
-    const zoomY = Math.log2((availH * 0.72) / spanY);
-    this.zoom = Math.max(MIN_ZOOM, Math.min(13.5, Math.min(zoomX, zoomY)));
+    const zoomX = Math.log2((framing.availW * 0.72) / spanX);
+    const zoomY = Math.log2((framing.availH * 0.72) / spanY);
+    const minZoom = this.effectiveMinZoom();
+    this.zoom = Math.max(minZoom, Math.min(Math.min(12.5, MAX_ZOOM), Math.min(zoomX, zoomY)));
 
     const ws = this.worldSize();
     const bboxMidWx = this.lonToWorldX((w + e) * 0.5, ws);
     const bboxMidWy = (this.latToWorldY(s, ws) + this.latToWorldY(n, ws)) * 0.5;
-    const desiredScreenX = leftReserve + availW * 0.5;
-    const desiredScreenY = topReserve + availH * 0.5;
-    const shiftedCx = bboxMidWx - (desiredScreenX - this.width * 0.5);
-    const shiftedCy = bboxMidWy - (desiredScreenY - this.height * 0.5);
+    const shiftedCx = bboxMidWx - (framing.desiredCenterX - this.width * 0.5);
+    const shiftedCy = bboxMidWy - (framing.desiredCenterY - this.height * 0.5);
 
-    this.centerLon = this.wrapLon(this.worldXToLon(shiftedCx, ws));
-    this.centerLat = this.clampLat(this.worldYToLat(shiftedCy, ws));
+    this.setCameraCenterFromWorld(shiftedCx, shiftedCy, ws);
     this.syncZoomSignal();
   }
 
   private syncZoomSignal(): void {
-    const zInt = Math.max(MIN_ZOOM, Math.min(18, Math.round(this.zoom)));
+    const zInt = Math.max(Math.floor(MIN_ZOOM), Math.min(MAX_ZOOM, Math.round(this.zoom)));
     if (zInt !== this.lastReportedTileZoom) {
       this.lastReportedTileZoom = zInt;
       this.ngZone.run(() => this.state.activeTileZoom.set(zInt));
@@ -505,7 +577,7 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
     const cy = this.latToWorldY(this.centerLat, ws);
 
     const maxProviderZoom = provider === 'sat' ? 17 : 18;
-    const tileZ = Math.max(MIN_ZOOM, Math.min(maxProviderZoom, Math.round(this.zoom)));
+    const tileZ = Math.max(Math.floor(MIN_ZOOM), Math.min(maxProviderZoom, Math.round(this.zoom)));
     const tilesCount = 1 << tileZ;
     const scale = Math.pow(2, this.zoom - tileZ);
     const tilePx = TILE_SIZE * scale;
@@ -645,7 +717,7 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
     const live = this.state.liveDrawBbox();
     const draft = this.state.draftPolygon();
     const showBbox = this.state.showRegionBbox();
-    if (!showBbox && live === null && draft === null) {
+    if (!showBbox && live === null) {
       return { multi: [], isPreview: false, isDraft: false, editableOuter: null };
     }
 
@@ -677,6 +749,7 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
   }
 
   private getEditableActivePoly(): PolygonRing | null {
+    if (!this.state.showRegionBbox()) return null;
     const draft = this.state.draftPolygon();
     if (draft && draft.length >= 3) return draft;
     return this.getEditableAcceptedOuter();
@@ -775,8 +848,25 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
   onPointerDown(ev: PointerEvent): void {
     if (ev.button !== 0 && ev.pointerType !== 'touch') return;
     const canvas = this.canvasRef.nativeElement;
-    const hitLonLat = this.screenToLonLat(ev.clientX, ev.clientY);
+    this.activePointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
     const wantsDraw = this.state.isDrawingBbox() || ev.shiftKey;
+
+    if (this.activePointers.size >= 2 && !wantsDraw) {
+      this.isPanning = false;
+      this.draggingVertexIdx = null;
+      const [p1, p2] = Array.from(this.activePointers.values());
+      this.lastPinchMidX = (p1.x + p2.x) * 0.5;
+      this.lastPinchMidY = (p1.y + p2.y) * 0.5;
+      this.lastPinchDist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+      try {
+        canvas.setPointerCapture(ev.pointerId);
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
+    const hitLonLat = this.screenToLonLat(ev.clientX, ev.clientY);
 
     if (wantsDraw) {
       this.isDraggingBbox = true;
@@ -828,6 +918,48 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
 
   onPointerMove(ev: PointerEvent): void {
     const canvas = this.canvasRef.nativeElement;
+    if (this.activePointers.has(ev.pointerId)) {
+      this.activePointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    }
+
+    if (this.activePointers.size >= 2 && !this.isDraggingBbox) {
+      const [p1, p2] = Array.from(this.activePointers.values());
+      const midX = (p1.x + p2.x) * 0.5;
+      const midY = (p1.y + p2.y) * 0.5;
+      const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+      if (this.lastPinchDist > 8 && dist > 8) {
+        const rect = canvas.getBoundingClientRect();
+        const prevSx = this.lastPinchMidX - rect.left;
+        const prevSy = this.lastPinchMidY - rect.top;
+        const nextSx = midX - rect.left;
+        const nextSy = midY - rect.top;
+
+        const wsBefore = this.worldSize();
+        const anchorLon = this.worldXToLon(this.lonToWorldX(this.centerLon, wsBefore) + (prevSx - this.width * 0.5), wsBefore);
+        const anchorLat = this.worldYToLat(this.latToWorldY(this.centerLat, wsBefore) + (prevSy - this.height * 0.5), wsBefore);
+
+        const nextZoom = Math.max(
+          this.effectiveMinZoom(),
+          Math.min(MAX_ZOOM, this.zoom + Math.log2(dist / this.lastPinchDist))
+        );
+        this.zoom = nextZoom;
+
+        const wsAfter = this.worldSize();
+        this.setCameraCenterFromWorld(
+          this.lonToWorldX(anchorLon, wsAfter) - (nextSx - this.width * 0.5),
+          this.latToWorldY(anchorLat, wsAfter) - (nextSy - this.height * 0.5),
+          wsAfter
+        );
+        this.syncZoomSignal();
+        this.persistUserCamera();
+        this.requestRender();
+      }
+      this.lastPinchMidX = midX;
+      this.lastPinchMidY = midY;
+      this.lastPinchDist = dist;
+      return;
+    }
+
     if (this.draggingVertexIdx !== null) {
       const curLonLat = this.screenToLonLat(ev.clientX, ev.clientY);
       const idx = this.draggingVertexIdx;
@@ -849,10 +981,14 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
       this.panLastClientY = ev.clientY;
 
       const ws = this.worldSize();
-      const newCx = this.lonToWorldX(this.centerLon, ws) - dx;
-      const newCy = this.latToWorldY(this.centerLat, ws) - dy;
-      this.centerLon = this.wrapLon(this.worldXToLon(newCx, ws));
-      this.centerLat = this.clampLat(this.worldYToLat(newCy, ws));
+      this.setCameraCenterFromWorld(
+        this.lonToWorldX(this.centerLon, ws) - dx,
+        this.latToWorldY(this.centerLat, ws) - dy,
+        ws
+      );
+      if (Math.abs(dx) + Math.abs(dy) > 0) {
+        this.persistUserCamera();
+      }
       this.requestRender();
       return;
     }
@@ -878,6 +1014,15 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
 
   onPointerUp(ev: PointerEvent): void {
     const canvas = this.canvasRef.nativeElement;
+    this.activePointers.delete(ev.pointerId);
+    if (this.activePointers.size < 2) {
+      this.lastPinchDist = 0;
+      if (this.activePointers.size === 1) {
+        const [rem] = Array.from(this.activePointers.values());
+        this.panLastClientX = rem.x;
+        this.panLastClientY = rem.y;
+      }
+    }
     if (this.draggingVertexIdx !== null) {
       this.draggingVertexIdx = null;
       canvas.style.cursor = 'grab';
@@ -941,17 +1086,19 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
     const anchorLon = this.worldXToLon(wxAnchor, wsBefore);
     const anchorLat = this.worldYToLat(wyAnchor, wsBefore);
 
-    const nextZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, this.zoom - ev.deltaY * 0.0022));
+    const nextZoom = Math.max(this.effectiveMinZoom(), Math.min(MAX_ZOOM, this.zoom - ev.deltaY * 0.0022));
     if (Math.abs(nextZoom - this.zoom) < 1e-4) return;
     this.zoom = nextZoom;
 
     const wsAfter = this.worldSize();
-    const cxAfter = this.lonToWorldX(anchorLon, wsAfter) - (sx - this.width * 0.5);
-    const cyAfter = this.latToWorldY(anchorLat, wsAfter) - (sy - this.height * 0.5);
-    this.centerLon = this.wrapLon(this.worldXToLon(cxAfter, wsAfter));
-    this.centerLat = this.clampLat(this.worldYToLat(cyAfter, wsAfter));
+    this.setCameraCenterFromWorld(
+      this.lonToWorldX(anchorLon, wsAfter) - (sx - this.width * 0.5),
+      this.latToWorldY(anchorLat, wsAfter) - (sy - this.height * 0.5),
+      wsAfter
+    );
 
     this.syncZoomSignal();
+    this.persistUserCamera();
     this.requestRender();
   };
 }

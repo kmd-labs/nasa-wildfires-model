@@ -1,0 +1,39 @@
+<div class="locale-date-field" [class.locale-date-field--missing]="missing()" [class.locale-date-field--disabled]="disabled()">
+  @if (label()) {
+    <span class="locale-date-field__label">{{ label() }}</span>
+  }
+  <span class="locale-date-field__control">
+    <input
+      #textInput
+      type="text"
+      inputmode="numeric"
+      class="locale-date-field__text"
+      [value]="displayValue()"
+      [placeholder]="placeholderText()"
+      [disabled]="disabled()"
+      [attr.aria-label]="label() || placeholderText()"
+      (focus)="onFocus()"
+      (input)="onTextInput($any($event.target).value)"
+      (blur)="commitText(textInput)"
+      (keydown.enter)="commitText(textInput); textInput.blur()" />
+    <button
+      type="button"
+      class="locale-date-field__trigger"
+      [disabled]="disabled()"
+      [attr.aria-label]="label() || placeholderText()"
+      (click)="openPicker(nativeInput)">
+      <lucide-icon [img]="calendarIcon" [size]="12"></lucide-icon>
+    </button>
+    <input
+      #nativeInput
+      type="date"
+      class="locale-date-field__native"
+      tabindex="-1"
+      aria-hidden="true"
+      [min]="min()"
+      [max]="max()"
+      [disabled]="disabled()"
+      [value]="value()"
+      (change)="onNativeChange($any($event.target).value)" />
+  </span>
+</div>

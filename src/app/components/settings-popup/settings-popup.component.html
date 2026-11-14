@@ -1,0 +1,41 @@
+@let t = i18n.t();
+
+<div class="settings">
+  <!-- Language Section -->
+  <section class="settings__section">
+    <h3 class="settings__label">{{ t.changeLanguage }}</h3>
+    <div class="settings__group" role="radiogroup" [attr.aria-label]="t.changeLanguage">
+      @for (l of languages; track l.id) {
+        <button
+          type="button"
+          class="settings__option"
+          [class.settings__option--active]="i18n.lang() === l.id"
+          role="radio"
+          [attr.aria-checked]="i18n.lang() === l.id"
+          (click)="selectLang(l.id)">
+          <span class="settings__badge" translate="no">{{ l.id.toUpperCase() }}</span>
+          <span class="settings__name">{{ l.label }}</span>
+        </button>
+      }
+    </div>
+  </section>
+
+  <!-- Date Format Section -->
+  <section class="settings__section">
+    <h3 class="settings__label">{{ t.dateFormatLabel }}</h3>
+    <div class="settings__group settings__group--stack" role="radiogroup" [attr.aria-label]="t.dateFormatLabel">
+      @for (f of dateFormats(); track f.id) {
+        <button
+          type="button"
+          class="settings__option"
+          [class.settings__option--active]="i18n.dateFormatPref() === f.id"
+          role="radio"
+          [attr.aria-checked]="i18n.dateFormatPref() === f.id"
+          (click)="selectDateFormat(f.id)">
+          <span class="settings__badge" translate="no">{{ f.badge }}</span>
+          <span class="settings__name">{{ f.label }}</span>
+        </button>
+      }
+    </div>
+  </section>
+</div>

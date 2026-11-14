@@ -9,13 +9,12 @@ import {
   Download,
   BoxSelect,
   Check,
-  X
+  X,
+  Settings
 } from 'lucide-angular';
 import {
   BrandComponent,
   ButtonComponent,
-  DropdownComponent,
-  DropdownOption,
   PopupComponent,
   PopupService,
   SplashComponent,
@@ -29,7 +28,6 @@ import {
 } from '@kmd/design-system';
 import { breakpointPx } from '@kmd/design-system/utils/breakpoints';
 import { I18nService } from './core/i18n/i18n.service';
-import { Lang } from './core/i18n/i18n.types';
 import { MapRenderMode } from './core/models/wildfire.model';
 import { WildfireStateService } from './core/services/wildfire-state.service';
 import { WildfireDataService } from './core/services/wildfire-data.service';
@@ -39,6 +37,7 @@ import { Map2dComponent } from './components/map2d/map2d.component';
 import { GlossaryComponent } from './components/glossary/glossary.component';
 import { SourcesPopupComponent } from './components/sources-popup/sources-popup.component';
 import { openExportPopup } from './components/data-popup/data-popup.component';
+import { openSettingsPopup } from './components/settings-popup/settings-popup.component';
 import { AnalyticsPanelComponent } from './components/analytics-panel/analytics-panel.component';
 
 @Component({
@@ -49,7 +48,6 @@ import { AnalyticsPanelComponent } from './components/analytics-panel/analytics-
     LucideAngularModule,
     BrandComponent,
     ButtonComponent,
-    DropdownComponent,
     PopupComponent,
     SplashComponent,
     SwitcherComponent,
@@ -88,6 +86,7 @@ export class AppComponent implements OnDestroy {
   readonly boxSelectIcon = BoxSelect;
   readonly checkIcon = Check;
   readonly closeIcon = X;
+  readonly settingsIcon = Settings;
 
   readonly bannerDismissed = signal(false);
   readonly showRecalculateBanner = computed(
@@ -131,15 +130,6 @@ export class AppComponent implements OnDestroy {
     }
   }
 
-  readonly langOptions = computed<DropdownOption<Lang>[]>(() =>
-    this.i18n.langs.map(l => ({
-      value: l,
-      label: this.i18n.dicts[l].langName,
-      shortLabel: l.toUpperCase(),
-      badge: l.toUpperCase()
-    }))
-  );
-
   readonly mapModeOptions = computed<SwitcherOption<MapRenderMode>[]>(() => {
     const t = this.i18n.t();
     return [
@@ -172,5 +162,9 @@ export class AppComponent implements OnDestroy {
 
   openDataPopup() {
     openExportPopup(this.popup, this.i18n);
+  }
+
+  openSettings() {
+    openSettingsPopup(this.popup, this.i18n);
   }
 }

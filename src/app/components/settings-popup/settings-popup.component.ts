@@ -1,0 +1,53 @@
+import { Component, computed, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { PopupService } from '@kmd/design-system';
+import { I18nService } from '../../core/i18n/i18n.service';
+import { DateFormatPref, Lang } from '../../core/i18n/i18n.types';
+import { formatLocaleDate } from '../../core/pipes/locale-date.pipe';
+
+@Component({
+  selector: 'app-settings-popup',
+  standalone: true,
+  imports: [CommonModule],
+  templateUrl: './settings-popup.component.html',
+  styleUrl: './settings-popup.component.scss'
+})
+export class SettingsPopupComponent {
+  readonly i18n = inject(I18nService);
+
+  readonly languages: { id: Lang; label: string }[] = [
+    { id: 'en', label: 'English' },
+    { id: 'pl', label: 'Polski' }
+  ];
+
+  readonly dateFormats = computed<{ id: DateFormatPref; badge: string; label: string }[]>(() => [
+    {
+      id: 'auto',
+      badge: formatLocaleDate('2026-11-14', 'full', this.i18n.autoDateLocale()),
+      label: this.i18n.t().dateFormatAuto
+    },
+    { id: 'dmy-dot', badge: '14.11.2026', label: 'DD.MM.YYYY' },
+    { id: 'dmy-slash', badge: '14/11/2026', label: 'DD/MM/YYYY' },
+    { id: 'mdy-slash', badge: '11/14/2026', label: 'MM/DD/YYYY' },
+    { id: 'iso', badge: '2026-11-14', label: 'YYYY-MM-DD' }
+  ]);
+
+  selectLang(lang: Lang): void {
+    this.i18n.setLang(lang);
+  }
+
+  selectDateFormat(pref: DateFormatPref): void {
+    this.i18n.setDateFormatPref(pref);
+  }
+}
+
+/** Open the Settings popup modal matching kmd-labs/el-nino. */
+export function openSettingsPopup(popup: PopupService, i18n: I18nService): void {
+  popup.open({
+    id: 'settings',
+    title: computed(() => i18n.t().settingsTitle),
+    component: SettingsPopupComponent,
+    size: 'sm',
+    actions: [{ label: computed(() => i18n.t().close), variant: 'default' }]
+  });
+}

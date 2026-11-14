@@ -5,6 +5,7 @@ import {
   BoundingBox,
   BurningCalendarCell,
   ChartSeriesPoint,
+  DatasetSelectionMode,
   HarmonizedHotspotRecord,
   HotspotAnalyticsSummary,
   MultiPolygonCoords,
@@ -131,7 +132,6 @@ export class HotspotAnalyticsService {
    */
   readonly globePixelSquares = computed<GlobePixelSquare[]>(() => {
     const dataset = this.state.activeDataset();
-    const isMixed = this.state.isMixedSensorRange();
     const bbox = this.state.regionBbox();
     if (!bbox) return [];
 
@@ -199,8 +199,9 @@ export class HotspotAnalyticsService {
       const backend = this.data.backendCalendar();
       if (!backend) return [];
       const rawPixels = backend.selection.pixels;
+      const requiresBoth = this.state.requiresBothSensors();
       if (rawPixels && rawPixels.length > 0) {
-        if (!isMixed) {
+        if (dataset === 'VIIRS' || dataset === 'MODIS') {
           return normalizeSquares(
             binSensorPoints(
               dataset,
@@ -211,41 +212,45 @@ export class HotspotAnalyticsService {
           );
         }
 
-        // Range spans 2012-01-20 with best quality active: use VIIRS 375 m + pre-2012 MODIS 1 km
+        // Combined VIIRS 375 m + MODIS 1 km view (pre-2012 MODIS when spanning launch, else all MODIS)
         const viirsPts = rawPixels
           .filter(p => p.sensor === 'VIIRS')
           .map(p => ({ lon: p.lon, lat: p.lat, count: p.count, frpMw: p.frpMw }));
 
-        const hasExactEra = rawPixels.some(p => p.sensor === 'MODIS' && typeof p.preViirs === 'boolean');
-        let modisPrePts: { lon: number; lat: number; count: number; frpMw: number }[];
-        if (hasExactEra) {
-          modisPrePts = rawPixels
-            .filter(p => p.sensor === 'MODIS' && p.preViirs === true)
+        let modisPts: { lon: number; lat: number; count: number; frpMw: number }[];
+        if (!requiresBoth) {
+          modisPts = rawPixels
+            .filter(p => p.sensor === 'MODIS')
             .map(p => ({ lon: p.lon, lat: p.lat, count: p.count, frpMw: p.frpMw }));
         } else {
-          // Compatibility fallback for backends without `preViirs` metadata: drop MODIS pixels
-          // that sit directly atop higher-precision VIIRS 375 m detections (~1 km cells).
-          const viirsOccupied = new Set<string>();
-          for (const vp of viirsPts) {
-            viirsOccupied.add(`${Math.round(vp.lat / 0.01)}:${Math.round(vp.lon / 0.01)}`);
+          const hasExactEra = rawPixels.some(p => p.sensor === 'MODIS' && typeof p.preViirs === 'boolean');
+          if (hasExactEra) {
+            modisPts = rawPixels
+              .filter(p => p.sensor === 'MODIS' && p.preViirs === true)
+              .map(p => ({ lon: p.lon, lat: p.lat, count: p.count, frpMw: p.frpMw }));
+          } else {
+            const viirsOccupied = new Set<string>();
+            for (const vp of viirsPts) {
+              viirsOccupied.add(`${Math.round(vp.lat / 0.01)}:${Math.round(vp.lon / 0.01)}`);
+            }
+            modisPts = rawPixels
+              .filter(
+                p =>
+                  p.sensor === 'MODIS' &&
+                  !viirsOccupied.has(`${Math.round(p.lat / 0.01)}:${Math.round(p.lon / 0.01)}`)
+              )
+              .map(p => ({ lon: p.lon, lat: p.lat, count: p.count, frpMw: p.frpMw }));
           }
-          modisPrePts = rawPixels
-            .filter(
-              p =>
-                p.sensor === 'MODIS' &&
-                !viirsOccupied.has(`${Math.round(p.lat / 0.01)}:${Math.round(p.lon / 0.01)}`)
-            )
-            .map(p => ({ lon: p.lon, lat: p.lat, count: p.count, frpMw: p.frpMw }));
         }
 
         return normalizeSquares([
-          ...binSensorPoints('MODIS', modisPrePts),
+          ...binSensorPoints('MODIS', modisPts),
           ...binSensorPoints('VIIRS', viirsPts)
         ]);
       }
 
       // Fallback if backend payload has no pixels array
-      if (!isMixed) {
+      if (dataset === 'VIIRS' || dataset === 'MODIS') {
         return normalizeSquares(
           binSensorPoints(
             dataset,
@@ -264,11 +269,11 @@ export class HotspotAnalyticsService {
       const viirsCells = backend.selection.cells
         .filter(c => c.rawViirs > 0)
         .map(c => ({ lon: c.lon, lat: c.lat, count: c.rawViirs, frpMw: 0 }));
-      const modisOnlyCells = backend.selection.cells
-        .filter(c => c.rawModis > 0 && c.rawViirs === 0)
+      const modisCells = backend.selection.cells
+        .filter(c => c.rawModis > 0 && (!requiresBoth || c.rawViirs === 0))
         .map(c => ({ lon: c.lon, lat: c.lat, count: c.rawModis, frpMw: 0 }));
       return normalizeSquares([
-        ...binSensorPoints('MODIS', modisOnlyCells),
+        ...binSensorPoints('MODIS', modisCells),
         ...binSensorPoints('VIIRS', viirsCells)
       ]);
     }
@@ -287,7 +292,8 @@ export class HotspotAnalyticsService {
         r.lat <= n + pad
     );
 
-    if (!isMixed) {
+    const requiresBoth = this.state.requiresBothSensors();
+    if (dataset === 'VIIRS' || dataset === 'MODIS') {
       const matching = inBoxAndDates.filter(r =>
         dataset === 'VIIRS'
           ? r.rawViirsCount > 0 || r.sensor === 'VIIRS' || r.sensor === 'HARMONIZED'
@@ -306,20 +312,29 @@ export class HotspotAnalyticsService {
       );
     }
 
-    const preModisPts: { lon: number; lat: number; count: number; frpMw: number }[] = [];
-    const postViirsPts: { lon: number; lat: number; count: number; frpMw: number }[] = [];
+    const modisPts: { lon: number; lat: number; count: number; frpMw: number }[] = [];
+    const viirsPts: { lon: number; lat: number; count: number; frpMw: number }[] = [];
     for (const r of inBoxAndDates) {
-      if (r.date < VIIRS_FIRST_DATE) {
-        if (r.rawModisCount > 0 || r.sensor === 'MODIS' || r.sensor === 'HARMONIZED') {
-          preModisPts.push({ lon: r.lon, lat: r.lat, count: r.rawModisCount || 1, frpMw: r.frpMw });
+      if (requiresBoth) {
+        if (r.date < VIIRS_FIRST_DATE) {
+          if (r.rawModisCount > 0 || r.sensor === 'MODIS' || r.sensor === 'HARMONIZED') {
+            modisPts.push({ lon: r.lon, lat: r.lat, count: r.rawModisCount || 1, frpMw: r.frpMw });
+          }
+        } else if (r.rawViirsCount > 0 || r.sensor === 'VIIRS' || r.sensor === 'HARMONIZED') {
+          viirsPts.push({ lon: r.lon, lat: r.lat, count: r.rawViirsCount || 1, frpMw: r.frpMw });
         }
-      } else if (r.rawViirsCount > 0 || r.sensor === 'VIIRS' || r.sensor === 'HARMONIZED') {
-        postViirsPts.push({ lon: r.lon, lat: r.lat, count: r.rawViirsCount || 1, frpMw: r.frpMw });
+      } else {
+        if (r.rawModisCount > 0 || r.sensor === 'MODIS' || r.sensor === 'HARMONIZED') {
+          modisPts.push({ lon: r.lon, lat: r.lat, count: r.rawModisCount || 1, frpMw: r.frpMw });
+        }
+        if (r.rawViirsCount > 0 || r.sensor === 'VIIRS' || r.sensor === 'HARMONIZED') {
+          viirsPts.push({ lon: r.lon, lat: r.lat, count: r.rawViirsCount || 1, frpMw: r.frpMw });
+        }
       }
     }
     return normalizeSquares([
-      ...binSensorPoints('MODIS', preModisPts),
-      ...binSensorPoints('VIIRS', postViirsPts)
+      ...binSensorPoints('MODIS', modisPts),
+      ...binSensorPoints('VIIRS', viirsPts)
     ]);
   });
 
@@ -599,9 +614,10 @@ export class HotspotAnalyticsService {
       const anomalyPct = expectedTotal > 0 ? Number((((harm - expectedTotal) / expectedTotal) * 100).toFixed(1)) : 0;
 
       const activeDataset = this.state.activeDataset();
-      const isMixed = this.state.isMixedSensorRange();
-      let activeDatasetFires = activeDataset === 'VIIRS' ? viirs : modis;
-      if (isMixed) {
+      const requiresBoth = this.state.requiresBothSensors();
+      let activeDatasetFires =
+        activeDataset === 'VIIRS' ? viirs : activeDataset === 'MODIS' ? modis : viirs + modis;
+      if (activeDataset === 'BOTH' && requiresBoth) {
         let preModis = 0;
         let postViirs = 0;
         const fromYm = sel.from;
@@ -677,15 +693,18 @@ export class HotspotAnalyticsService {
     const anomalyPct = expectedTotal > 0 ? Number((((harm - expectedTotal) / expectedTotal) * 100).toFixed(1)) : 0;
 
     const activeDataset = this.state.activeDataset();
-    const isMixed = this.state.isMixedSensorRange();
-    const activeDatasetFires = isMixed
-      ? records.reduce(
-          (sum, r) => sum + (r.date < VIIRS_FIRST_DATE ? r.rawModisCount : r.rawViirsCount),
-          0
-        )
-      : activeDataset === 'VIIRS'
-        ? viirs
-        : modis;
+    const requiresBoth = this.state.requiresBothSensors();
+    const activeDatasetFires =
+      activeDataset === 'BOTH'
+        ? requiresBoth
+          ? records.reduce(
+              (sum, r) => sum + (r.date < VIIRS_FIRST_DATE ? r.rawModisCount : r.rawViirsCount),
+              0
+            )
+          : viirs + modis
+        : activeDataset === 'VIIRS'
+          ? viirs
+          : modis;
     return {
       totalRecords: records.length,
       harmonizedFires: harm,

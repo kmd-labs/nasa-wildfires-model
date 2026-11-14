@@ -31,7 +31,9 @@ import {
   DropdownOption,
   PopupService,
   SwitcherComponent,
-  SwitcherOption
+  SwitcherOption,
+  TooltipDirective,
+  TooltipService
 } from '@kmd/design-system';
 import { openExportPopup } from '../data-popup/data-popup.component';
 import { I18nService } from '../../core/i18n/i18n.service';
@@ -41,20 +43,21 @@ import { WildfireDataService } from '../../core/services/wildfire-data.service';
 import { HotspotAnalyticsService } from '../../core/services/hotspot-analytics.service';
 import { ColorRampService } from '../../core/services/color-ramp.service';
 import { LocaleDatePipe } from '../../core/pipes/locale-date.pipe';
+import { LocaleDateInputComponent } from '../locale-date-input/locale-date-input.component';
 import {
-  ActiveFireDataset,
   BurningCalendarCell,
   CalendarGranularity,
   ChartGranularity,
   ChartSeriesPoint,
   ColorRampId,
+  DatasetSelectionMode,
   PredefinedCountry
 } from '../../core/models/wildfire.model';
 
 @Component({
   selector: 'app-analytics-panel',
   standalone: true,
-  imports: [CommonModule, LucideAngularModule, ButtonComponent, DateRangeSliderComponent, DropdownComponent, SwitcherComponent, LocaleDatePipe],
+  imports: [CommonModule, LucideAngularModule, ButtonComponent, DateRangeSliderComponent, DropdownComponent, SwitcherComponent, TooltipDirective, LocaleDatePipe, LocaleDateInputComponent],
   templateUrl: './analytics-panel.component.html',
   styleUrl: './analytics-panel.component.scss'
 })
@@ -73,6 +76,7 @@ export class AnalyticsPanelComponent {
   readonly analytics = inject(HotspotAnalyticsService);
   readonly ramps = inject(ColorRampService);
   private readonly popup = inject(PopupService);
+  private readonly tooltipService = inject(TooltipService);
   readonly Math = Math;
 
   readonly expanded = this.state.isAnalyticsExpanded;
@@ -88,6 +92,7 @@ export class AnalyticsPanelComponent {
   readonly draftE = signal<string>('');
   readonly draftN = signal<string>('');
   readonly coordError = signal<boolean>(false);
+  private editingCoordInputs = false;
   readonly areaDropdownOpen = signal<boolean>(false);
   readonly areaSearchQuery = signal<string>('');
   readonly selectedCountryCode = signal<string | null>('__IBERIA__');
@@ -117,8 +122,25 @@ export class AnalyticsPanelComponent {
 
   constructor() {
     effect(() => {
+      const draftPoly = this.state.draftPolygon();
       const b = this.state.regionBbox();
-      if (b) {
+      if (this.editingCoordInputs) return;
+      if (draftPoly && draftPoly.length >= 3) {
+        let minW = 180;
+        let minS = 85;
+        let maxE = -180;
+        let maxN = -85;
+        for (const [lon, lat] of draftPoly) {
+          if (lon < minW) minW = lon;
+          if (lon > maxE) maxE = lon;
+          if (lat < minS) minS = lat;
+          if (lat > maxN) maxN = lat;
+        }
+        this.draftW.set(String(Number(minW.toFixed(2))));
+        this.draftS.set(String(Number(minS.toFixed(2))));
+        this.draftE.set(String(Number(maxE.toFixed(2))));
+        this.draftN.set(String(Number(maxN.toFixed(2))));
+      } else if (b) {
         this.draftW.set(String(b[0]));
         this.draftS.set(String(b[1]));
         this.draftE.set(String(b[2]));
@@ -132,6 +154,21 @@ export class AnalyticsPanelComponent {
       this.coordError.set(false);
     });
   }
+
+  readonly syncStatusText = computed<string>(() => {
+    const t = this.i18n.t();
+    const status = this.data.backendStatus();
+    if (status === 'loading') return t.backendLoadingLabel;
+    if (status === 'downloading') {
+      const prog = this.data.backendProgress();
+      const isAnalyzing = Boolean(prog && prog.total > 0 && prog.done >= prog.total);
+      const label = isAnalyzing ? t.backendAnalyzingLabel : t.backendDownloadingLabel;
+      return prog && prog.total > 0
+        ? `${label} (${prog.done}/${prog.total} ${t.backendChunksLabel})`
+        : label;
+    }
+    return '';
+  });
 
   readonly layerItems = computed(() => {
     const t = this.i18n.t();
@@ -193,29 +230,68 @@ export class AnalyticsPanelComponent {
     () => this.layerItems().filter(item => item.checked).length
   );
 
-  readonly datasetOptions = computed<SwitcherOption<ActiveFireDataset>[]>(() => {
+  readonly datasetOptions = computed<SwitcherOption<DatasetSelectionMode>[]>(() => {
     const t = this.i18n.t();
     const viirsOk = this.state.isViirsAvailable();
+    const bothRequired = this.state.requiresBothSensors();
     return [
       {
         value: 'VIIRS',
         label: t.datasetViirsBtn,
-        disabled: !viirsOk,
-        tooltip: !viirsOk ? t.viirsUnavailableTooltip : t.datasetViirsDesc
+        disabled: bothRequired || !viirsOk,
+        tooltip: bothRequired
+          ? t.bothSensorsRequiredTooltip
+          : !viirsOk
+            ? t.viirsUnavailableTooltip
+            : t.datasetViirsDesc
       },
       {
         value: 'MODIS',
         label: t.datasetModisBtn,
-        tooltip: t.datasetModisDesc
+        disabled: bothRequired,
+        tooltip: bothRequired ? t.bothSensorsRequiredTooltip : t.datasetModisDesc
+      },
+      {
+        value: 'BOTH',
+        label: t.datasetBothBtn,
+        disabled: !viirsOk,
+        tooltip: !viirsOk
+          ? t.viirsUnavailableTooltip
+          : bothRequired
+            ? t.bothSensorsRequiredTooltip
+            : t.datasetBothDesc
       }
     ];
   });
 
   readonly activeDatasetDisplayLabel = computed<string>(() => {
     const t = this.i18n.t();
-    if (this.state.isMixedSensorRange()) return t.datasetMixedLabel;
-    return this.state.activeDataset() === 'VIIRS' ? t.datasetViirsBtn : t.datasetModisBtn;
+    const dataset = this.state.activeDataset();
+    if (dataset === 'BOTH') {
+      return this.state.requiresBothSensors() ? t.datasetMixedLabel : t.datasetBothBtn;
+    }
+    return dataset === 'VIIRS' ? t.datasetViirsBtn : t.datasetModisBtn;
   });
+
+  onDatasetOptionClick(opt: SwitcherOption<DatasetSelectionMode>, event: MouseEvent): void {
+    if (opt.disabled) {
+      event.preventDefault();
+      event.stopPropagation();
+      const target = event.currentTarget as HTMLElement | null;
+      if (target && opt.tooltip) {
+        const rect = target.getBoundingClientRect();
+        this.tooltipService.show(
+          opt.tooltip,
+          rect.left + rect.width / 2,
+          rect.top,
+          'top',
+          2800
+        );
+      }
+      return;
+    }
+    this.state.setDataset(opt.value);
+  }
 
   readonly calendarModeOptions = computed<SwitcherOption<CalendarGranularity>[]>(() => {
     const t = this.i18n.t();
@@ -365,6 +441,10 @@ export class AnalyticsPanelComponent {
     }
   }
 
+  onCoordFocusChange(editing: boolean): void {
+    this.editingCoordInputs = editing;
+  }
+
   onCoordInput(which: 'w' | 's' | 'e' | 'n', value: string) {
     if (which === 'w') this.draftW.set(value);
     else if (which === 's') this.draftS.set(value);
@@ -410,6 +490,7 @@ export class AnalyticsPanelComponent {
   }
 
   onCoordEnter() {
+    this.editingCoordInputs = false;
     this.state.recalculateSelection();
   }
 
