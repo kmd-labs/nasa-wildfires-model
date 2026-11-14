@@ -1,0 +1,32 @@
+{
+  "name": "${localWorkspaceFolderBasename} (Dev Container)",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "workspaceFolder": "/workspace",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
+  "mounts": [
+    "source=${localWorkspaceFolderBasename}-node_modules,target=/workspace/node_modules,type=volume",
+    "source=agy-config,target=/home/node/.gemini,type=volume",
+    "source=${localWorkspaceFolderBasename}-bashhistory,target=/commandhistory,type=volume"
+  ],
+  "forwardPorts": [4200, 9876],
+  "remoteUser": "node",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+      },
+      "extensions": [
+        "angular.ng-template",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "mrmlnc.vscode-scss"
+      ]
+    }
+  },
+  "postCreateCommand": "sudo chown -R node:node /workspace/node_modules /commandhistory 2>/dev/null || true; git submodule update --init --recursive 2>/dev/null || true; [ -f package.json ] && npm install || true"
+}
