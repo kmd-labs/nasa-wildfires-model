@@ -247,7 +247,7 @@ export interface EvacuationData {
   escapeRoads: EscapeRoad[];
 }
 
-export type BackendSyncStatus = 'idle' | 'loading' | 'downloading' | 'live' | 'offline' | 'error';
+export type BackendSyncStatus = 'idle' | 'loading' | 'downloading' | 'live' | 'cached' | 'offline' | 'error';
 
 export interface BackendDownloadProgress {
   done: number;
@@ -341,6 +341,7 @@ export interface BackendCalendarPayload {
       peakCount: number;
     };
     daily?: BackendDailyBucket[];
+    dailyByYear?: Record<string, BackendDailyBucket[]>;
     comparedWithSameMonthsInOtherYears: {
       years: number;
       median: number | null;

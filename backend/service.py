@@ -345,6 +345,7 @@ class CalendarService:
         frp_by_year = sel_df.groupby(sel_df.date.dt.year)["frp"].sum().to_dict() if len(sel_df) else {}
 
         daily_buckets = []
+        daily_by_year: dict[str, list[dict]] = {}
         if len(sel_df):
             raw_tot_arr = modis + viirs
             scale_by_ym = {
@@ -357,18 +358,30 @@ class CalendarService:
             base_avg_map = base_w.groupby(base_mmdd).sum().div(n_base_years).to_dict()
 
             if len(in_win):
+                win_year = in_win.acq_date.str.slice(0, 4)
                 win_mmdd = in_win.acq_date.str.slice(5, 10)
                 win_is_modis = in_win.platform.isin(hz.MODIS).astype(int)
                 win_is_viirs = in_win.platform.isin(hz.VIIRS).astype(int)
                 win_w = in_win.acq_date.str.slice(0, 7).map(scale_by_ym).fillna(1.0)
-                grouped = pd.DataFrame({
+                win_frame = pd.DataFrame({
                     "harm": win_w,
                     "modis": win_is_modis,
                     "viirs": win_is_viirs,
                     "frp": in_win.frp.fillna(0.0),
-                }).groupby(win_mmdd).sum()
+                })
+                grouped = win_frame.groupby(win_mmdd).sum()
                 for mmdd, row in grouped.iterrows():
                     daily_buckets.append({
+                        "mmdd": str(mmdd),
+                        "harmonized": round(float(row["harm"]), 1),
+                        "rawModis": int(row["modis"]),
+                        "rawViirs": int(row["viirs"]),
+                        "frpMw": round(float(row["frp"])),
+                        "baselineAvg": round(float(base_avg_map.get(mmdd, 0.0)), 2),
+                    })
+                grouped_yr = win_frame.groupby([win_year, win_mmdd]).sum()
+                for (yr, mmdd), row in grouped_yr.iterrows():
+                    daily_by_year.setdefault(str(yr), []).append({
                         "mmdd": str(mmdd),
                         "harmonized": round(float(row["harm"]), 1),
                         "rawModis": int(row["modis"]),
@@ -460,6 +473,7 @@ class CalendarService:
                     "peakCount": peak_count,
                 },
                 "daily": daily_buckets,
+                "dailyByYear": daily_by_year,
                 "comparedWithSameMonthsInOtherYears": {
                     "years": len(others), "median": round(float(np.median(others)), 1) if len(others) else None,
                     "percentile": round(100 * float((others < value).mean()), 1) if len(others) else None,

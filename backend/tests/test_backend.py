@@ -207,6 +207,7 @@ def test_download_and_seed_give_the_same_calendar(fake, frozen_today, tmp_path):
     assert any(p["sensor"] == "VIIRS" for p in a["selection"]["pixels"])
     assert a["selection"]["comparedWithSameMonthsInOtherYears"]["rank"] == b["selection"]["comparedWithSameMonthsInOtherYears"]["rank"]
     assert len(a["calendar"]["harmonized"]) == len(a["calendar"]["years"]) and len(a["calendar"]["harmonized"][0]) == 12
+    assert "2017" in a["selection"]["dailyByYear"] and len(a["selection"]["dailyByYear"]["2017"]) > 0
 
     csv = downloaded.hotspots_csv(BBOX_TEXT, "2017-10-14", "2017-10-16", wait=True).splitlines()
     assert csv[0].endswith("platform,used_in_calendar") and len(csv) > 100
