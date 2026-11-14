@@ -1,0 +1,12 @@
+# Python environment for the data notebooks in scripts/notebooks/ (#25)
+# Setup:  python -m venv .venv && .venv\Scripts\pip install -r requirements.txt   (Windows)
+#         python -m venv .venv && .venv/bin/pip install -r requirements.txt        (Linux/macOS)
+jupyter
+ipykernel
+python-dotenv
+requests
+numpy
+pandas
+earthengine-api
+cdsapi
+ecmwf-datastores-client

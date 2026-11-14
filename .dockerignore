@@ -13,3 +13,14 @@ yarn-error.log*
 .vscode/
 .idea/
 .env
+
+# Local credentials - never bake into images
+secrets/
+
+# Python
+.venv/
+__pycache__/
+.ipynb_checkpoints/
+
+# Raw downloaded data
+data/
