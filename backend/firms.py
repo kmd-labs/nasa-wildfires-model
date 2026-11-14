@@ -38,7 +38,7 @@ import h3
 import pandas as pd
 import requests
 
-from . import harmonization2 as hz
+from .harmonization_select import hz
 
 REPO = Path(__file__).resolve().parents[1]
 FIRMS_URL = os.getenv("FIRMS_URL", "https://firms.modaps.eosdis.nasa.gov")
@@ -284,7 +284,7 @@ class Region:
             if tasks or not self.has_data:
                 self._consolidate()
             w, s, e, n = self.bbox
-            if (e - w) * (n - s) >= 25.0 and self.has_data:
+            if (e - w) * (n - s) >= 25.0 and self.has_data and hasattr(hz, "detect_outages"):
                 avail.outages = hz.detect_outages(self.frame(), avail.first, avail.last)
             self.manifest["availability"] = avail.to_json()
             self.manifest["dataThrough"] = f"{today:%Y-%m-%d}"
