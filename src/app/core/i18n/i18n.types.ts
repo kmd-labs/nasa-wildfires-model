@@ -1,5 +1,6 @@
 export type Lang = 'en' | 'pl';
 export type DateFormatPref = 'auto' | 'dmy-dot' | 'dmy-slash' | 'mdy-slash' | 'iso';
+export type AreaUnitPref = 'auto' | 'km2' | 'm2' | 'ha' | 'mi2';
 
 export interface DataSourceItem {
   name: string;
@@ -25,6 +26,12 @@ export interface Dict {
   settingsAria: string;
   dateFormatLabel: string;
   dateFormatAuto: string;
+  areaUnitLabel: string;
+  areaUnitAuto: string;
+  areaUnitKm2: string;
+  areaUnitM2: string;
+  areaUnitHa: string;
+  areaUnitMi2: string;
   chooseView: string;
   mapMode2d: string;
   mapModeGlobe: string;
