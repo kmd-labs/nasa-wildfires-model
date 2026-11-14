@@ -74,7 +74,6 @@ flowchart LR
 
 ### Security & Public Architecture Considerations
 
-- **Publicly Inspectable Surface:** Publishing that the frontend lives on GitHub Pages and talks to Cloud Run does **not** introduce new exposure—browsers already resolve both hosts in network DevTools, and both the deployment workflow and `DEFAULT_HOSTED_API_BASE` live in client code.
 - **Server-Only Credentials:** Sensitive credentials (`FIRMS_MAP_KEY`, `EARTHDATA_TOKEN`) are injected exclusively into the Cloud Run runtime environment and never bundled into the Angular build or GitHub repository.
 - **Abuse Guardrails:** The API exposes read-only `GET` endpoints, enforces bounding-box area caps (`MAX_BBOX_DEG2 = 8000` deg² for FIRMS, `BURNED_AREA_MAX_DEG2 = 400` deg² for tile downloads), and validates CORS origins via `CORS_ORIGINS`.
 
