@@ -137,10 +137,21 @@
     color: color("text-dim");
     font-size: 10px;
     font-weight: font-weight("semibold");
-    max-width: 240px;
+    min-width: 0;
+    max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+
+    lucide-icon {
+      flex-shrink: 0;
+    }
+
+    span {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
     &--live {
       background: rgba(5, 150, 105, 0.12);
