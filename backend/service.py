@@ -23,6 +23,7 @@ MAX_BBOX_DEG2 = 8000.0  # up to ~90 x 88 degrees; larger requests are refused
 BURNED_AREA_MAX_DEG2 = 400.0    # burned-area downloads: about 4 sinusoidal tiles x 310 months at most
 BURNED_AREA_LATENCY_DAYS = 75  # the newest burned-area month LP DAAC has normally published is about this old
 BURNED_AREA_RETRY_S = 600       # a burned-area job with failed tiles is retried after this many seconds
+FAILED_JOB_COOLDOWN_S = 30.0    # avoid immediate retry loops when FIRMS chunk downloads or availability fail
 
 
 class NotReady(Exception):
@@ -125,7 +126,16 @@ class CalendarService:
                 raise BadRequest("FIRMS_MAP_KEY is not set and there is no cached data for this area")
             return region
         job = self._job(region)
-        if job is None or (job["finished"] and job["error"] is None and self._needs_sync(region)) or (job["finished"] and job["error"]):
+        cooldown_elapsed = job is not None and (time.time() - job.get("finished_at", 0.0)) >= FAILED_JOB_COOLDOWN_S
+        should_retry_error = bool(job and job["finished"] and job["error"] and cooldown_elapsed)
+        should_sync_more = bool(
+            job
+            and job["finished"]
+            and job["error"] is None
+            and (not job["failed"] or cooldown_elapsed)
+            and self._needs_sync(region)
+        )
+        if job is None or should_sync_more or should_retry_error:
             job = self._start(region, priority_window=priority_window)
         elif priority_window is not None:
             job["priority_window"] = priority_window
@@ -133,6 +143,8 @@ class CalendarService:
             job["thread"].join()
         if job["error"] and not region.has_data:
             raise FirmsError(job["error"])
+        if job["finished"] and job["error"] and region.has_data:
+            return region
         if not region.has_data:
             raise NotReady({"done": job["done"], "total": job["total"]})
         if priority_window is not None and not job["finished"]:
@@ -147,13 +159,14 @@ class CalendarService:
 
     def _needs_sync(self, region: Region) -> bool:
         from .firms import today_utc
-        return bool(region.plan(self.client.availability(), today_utc()))
+        return bool(region.plan(self.client.availability(), today_utc(), respect_cooldown=True))
 
     def _start(self, region: Region, priority_window: tuple[dt.date, dt.date] | None = None) -> dict:
         job = {
             "done": 0,
             "total": 0,
             "finished": False,
+            "finished_at": 0.0,
             "error": None,
             "failed": [],
             "priority_window": priority_window,
@@ -171,6 +184,7 @@ class CalendarService:
             except Exception as exc:  # the thread must always finish the job record
                 job["error"] = str(exc)
             finally:
+                job["finished_at"] = time.time()
                 job["finished"] = True
 
         job["thread"] = threading.Thread(target=work, name=f"firms-sync-{region.key}", daemon=True)

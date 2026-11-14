@@ -9,6 +9,28 @@ const DATE_FORMAT_KEY = 'nasa-wildfires-model.date-format';
 const AREA_UNIT_KEY = 'nasa-wildfires-model.area-unit';
 const SQ_METERS_PER_SQ_MILE = 2_589_988.110336;
 const IMPERIAL_REGIONS = new Set(['US', 'LR', 'MM']);
+const IMPERIAL_TZ_EXACT = new Set([
+  'Pacific/Honolulu',
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+  'America/Phoenix',
+  'America/Anchorage',
+  'America/Detroit',
+  'America/Boise',
+  'America/Juneau',
+  'America/Sitka',
+  'America/Yakutat',
+  'America/Nome',
+  'America/Adak',
+  'America/Metlakatla',
+  'America/Menominee',
+  'Africa/Monrovia',
+  'Asia/Yangon',
+  'Asia/Rangoon'
+]);
+const IMPERIAL_TZ_PREFIXES = ['US/', 'America/Indiana/', 'America/Kentucky/', 'America/North_Dakota/'];
 const DATE_FORMAT_LOCALES: Record<Exclude<DateFormatPref, 'auto'>, string> = {
   'dmy-dot': 'pl-PL',
   'dmy-slash': 'en-GB',
@@ -52,6 +74,15 @@ export class I18nService {
   });
 
   readonly autoAreaUnit = computed<Exclude<AreaUnitPref, 'auto'>>(() => {
+    if (this.lang() === 'pl') {
+      return 'km2';
+    }
+    const tz = typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone ?? '' : '';
+    if (tz) {
+      const isImperialTz =
+        IMPERIAL_TZ_EXACT.has(tz) || IMPERIAL_TZ_PREFIXES.some(prefix => tz.startsWith(prefix));
+      return isImperialTz ? 'mi2' : 'km2';
+    }
     const primary = typeof navigator !== 'undefined'
       ? (navigator.languages?.[0] || navigator.language || this.autoDateLocale())
       : this.autoDateLocale();
