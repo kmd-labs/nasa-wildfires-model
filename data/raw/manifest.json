@@ -1080,5 +1080,14 @@
       "VIIRS_NOAA21_SP": 21680,
       "VIIRS_NOAA21_NRT": 9859
     }
+  },
+  "data/raw/terrain/piodao_2025_srtm30_terrain.tif": {
+    "dataset": "SRTM 30 m elevation/slope/aspect (bands: elevation, slope, aspect)",
+    "aoi_id": "piodao_2025",
+    "bytes": 8892439,
+    "created_utc": "2026-11-14T12:50:59+00:00",
+    "attribution": "NASA/USGS Shuttle Radar Topography Mission (SRTM) 1 arc-second Global (USGS/SRTMGL1_003), via Google Earth Engine.",
+    "scale_m": 30,
+    "crs": "EPSG:32629"
   }
 }
