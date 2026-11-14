@@ -1,11 +1,14 @@
 import { Injectable, computed, effect, signal } from '@angular/core';
-import { DateFormatPref, Dict, Lang } from './i18n.types';
+import { AreaUnitPref, DateFormatPref, Dict, Lang } from './i18n.types';
 import { EN } from './en';
 import { PL } from './pl';
 
 const DICTS: Record<Lang, Dict> = { en: EN, pl: PL };
 const STORAGE_KEY = 'nasa-wildfires-model.lang';
 const DATE_FORMAT_KEY = 'nasa-wildfires-model.date-format';
+const AREA_UNIT_KEY = 'nasa-wildfires-model.area-unit';
+const SQ_METERS_PER_SQ_MILE = 2_589_988.110336;
+const IMPERIAL_REGIONS = new Set(['US', 'LR', 'MM']);
 const DATE_FORMAT_LOCALES: Record<Exclude<DateFormatPref, 'auto'>, string> = {
   'dmy-dot': 'pl-PL',
   'dmy-slash': 'en-GB',
@@ -24,6 +27,7 @@ export class I18nService {
   readonly langs: Lang[] = ['en', 'pl'];
   readonly lang = signal<Lang>(this.resolveInitialLang());
   readonly dateFormatPref = signal<DateFormatPref>(this.resolveInitialDateFormat());
+  readonly areaUnitPref = signal<AreaUnitPref>(this.resolveInitialAreaUnit());
   readonly t = computed(() => DICTS[this.lang()]);
   readonly autoDateLocale = computed<string>(() => {
     const currentLang = this.lang();
@@ -45,6 +49,20 @@ export class I18nService {
   readonly dateLocale = computed<string>(() => {
     const pref = this.dateFormatPref();
     return pref === 'auto' ? this.autoDateLocale() : DATE_FORMAT_LOCALES[pref];
+  });
+
+  readonly autoAreaUnit = computed<Exclude<AreaUnitPref, 'auto'>>(() => {
+    const primary = typeof navigator !== 'undefined'
+      ? (navigator.languages?.[0] || navigator.language || this.autoDateLocale())
+      : this.autoDateLocale();
+    const parts = primary.split(/[-_]/);
+    const region = parts.length > 1 ? parts[1].toUpperCase() : '';
+    return IMPERIAL_REGIONS.has(region) ? 'mi2' : 'km2';
+  });
+
+  readonly resolvedAreaUnit = computed<Exclude<AreaUnitPref, 'auto'>>(() => {
+    const pref = this.areaUnitPref();
+    return pref === 'auto' ? this.autoAreaUnit() : pref;
   });
 
   constructor() {
@@ -70,6 +88,73 @@ export class I18nService {
     } catch {
       // localStorage unavailable
     }
+  }
+
+  setAreaUnitPref(pref: AreaUnitPref) {
+    this.areaUnitPref.set(pref);
+    try {
+      localStorage.setItem(AREA_UNIT_KEY, pref);
+    } catch {
+      // localStorage unavailable
+    }
+  }
+
+  /** Format area (given in square meters) using the active unit & locale settings. */
+  formatArea(m2: number, compactLarge = true): string {
+    if (!Number.isFinite(m2) || m2 <= 0) return '0 m²';
+    const locale = this.dateLocale();
+    const unit = this.resolvedAreaUnit();
+
+    if (unit === 'm2' || (unit === 'km2' && m2 < 10_000)) {
+      const useCompact = compactLarge && m2 >= 1_000_000;
+      const fmt = new Intl.NumberFormat(locale, {
+        notation: useCompact ? 'compact' : 'standard',
+        maximumFractionDigits: useCompact ? 1 : 0
+      });
+      return `${fmt.format(Math.round(m2))} m²`;
+    }
+
+    if (unit === 'mi2') {
+      const mi2 = m2 / SQ_METERS_PER_SQ_MILE;
+      const fmt = new Intl.NumberFormat(locale, {
+        maximumFractionDigits: mi2 < 10 ? 2 : 0
+      });
+      return `${fmt.format(mi2)} mi²`;
+    }
+
+    if (unit === 'ha') {
+      const ha = m2 / 10_000;
+      const useCompact = compactLarge && ha >= 1_000_000;
+      const fmt = new Intl.NumberFormat(locale, {
+        notation: useCompact ? 'compact' : 'standard',
+        maximumFractionDigits: useCompact ? 1 : ha < 10 ? 2 : 0
+      });
+      return `${fmt.format(ha)} ha`;
+    }
+
+    const km2 = m2 / 1_000_000;
+    const fmt = new Intl.NumberFormat(locale, {
+      maximumFractionDigits: km2 < 10 ? 2 : 0
+    });
+    return `${fmt.format(km2)} km²`;
+  }
+
+  /** Full-precision square meters readout for tooltips. */
+  formatSquareMetersExact(m2: number): string {
+    if (!Number.isFinite(m2) || m2 <= 0) return '0 m²';
+    return `${new Intl.NumberFormat(this.dateLocale(), { maximumFractionDigits: 0 }).format(Math.round(m2))} m²`;
+  }
+
+  private resolveInitialAreaUnit(): AreaUnitPref {
+    try {
+      const stored = localStorage.getItem(AREA_UNIT_KEY);
+      if (stored === 'auto' || stored === 'km2' || stored === 'm2' || stored === 'ha' || stored === 'mi2') {
+        return stored;
+      }
+    } catch {
+      // localStorage unavailable
+    }
+    return 'auto';
   }
 
   private resolveInitialDateFormat(): DateFormatPref {

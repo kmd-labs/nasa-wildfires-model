@@ -14,7 +14,7 @@ import {
 } from '../models/wildfire.model';
 import { ColorRampService } from './color-ramp.service';
 import { WildfireDataService } from './wildfire-data.service';
-import { VIIRS_FIRST_DATE, WildfireStateService, isPointInPolygonCoords } from './wildfire-state.service';
+import { VIIRS_FIRST_DATE, WildfireStateService, isPointInPolygonCoords, ringToClosedPolygonCoords } from './wildfire-state.service';
 import { I18nService } from '../i18n/i18n.service';
 import { formatLocaleDate } from '../pipes/locale-date.pipe';
 
@@ -344,9 +344,18 @@ export class HotspotAnalyticsService {
     ]);
   });
 
-  /** Approximate MultiPolygon area in km² and hectares using spherical latitude cosine. */
-  readonly bboxArea = computed<{ km2: number; ha: number }>(() => {
+  /** Approximate MultiPolygon area in km², hectares, and m² using spherical latitude cosine. */
+  readonly bboxArea = computed<{ km2: number; ha: number; m2: number }>(() => {
     return this.computeMultiPolygonArea(this.state.regionMultiPolygon());
+  });
+
+  /** Area of the active draft polygon (while editing) or the committed region. */
+  readonly displayRegionArea = computed<{ km2: number; ha: number; m2: number }>(() => {
+    const draft = this.state.draftPolygon();
+    if (draft && draft.length >= 3) {
+      return this.computeMultiPolygonArea([ringToClosedPolygonCoords(draft)]);
+    }
+    return this.bboxArea();
   });
 
   /** Historical multi-year comparison (2000–2026 or dataset span) for the selected region & seasonal window. */
@@ -1181,16 +1190,20 @@ export class HotspotAnalyticsService {
     });
   });
 
-  computeBboxArea(bbox: BoundingBox): { km2: number; ha: number } {
+  computeBboxArea(bbox: BoundingBox): { km2: number; ha: number; m2: number } {
     const [w, s, e, n] = bbox;
     const meanLatRad = (((s + n) / 2) * Math.PI) / 180;
     const widthKm = Math.abs(e - w) * 111.32 * Math.cos(meanLatRad);
     const heightKm = Math.abs(n - s) * 110.574;
-    const km2 = Math.round(widthKm * heightKm);
-    return { km2, ha: km2 * 100 };
+    const rawKm2 = widthKm * heightKm;
+    const km2 = Math.round(rawKm2);
+    return { km2, ha: km2 * 100, m2: Math.max(0, Math.round(rawKm2 * 1_000_000)) };
   }
 
-  computeMultiPolygonArea(multi: MultiPolygonCoords): { km2: number; ha: number } {
+  computeMultiPolygonArea(multi: MultiPolygonCoords): { km2: number; ha: number; m2: number } {
+    if (multi.length === 0) {
+      return { km2: 0, ha: 0, m2: 0 };
+    }
     let totalKm2 = 0;
     for (const poly of multi) {
       if (poly.length === 0) continue;
@@ -1199,8 +1212,11 @@ export class HotspotAnalyticsService {
         totalKm2 -= this.computeRingAreaKm2(poly[h]);
       }
     }
+    if (totalKm2 <= 0) {
+      return { km2: 0, ha: 0, m2: 0 };
+    }
     const km2 = Math.max(1, Math.round(totalKm2));
-    return { km2, ha: km2 * 100 };
+    return { km2, ha: km2 * 100, m2: Math.max(0, Math.round(totalKm2 * 1_000_000)) };
   }
 
   /** Localized geographic area name where the globe camera is currently pointed. */
@@ -1431,7 +1447,7 @@ export class HotspotAnalyticsService {
       { label: t.kpiHarmonizedFires, val: s.harmonizedFires.toLocaleString(), sub: `MODIS ${s.rawModisFires.toLocaleString()} · VIIRS ${s.rawViirsFires.toLocaleString()}` },
       { label: t.kpiMultiYearAnomaly, val: `${s.anomalyZScore >= 0 ? '+' : ''}${s.anomalyZScore}σ`, sub: `${s.anomalyPct >= 0 ? '+' : ''}${s.anomalyPct}% vs avg (${s.multiYearAvgFires.toLocaleString()})` },
       { label: t.kpiTotalFrp, val: `${s.totalFrpMw.toLocaleString()} MW`, sub: `${t.kpiMeanFrp}: ${s.meanFrpMw} MW` },
-      { label: t.kpiPeakDate, val: s.peakDate ?? '—', sub: `${s.activeFireDays} ${t.kpiActiveDays} · ${s.areaKm2.toLocaleString()} km²` }
+      { label: t.kpiPeakDate, val: s.peakDate ?? '—', sub: `${s.activeFireDays} ${t.kpiActiveDays} · ${this.i18n.formatArea(this.bboxArea().m2)}` }
     ];
 
     const kpiSvg = kpis

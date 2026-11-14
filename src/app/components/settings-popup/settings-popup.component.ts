@@ -2,7 +2,7 @@ import { Component, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { PopupService } from '@kmd/design-system';
 import { I18nService } from '../../core/i18n/i18n.service';
-import { DateFormatPref, Lang } from '../../core/i18n/i18n.types';
+import { AreaUnitPref, DateFormatPref, Lang } from '../../core/i18n/i18n.types';
 import { formatLocaleDate } from '../../core/pipes/locale-date.pipe';
 
 @Component({
@@ -32,12 +32,28 @@ export class SettingsPopupComponent {
     { id: 'iso', badge: '2026-11-14', label: 'YYYY-MM-DD' }
   ]);
 
+  readonly areaUnits = computed<{ id: AreaUnitPref; badge: string; label: string }[]>(() => {
+    const t = this.i18n.t();
+    const autoBadge = this.i18n.autoAreaUnit() === 'mi2' ? 'mi²' : 'km²';
+    return [
+      { id: 'auto', badge: autoBadge, label: t.areaUnitAuto },
+      { id: 'km2', badge: 'km²', label: t.areaUnitKm2 },
+      { id: 'm2', badge: 'm²', label: t.areaUnitM2 },
+      { id: 'ha', badge: 'ha', label: t.areaUnitHa },
+      { id: 'mi2', badge: 'mi²', label: t.areaUnitMi2 }
+    ];
+  });
+
   selectLang(lang: Lang): void {
     this.i18n.setLang(lang);
   }
 
   selectDateFormat(pref: DateFormatPref): void {
     this.i18n.setDateFormatPref(pref);
+  }
+
+  selectAreaUnit(pref: AreaUnitPref): void {
+    this.i18n.setAreaUnitPref(pref);
   }
 }
 

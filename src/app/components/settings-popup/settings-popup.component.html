@@ -38,4 +38,23 @@
       }
     </div>
   </section>
+
+  <!-- Area Units Section -->
+  <section class="settings__section">
+    <h3 class="settings__label">{{ t.areaUnitLabel }}</h3>
+    <div class="settings__group settings__group--stack" role="radiogroup" [attr.aria-label]="t.areaUnitLabel">
+      @for (u of areaUnits(); track u.id) {
+        <button
+          type="button"
+          class="settings__option"
+          [class.settings__option--active]="i18n.areaUnitPref() === u.id"
+          role="radio"
+          [attr.aria-checked]="i18n.areaUnitPref() === u.id"
+          (click)="selectAreaUnit(u.id)">
+          <span class="settings__badge" translate="no">{{ u.badge }}</span>
+          <span class="settings__name">{{ u.label }}</span>
+        </button>
+      }
+    </div>
+  </section>
 </div>

@@ -14,6 +14,7 @@ An interactive **Burning Activity Calendar** and Earth Observation analytics web
   - [Part 2: Interactive Burning Activity Calendar (`src/`)](#part-2-interactive-burning-activity-calendar-src)
 - [System Architecture (GitHub Pages + GCP Cloud Run)](#system-architecture-github-pages--gcp-cloud-run)
   - [Security & Public Architecture Considerations](#security--public-architecture-considerations)
+- [Multi-Layer Caching & Offline Strategy](#multi-layer-caching--offline-strategy)
 - [API Endpoints](#api-endpoints)
 - [Local Development & Verification](#local-development--verification)
 
@@ -76,6 +77,24 @@ flowchart LR
 - **Publicly Inspectable Surface:** Publishing that the frontend lives on GitHub Pages and talks to Cloud Run does **not** introduce new exposure—browsers already resolve both hosts in network DevTools, and both the deployment workflow and `DEFAULT_HOSTED_API_BASE` live in client code.
 - **Server-Only Credentials:** Sensitive credentials (`FIRMS_MAP_KEY`, `EARTHDATA_TOKEN`) are injected exclusively into the Cloud Run runtime environment and never bundled into the Angular build or GitHub repository.
 - **Abuse Guardrails:** The API exposes read-only `GET` endpoints, enforces bounding-box area caps (`MAX_BBOX_DEG2 = 8000` deg² for FIRMS, `BURNED_AREA_MAX_DEG2 = 400` deg² for tile downloads), and validates CORS origins via `CORS_ORIGINS`.
+
+---
+
+## Multi-Layer Caching & Offline Strategy
+
+Because 20+ years of FIRMS requests would otherwise trigger hundreds of upstream API calls and exceed rate limits, the application uses three complementary caching layers across backend and browser:
+
+| Layer | Storage / Technology | What It Caches | Eviction / Freshness Rule |
+|---|---|---|---|
+| **1. Server FIRMS Chunk Cache** | Local filesystem (`FIRMS_CACHE_DIR/regions/<snapped_bbox>/`) in [`backend/firms.py`](backend/firms.py) | 5-day FIRMS sensor chunks (`FIRMS_CHUNK_DAYS=5`) aligned to an outwards `0.5°` grid (`snap_bbox`) | `*_SP` science-quality past chunks are **immutable/final** (`final=true`); recent `*_NRT` chunks refresh after `FIRMS_REFRESH_HOURS=6`. |
+| **2. Browser Query & Upload Cache** | `IndexedDB` (`kmd-wildfires-offline`) in [`OfflineCacheService`](src/app/core/services/offline-cache.service.ts) | Harmonized `/api/calendar` JSON responses & user-uploaded custom CSV datasets | Up to `40` calendar queries (`MAX_CACHED_CALENDARS=40`) managed with `cachedAt` LRU eviction; custom CSV persists across reloads. |
+| **3. Browser Shell & Basemap Tile Cache** | Service Worker `CacheStorage` in [`src/sw.js`](src/sw.js) | App shell (`kmd-wildfires-shell-v1`: HTML, bundled TopoJSON/default Iberia JSON) + slippy map tiles (`kmd-wildfires-tiles-v1`) | Up to `450` map tiles (`MAX_CACHED_TILES=450`) from `tile.openstreetmap.org` and `server.arcgisonline.com` evicted FIFO/LRU. |
+
+How a request flows through the layers:
+
+1. **Instant First Paint & Bundled Demo Snapshot:** Static bundled fallback JSON (`src/assets/data/default-iberia-calendar.json`) renders immediately while checking IndexedDB and live backend connectivity—meaning even zero-connectivity reloads remain functional.
+2. **In-Memory + IndexedDB Lookup (`WildfireDataService`):** Query keys track bbox, date range, and `activeDataset`. Identical session requests hit the in-memory `Map` cache first; subsequent visits or offline sessions read cleanly from IndexedDB and surface an **"Offline cache"** indicator in the UI header.
+3. **Snapped Regional Reuse on the Backend (`RegionCache`):** Any query contained inside an already-cached `0.5°`-snapped region satisfies sub-queries locally without hitting NASA FIRMS again. Live request traffic is favored over speculative global prewarming so background jobs never contend with user requests on the upstream FIRMS rate limiter; demo deployments can run `python -m backend seed` offline without an API key.
 
 ---
 

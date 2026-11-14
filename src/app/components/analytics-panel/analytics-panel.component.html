@@ -141,7 +141,14 @@
           [attr.aria-expanded]="showForm()"
           (click)="toggleSection('region')">
           <lucide-icon [img]="slidersIcon" [size]="13" class="section-sticky-header__icon"></lucide-icon>
-          <span>{{ t.coordsTitle }}</span>
+          <span class="section-sticky-header__label">{{ t.coordsTitle }}</span>
+          @if (analytics.displayRegionArea().m2 > 0) {
+            <span
+              class="section-sticky-header__lozenge"
+              [title]="i18n.formatSquareMetersExact(analytics.displayRegionArea().m2)">
+              {{ i18n.formatArea(analytics.displayRegionArea().m2) }}
+            </span>
+          }
         </button>
         <button
           type="button"
@@ -338,7 +345,12 @@
           [attr.aria-expanded]="showDataSection()"
           (click)="toggleSection('data')">
           <lucide-icon [img]="calendarIcon" [size]="13" class="section-sticky-header__icon"></lucide-icon>
-          <span>{{ t.dataSectionTitle }}</span>
+          <span class="section-sticky-header__label">{{ t.dataSectionTitle }}</span>
+          @if (state.effectiveDateStart() && state.effectiveDateEnd()) {
+            <span class="section-sticky-header__lozenge">
+              {{ state.effectiveDateStart() | localeDate }} – {{ state.effectiveDateEnd() | localeDate }}
+            </span>
+          }
         </button>
         <button
           type="button"
@@ -564,7 +576,7 @@
             <div class="kpi-card">
               <span class="kpi-card__label">{{ t.kpiPeakDate }}</span>
               <strong class="kpi-card__val">{{ summary.peakDate ? (summary.peakDate | localeDate) : '—' }}</strong>
-              <span class="kpi-card__sub">{{ summary.activeFireDays }} {{ t.kpiActiveDays }} · {{ summary.areaKm2 | number }} km²</span>
+              <span class="kpi-card__sub" [title]="i18n.formatSquareMetersExact(analytics.bboxArea().m2)">{{ summary.activeFireDays }} {{ t.kpiActiveDays }} · {{ i18n.formatArea(analytics.bboxArea().m2) }}</span>
             </div>
           </div>
 
