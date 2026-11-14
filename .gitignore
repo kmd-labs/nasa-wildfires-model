@@ -8,6 +8,8 @@ node_modules/
 
 # Local credentials - never commit
 secrets/
+credentials.MD
+CREDENTIALS.md
 
 # Python
 .venv/
@@ -17,3 +19,6 @@ __pycache__/
 
 # Basemaps from scripts/data-pipeline/fetch_aoi_basemaps.py (ortho/DEM mosaics, often >100 MB)
 data/raw/aoi/
+
+# Runtime NASA FIRMS disk cache
+data/cache/

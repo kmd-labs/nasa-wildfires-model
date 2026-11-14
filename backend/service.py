@@ -135,7 +135,8 @@ class CalendarService:
         eff, regional, calibration = hz.fit_efficiency(cube)
         harmonized, sd = hz.harmonize(cube, eff, regional)
         out = {"cube": cube, "harmonized": harmonized, "sd": sd, "calibration": calibration, "h3Resolution": res,
-               "validation": hz.validate(cube) if len(cube.cells) else None, "availability": avail}
+               "validation": hz.validate(cube) if len(cube.cells) else None, "availability": avail,
+               "df": df[["date", "acq_date", "frp", "platform"]].copy()}
         with self._lock:
             if len(self._results) > 32:
                 self._results.pop(next(iter(self._results)))
@@ -182,6 +183,51 @@ class CalendarService:
                 cells.append({"h3": cell, "lon": round(lon, 4), "lat": round(lat, 4), "harmonized": round(cell_value, 2),
                               "rawModis": int(modis_cell[c, window].sum()), "rawViirs": int(viirs_cell[c, window].sum())})
 
+        # Exact selection stats for FRP, active fire days, peak day, and Month x Day matrix
+        sel_df = h["df"]
+        in_win = sel_df[(sel_df.date >= first) & (sel_df.date <= last)]
+        frp_vals = in_win.frp.dropna()
+        total_frp = float(frp_vals.sum()) if len(frp_vals) else 0.0
+        mean_frp = float(frp_vals.mean()) if len(frp_vals) else 0.0
+        day_counts = in_win.acq_date.value_counts() if len(in_win) else pd.Series(dtype=int)
+        active_days = int(len(day_counts))
+        peak_date = str(day_counts.index[0]) if len(day_counts) else None
+        peak_count = int(day_counts.iloc[0]) if len(day_counts) else 0
+        frp_by_year = sel_df.groupby(sel_df.date.dt.year)["frp"].sum().to_dict() if len(sel_df) else {}
+
+        daily_buckets = []
+        if len(sel_df):
+            raw_tot_arr = modis + viirs
+            scale_by_ym = {
+                months[i]: float(total[i] / raw_tot_arr[i]) if (not np.isnan(total[i]) and raw_tot_arr[i] > 0) else 1.0
+                for i in range(len(months))
+            }
+            n_base_years = max(1, sel_df.date.dt.year.nunique())
+            base_mmdd = sel_df.acq_date.str.slice(5, 10)
+            base_w = sel_df.acq_date.str.slice(0, 7).map(scale_by_ym).fillna(1.0)
+            base_avg_map = base_w.groupby(base_mmdd).sum().div(n_base_years).to_dict()
+
+            if len(in_win):
+                win_mmdd = in_win.acq_date.str.slice(5, 10)
+                win_is_modis = in_win.platform.isin(hz.MODIS).astype(int)
+                win_is_viirs = in_win.platform.isin(hz.VIIRS).astype(int)
+                win_w = in_win.acq_date.str.slice(0, 7).map(scale_by_ym).fillna(1.0)
+                grouped = pd.DataFrame({
+                    "harm": win_w,
+                    "modis": win_is_modis,
+                    "viirs": win_is_viirs,
+                    "frp": in_win.frp.fillna(0.0),
+                }).groupby(win_mmdd).sum()
+                for mmdd, row in grouped.iterrows():
+                    daily_buckets.append({
+                        "mmdd": str(mmdd),
+                        "harmonized": round(float(row["harm"]), 1),
+                        "rawModis": int(row["modis"]),
+                        "rawViirs": int(row["viirs"]),
+                        "frpMw": round(float(row["frp"])),
+                        "baselineAvg": round(float(base_avg_map.get(mmdd, 0.0)), 2),
+                    })
+
         job = self._job(region)
         return {
             "metadata": {
@@ -210,10 +256,19 @@ class CalendarService:
             "climatology": {"monthMean": _clean(clim_mean, 1), "monthStd": _clean(clim_std, 1)},
             "yearly": [{"year": y, "rawModis": int(modis[cube.years == y].sum()), "rawViirs": int(viirs[cube.years == y].sum()),
                         "harmonized": round(float(np.nansum(total[cube.years == y])), 1),
+                        "frpMw": round(float(frp_by_year.get(y, 0.0))),
                         "monthsWithData": int((~np.isnan(total[cube.years == y])).sum())} for y in years],
             "selection": {
                 "from": months[t0], "to": months[t1],
                 "hotspots": {"harmonized": round(value, 1), "rawModis": int(modis[window].sum()), "rawViirs": int(viirs[window].sum())},
+                "frp": {
+                    "totalMw": round(total_frp),
+                    "meanMw": round(mean_frp, 1),
+                    "activeFireDays": active_days,
+                    "peakDate": peak_date,
+                    "peakCount": peak_count,
+                },
+                "daily": daily_buckets,
                 "comparedWithSameMonthsInOtherYears": {
                     "years": len(others), "median": round(float(np.median(others)), 1) if len(others) else None,
                     "percentile": round(100 * float((others < value).mean()), 1) if len(others) else None,

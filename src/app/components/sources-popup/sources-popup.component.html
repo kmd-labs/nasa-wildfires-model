@@ -1,0 +1,21 @@
+@let t = i18n.t();
+
+<div class="sources-popup">
+  <section class="sources-popup__section" aria-labelledby="sources-title">
+    <h3 class="sources-popup__title" id="sources-title">{{ t.sourcesTitle }}</h3>
+    <div class="sources-popup__list">
+      @for (s of t.sourcesList; track s.name) {
+        <article class="sources-popup__card">
+          <div class="sources-popup__card-header">
+            <a [href]="s.url" target="_blank" rel="noopener noreferrer" class="sources-popup__link">
+              <span>{{ s.name }}</span>
+              <lucide-icon [img]="externalLinkIcon" [size]="12"></lucide-icon>
+            </a>
+            <span class="sources-popup__badge">{{ s.license }}</span>
+          </div>
+          <p class="sources-popup__desc">{{ s.desc }}</p>
+        </article>
+      }
+    </div>
+  </section>
+</div>

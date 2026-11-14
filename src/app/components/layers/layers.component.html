@@ -1,0 +1,54 @@
+@let t = i18n.t();
+
+@if (state.isLayersOpen()) {
+  <aside class="layers-panel glass-panel" [attr.aria-label]="t.layersTitle">
+    <div class="layers-panel__header">
+      <div class="layers-panel__title-row">
+        <lucide-icon [img]="layersIcon" [size]="15" class="layers-panel__icon"></lucide-icon>
+        <h2 class="layers-panel__title">{{ t.layersTitle }}</h2>
+        <span class="layers-panel__zoom-badge">{{ t.layersZoomBadge }} z{{ state.activeTileZoom() }}</span>
+      </div>
+
+      <div class="layers-panel__actions">
+        <app-button
+          variant="ghost"
+          size="sm"
+          [ariaLabel]="t.layersResetBtn"
+          [titleText]="t.layersResetBtn"
+          (btnClick)="state.resetDefaultLayers()">
+          <lucide-icon [img]="resetIcon" [size]="13"></lucide-icon>
+          <span>{{ t.layersResetBtn }}</span>
+        </app-button>
+
+        <app-button
+          variant="ghost"
+          size="sm"
+          [iconOnly]="true"
+          [ariaLabel]="t.close"
+          (btnClick)="state.isLayersOpen.set(false)">
+          <lucide-icon [img]="closeIcon" [size]="14"></lucide-icon>
+        </app-button>
+      </div>
+    </div>
+
+    <div class="layers-panel__body">
+      @for (section of sections(); track section.id) {
+        <section class="layers-panel__section">
+          <h3 class="layers-panel__section-title">{{ section.title }}</h3>
+          <div class="layers-panel__list">
+            @for (item of section.items; track item.id) {
+              <app-toggle
+                size="sm"
+                [fullWidth]="true"
+                [label]="item.label"
+                [swatchColor]="item.swatch"
+                [checked]="item.checked"
+                (checkedChange)="item.setChecked($event)">
+              </app-toggle>
+            }
+          </div>
+        </section>
+      }
+    </div>
+  </aside>
+}

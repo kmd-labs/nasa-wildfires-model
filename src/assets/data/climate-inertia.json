@@ -1,0 +1,70 @@
+{
+  "optimalLagMonths": 5,
+  "lagCorrelations": [
+    {
+      "lagMonths": 0,
+      "gulfStreamSstCorr": 0.31,
+      "elNinoOniCorr": 0.14,
+      "naoCorr": -0.42
+    },
+    {
+      "lagMonths": 1,
+      "gulfStreamSstCorr": 0.39,
+      "elNinoOniCorr": 0.24,
+      "naoCorr": -0.39
+    },
+    {
+      "lagMonths": 2,
+      "gulfStreamSstCorr": 0.48,
+      "elNinoOniCorr": 0.36,
+      "naoCorr": -0.36
+    },
+    {
+      "lagMonths": 3,
+      "gulfStreamSstCorr": 0.58,
+      "elNinoOniCorr": 0.49,
+      "naoCorr": -0.28
+    },
+    {
+      "lagMonths": 4,
+      "gulfStreamSstCorr": 0.63,
+      "elNinoOniCorr": 0.56,
+      "naoCorr": -0.11
+    },
+    {
+      "lagMonths": 5,
+      "gulfStreamSstCorr": 0.67,
+      "elNinoOniCorr": 0.62,
+      "naoCorr": 0.18
+    },
+    {
+      "lagMonths": 6,
+      "gulfStreamSstCorr": 0.64,
+      "elNinoOniCorr": 0.61,
+      "naoCorr": 0.38
+    },
+    {
+      "lagMonths": 7,
+      "gulfStreamSstCorr": 0.54,
+      "elNinoOniCorr": 0.52,
+      "naoCorr": 0.34
+    },
+    {
+      "lagMonths": 8,
+      "gulfStreamSstCorr": 0.41,
+      "elNinoOniCorr": 0.39,
+      "naoCorr": 0.22
+    },
+    {
+      "lagMonths": 9,
+      "gulfStreamSstCorr": 0.29,
+      "elNinoOniCorr": 0.25,
+      "naoCorr": 0.12
+    }
+  ],
+  "summary": {
+    "gulfStreamPeakCorr": 0.67,
+    "elNinoPeakCorr": 0.62,
+    "naoWinterSwitchCorr": 0.38
+  }
+}

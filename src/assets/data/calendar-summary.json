@@ -1,0 +1,425 @@
+{
+  "metadata": {
+    "region": "Iberian Peninsula (ES/PT)",
+    "bbox": [
+      -9.6,
+      36,
+      3.4,
+      43.8
+    ],
+    "h3Resolution": 5,
+    "years": [
+      2000,
+      2026
+    ],
+    "license": "NASA FIRMS Public Domain (MCD14ML, VNP14IMGML) - Harmonized by KMD Labs"
+  },
+  "hotspots": [
+    {
+      "id": "zamora",
+      "name": "Sierra de la Culebra (Zamora)",
+      "lon": -6.25,
+      "lat": 41.92,
+      "biome": "Mediterranean Pine/Scrub",
+      "baseFrp": 920
+    },
+    {
+      "id": "pedrogao",
+      "name": "Pedrógão Grande (Centro PT)",
+      "lon": -8.22,
+      "lat": 39.95,
+      "biome": "Atlantic Eucalyptus/Pine",
+      "baseFrp": 1180
+    },
+    {
+      "id": "estrela",
+      "name": "Serra da Estrela (PT)",
+      "lon": -7.61,
+      "lat": 40.32,
+      "biome": "Atlantic Montane Shrub",
+      "baseFrp": 780
+    },
+    {
+      "id": "ourense",
+      "name": "Ourense / Valdeorras (Galicia)",
+      "lon": -7.12,
+      "lat": 42.38,
+      "biome": "Atlantic Mixed Forest",
+      "baseFrp": 690
+    },
+    {
+      "id": "castellon",
+      "name": "Bejís / Alto Palancia (Valencia)",
+      "lon": -0.71,
+      "lat": 39.91,
+      "biome": "Mediterranean Sclerophyll",
+      "baseFrp": 840
+    },
+    {
+      "id": "donana",
+      "name": "Moguer / Doñana (Andalucía)",
+      "lon": -6.84,
+      "lat": 37.28,
+      "biome": "Mediterranean Pine",
+      "baseFrp": 640
+    },
+    {
+      "id": "hurdes",
+      "name": "Las Hurdes (Extremadura)",
+      "lon": -6.28,
+      "lat": 40.39,
+      "biome": "Mediterranean Scrub",
+      "baseFrp": 590
+    },
+    {
+      "id": "navarra",
+      "name": "Sierra de Leyre (Navarra)",
+      "lon": -1.18,
+      "lat": 42.63,
+      "biome": "Pyrenean Foothills",
+      "baseFrp": 510
+    },
+    {
+      "id": "tarragona",
+      "name": "Ribera d'Ebre (Catalunya)",
+      "lon": 0.56,
+      "lat": 41.24,
+      "biome": "Mediterranean Pine",
+      "baseFrp": 610
+    },
+    {
+      "id": "monchique",
+      "name": "Serra de Monchique (Algarve)",
+      "lon": -8.56,
+      "lat": 37.32,
+      "biome": "Atlantic-Med Transition",
+      "baseFrp": 730
+    }
+  ],
+  "annualSeries": [
+    {
+      "year": 2000,
+      "rawModisCount": 1418,
+      "rawViirsCount": 0,
+      "harmonizedCount": 4988,
+      "harmonizedFrpMw": 122705,
+      "anomalyZScore": -0.17,
+      "regime": "BASELINE",
+      "ndviAnomaly": -0.058,
+      "gulfStreamSstAnomalyC": -0.01,
+      "elNinoOni": 0
+    },
+    {
+      "year": 2001,
+      "rawModisCount": 1705,
+      "rawViirsCount": 0,
+      "harmonizedCount": 5996,
+      "harmonizedFrpMw": 147502,
+      "anomalyZScore": 0.3,
+      "regime": "FUEL_ACCUMULATION_WATCH",
+      "ndviAnomaly": -0.074,
+      "gulfStreamSstAnomalyC": 0.27,
+      "elNinoOni": 0.91
+    },
+    {
+      "year": 2002,
+      "rawModisCount": 1172,
+      "rawViirsCount": 0,
+      "harmonizedCount": 4122,
+      "harmonizedFrpMw": 101401,
+      "anomalyZScore": -0.58,
+      "regime": "BASELINE",
+      "ndviAnomaly": -0.045,
+      "gulfStreamSstAnomalyC": 0.3,
+      "elNinoOni": 1.25
+    },
+    {
+      "year": 2003,
+      "rawModisCount": 2393,
+      "rawViirsCount": 0,
+      "harmonizedCount": 8415,
+      "harmonizedFrpMw": 207009,
+      "anomalyZScore": 1.44,
+      "regime": "OCEAN_INERTIA_ALERT",
+      "ndviAnomaly": -0.112,
+      "gulfStreamSstAnomalyC": 0.67,
+      "elNinoOni": 0.79
+    },
+    {
+      "year": 2004,
+      "rawModisCount": 1263,
+      "rawViirsCount": 0,
+      "harmonizedCount": 4442,
+      "harmonizedFrpMw": 109273,
+      "anomalyZScore": -0.43,
+      "regime": "BASELINE",
+      "ndviAnomaly": -0.05,
+      "gulfStreamSstAnomalyC": 0.38,
+      "elNinoOni": -0.17
+    },
+    {
+      "year": 2005,
+      "rawModisCount": 2248,
+      "rawViirsCount": 0,
+      "harmonizedCount": 7905,
+      "harmonizedFrpMw": 194463,
+      "anomalyZScore": 1.2,
+      "regime": "OCEAN_INERTIA_ALERT",
+      "ndviAnomaly": -0.104,
+      "gulfStreamSstAnomalyC": 0.5,
+      "elNinoOni": -1.02
+    },
+    {
+      "year": 2006,
+      "rawModisCount": 1495,
+      "rawViirsCount": 0,
+      "harmonizedCount": 5257,
+      "harmonizedFrpMw": 129322,
+      "anomalyZScore": -0.05,
+      "regime": "BASELINE",
+      "ndviAnomaly": -0.062,
+      "gulfStreamSstAnomalyC": 0.13,
+      "elNinoOni": -1.22
+    },
+    {
+      "year": 2007,
+      "rawModisCount": 1506,
+      "rawViirsCount": 0,
+      "harmonizedCount": 5297,
+      "harmonizedFrpMw": 130306,
+      "anomalyZScore": -0.03,
+      "regime": "BASELINE",
+      "ndviAnomaly": -0.063,
+      "gulfStreamSstAnomalyC": -0.08,
+      "elNinoOni": -0.65
+    },
+    {
+      "year": 2008,
+      "rawModisCount": 1661,
+      "rawViirsCount": 0,
+      "harmonizedCount": 5844,
+      "harmonizedFrpMw": 143762,
+      "anomalyZScore": 0.23,
+      "regime": "FUEL_ACCUMULATION_WATCH",
+      "ndviAnomaly": -0.072,
+      "gulfStreamSstAnomalyC": -0.24,
+      "elNinoOni": 0.34
+    },
+    {
+      "year": 2009,
+      "rawModisCount": 1277,
+      "rawViirsCount": 0,
+      "harmonizedCount": 4492,
+      "harmonizedFrpMw": 110503,
+      "anomalyZScore": -0.41,
+      "regime": "BASELINE",
+      "ndviAnomaly": -0.05,
+      "gulfStreamSstAnomalyC": -0.46,
+      "elNinoOni": 1.11
+    },
+    {
+      "year": 2010,
+      "rawModisCount": 1737,
+      "rawViirsCount": 0,
+      "harmonizedCount": 6110,
+      "harmonizedFrpMw": 150306,
+      "anomalyZScore": 0.36,
+      "regime": "FUEL_ACCUMULATION_WATCH",
+      "ndviAnomaly": -0.076,
+      "gulfStreamSstAnomalyC": -0.38,
+      "elNinoOni": 1.18
+    },
+    {
+      "year": 2011,
+      "rawModisCount": 1157,
+      "rawViirsCount": 0,
+      "harmonizedCount": 4070,
+      "harmonizedFrpMw": 100122,
+      "anomalyZScore": -0.6,
+      "regime": "BASELINE",
+      "ndviAnomaly": -0.044,
+      "gulfStreamSstAnomalyC": -0.45,
+      "elNinoOni": 0.49
+    },
+    {
+      "year": 2012,
+      "rawModisCount": 2103,
+      "rawViirsCount": 7540,
+      "harmonizedCount": 7395,
+      "harmonizedFrpMw": 181917,
+      "anomalyZScore": 0.96,
+      "regime": "OCEAN_INERTIA_ALERT",
+      "ndviAnomaly": -0.096,
+      "gulfStreamSstAnomalyC": -0.07,
+      "elNinoOni": -0.5
+    },
+    {
+      "year": 2013,
+      "rawModisCount": 1405,
+      "rawViirsCount": 5039,
+      "harmonizedCount": 4942,
+      "harmonizedFrpMw": 121573,
+      "anomalyZScore": -0.19,
+      "regime": "BASELINE",
+      "ndviAnomaly": -0.058,
+      "gulfStreamSstAnomalyC": -0.03,
+      "elNinoOni": -1.18
+    },
+    {
+      "year": 2014,
+      "rawModisCount": 1583,
+      "rawViirsCount": 5676,
+      "harmonizedCount": 5567,
+      "harmonizedFrpMw": 136948,
+      "anomalyZScore": 0.1,
+      "regime": "FUEL_ACCUMULATION_WATCH",
+      "ndviAnomaly": -0.067,
+      "gulfStreamSstAnomalyC": 0.22,
+      "elNinoOni": -1.11
+    },
+    {
+      "year": 2015,
+      "rawModisCount": 1603,
+      "rawViirsCount": 5747,
+      "harmonizedCount": 5637,
+      "harmonizedFrpMw": 138670,
+      "anomalyZScore": 0.13,
+      "regime": "FUEL_ACCUMULATION_WATCH",
+      "ndviAnomaly": -0.068,
+      "gulfStreamSstAnomalyC": 0.39,
+      "elNinoOni": -0.33
+    },
+    {
+      "year": 2016,
+      "rawModisCount": 1377,
+      "rawViirsCount": 4939,
+      "harmonizedCount": 4844,
+      "harmonizedFrpMw": 119162,
+      "anomalyZScore": -0.24,
+      "regime": "BASELINE",
+      "ndviAnomaly": -0.056,
+      "gulfStreamSstAnomalyC": 0.43,
+      "elNinoOni": 0.66
+    },
+    {
+      "year": 2017,
+      "rawModisCount": 2828,
+      "rawViirsCount": 10140,
+      "harmonizedCount": 9945,
+      "harmonizedFrpMw": 244647,
+      "anomalyZScore": 2.16,
+      "regime": "EXTREME_TAIL_ANOMALY",
+      "ndviAnomaly": -0.136,
+      "gulfStreamSstAnomalyC": 0.76,
+      "elNinoOni": 1.23
+    },
+    {
+      "year": 2018,
+      "rawModisCount": 1126,
+      "rawViirsCount": 4037,
+      "harmonizedCount": 3959,
+      "harmonizedFrpMw": 97391,
+      "anomalyZScore": -0.66,
+      "regime": "BASELINE",
+      "ndviAnomaly": -0.042,
+      "gulfStreamSstAnomalyC": 0.24,
+      "elNinoOni": 1.02
+    },
+    {
+      "year": 2019,
+      "rawModisCount": 1733,
+      "rawViirsCount": 6216,
+      "harmonizedCount": 6097,
+      "harmonizedFrpMw": 149986,
+      "anomalyZScore": 0.35,
+      "regime": "FUEL_ACCUMULATION_WATCH",
+      "ndviAnomaly": -0.076,
+      "gulfStreamSstAnomalyC": 0.2,
+      "elNinoOni": 0.16
+    },
+    {
+      "year": 2020,
+      "rawModisCount": 1307,
+      "rawViirsCount": 4687,
+      "harmonizedCount": 4597,
+      "harmonizedFrpMw": 113086,
+      "anomalyZScore": -0.36,
+      "regime": "BASELINE",
+      "ndviAnomaly": -0.052,
+      "gulfStreamSstAnomalyC": -0.11,
+      "elNinoOni": -0.8
+    },
+    {
+      "year": 2021,
+      "rawModisCount": 1646,
+      "rawViirsCount": 5902,
+      "harmonizedCount": 5789,
+      "harmonizedFrpMw": 142409,
+      "anomalyZScore": 0.2,
+      "regime": "FUEL_ACCUMULATION_WATCH",
+      "ndviAnomaly": -0.071,
+      "gulfStreamSstAnomalyC": -0.23,
+      "elNinoOni": -1.25
+    },
+    {
+      "year": 2022,
+      "rawModisCount": 3118,
+      "rawViirsCount": 11180,
+      "harmonizedCount": 10965,
+      "harmonizedFrpMw": 269739,
+      "anomalyZScore": 2.64,
+      "regime": "EXTREME_TAIL_ANOMALY",
+      "ndviAnomaly": -0.152,
+      "gulfStreamSstAnomalyC": -0.01,
+      "elNinoOni": -0.9
+    },
+    {
+      "year": 2023,
+      "rawModisCount": 1469,
+      "rawViirsCount": 5270,
+      "harmonizedCount": 5168,
+      "harmonizedFrpMw": 127133,
+      "anomalyZScore": -0.09,
+      "regime": "BASELINE",
+      "ndviAnomaly": -0.061,
+      "gulfStreamSstAnomalyC": -0.44,
+      "elNinoOni": 0.01
+    },
+    {
+      "year": 2024,
+      "rawModisCount": 1682,
+      "rawViirsCount": 6032,
+      "harmonizedCount": 5916,
+      "harmonizedFrpMw": 145534,
+      "anomalyZScore": 0.26,
+      "regime": "FUEL_ACCUMULATION_WATCH",
+      "ndviAnomaly": -0.073,
+      "gulfStreamSstAnomalyC": -0.33,
+      "elNinoOni": 0.92
+    },
+    {
+      "year": 2025,
+      "rawModisCount": 2538,
+      "rawViirsCount": 9100,
+      "harmonizedCount": 8925,
+      "harmonizedFrpMw": 219555,
+      "anomalyZScore": 1.68,
+      "regime": "OCEAN_INERTIA_ALERT",
+      "ndviAnomaly": -0.12,
+      "gulfStreamSstAnomalyC": 0.02,
+      "elNinoOni": 1.25
+    },
+    {
+      "year": 2026,
+      "rawModisCount": 1740,
+      "rawViirsCount": 6239,
+      "harmonizedCount": 6119,
+      "harmonizedFrpMw": 150527,
+      "anomalyZScore": 0.36,
+      "regime": "FUEL_ACCUMULATION_WATCH",
+      "ndviAnomaly": -0.076,
+      "gulfStreamSstAnomalyC": 0.03,
+      "elNinoOni": 0.78
+    }
+  ]
+}

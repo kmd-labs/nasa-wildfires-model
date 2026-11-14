@@ -16,6 +16,13 @@ from __future__ import annotations
 
 import os
 
+try:
+    from dotenv import load_dotenv
+    from .firms import REPO
+    load_dotenv(REPO / ".env")
+except ImportError:
+    pass
+
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response

@@ -1,0 +1,5417 @@
+{
+  "event": {
+    "id": "sierra-de-la-culebra-2022",
+    "name": "Sierra de la Culebra & Zamora Mega-Fire",
+    "center": [
+      -6.25,
+      41.92
+    ],
+    "h3Resolution": 7,
+    "metrics": {
+      "rocAuc": 0.91,
+      "prAuc": 0.84,
+      "brierScore": 0.08
+    }
+  },
+  "chokePoints": [
+    {
+      "id": "cp-douro",
+      "name": "Douro Canyon Fuel-Break",
+      "lon": -6.58,
+      "lat": 41.35,
+      "widthM": 120,
+      "riskScore": 0.88,
+      "type": "fuelBreak"
+    },
+    {
+      "id": "cp-culebra",
+      "name": "Sierra de la Culebra Ridge",
+      "lon": -6.22,
+      "lat": 41.94,
+      "widthM": 85,
+      "riskScore": 0.94,
+      "type": "deforestation"
+    },
+    {
+      "id": "cp-estremadura",
+      "name": "Zêzere Valley Corridor",
+      "lon": -8.18,
+      "lat": 39.96,
+      "widthM": 95,
+      "riskScore": 0.91,
+      "type": "fuelBreak"
+    },
+    {
+      "id": "cp-sanabria",
+      "name": "Sanabria Pine Deforestation Gap",
+      "lon": -6.68,
+      "lat": 42.11,
+      "widthM": 140,
+      "riskScore": 0.79,
+      "type": "deforestation"
+    },
+    {
+      "id": "cp-palancia",
+      "name": "Alto Palancia Saddle",
+      "lon": -0.68,
+      "lat": 39.94,
+      "widthM": 110,
+      "riskScore": 0.85,
+      "type": "fuelBreak"
+    }
+  ],
+  "frames": [
+    {
+      "hourOffset": 0,
+      "timestamp": "2022-06-17T12:00:00Z",
+      "synopticSummary": {
+        "windSpeedKmh": 34,
+        "windDirDeg": 235,
+        "windShear3hDeg": 18,
+        "tempC": 34.5
+      },
+      "cells": [
+        {
+          "id": "cell--1-0",
+          "lon": -6.39,
+          "lat": 41.92,
+          "state": "IGNITING",
+          "frp": 857,
+          "slopeDeg": 12.2,
+          "scenarios": {
+            "actual": 0.79,
+            "atlanticSurge": 0.9,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.96
+          }
+        },
+        {
+          "id": "cell-0--1",
+          "lon": -6.25,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 857,
+          "slopeDeg": 11.1,
+          "scenarios": {
+            "actual": 0.79,
+            "atlanticSurge": 0.9,
+            "levanteReversal": 0.68,
+            "elNinoDroughtBoost": 0.96
+          }
+        },
+        {
+          "id": "cell-0-0",
+          "lon": -6.25,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 973,
+          "slopeDeg": 8,
+          "scenarios": {
+            "actual": 0.96,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.86,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-1",
+          "lon": -6.25,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 857,
+          "slopeDeg": 11.1,
+          "scenarios": {
+            "actual": 0.79,
+            "atlanticSurge": 0.9,
+            "levanteReversal": 0.68,
+            "elNinoDroughtBoost": 0.96
+          }
+        },
+        {
+          "id": "cell-1-0",
+          "lon": -6.11,
+          "lat": 41.92,
+          "state": "IGNITING",
+          "frp": 857,
+          "slopeDeg": 12.2,
+          "scenarios": {
+            "actual": 0.79,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.68,
+            "elNinoDroughtBoost": 0.96
+          }
+        }
+      ]
+    },
+    {
+      "hourOffset": 1,
+      "timestamp": "2022-06-17T13:00:00Z",
+      "synopticSummary": {
+        "windSpeedKmh": 39.2,
+        "windDirDeg": 242,
+        "windShear3hDeg": 30,
+        "tempC": 35.8
+      },
+      "cells": [
+        {
+          "id": "cell--1-0",
+          "lon": -6.39,
+          "lat": 41.92,
+          "state": "IGNITING",
+          "frp": 874,
+          "slopeDeg": 12.2,
+          "scenarios": {
+            "actual": 0.81,
+            "atlanticSurge": 0.93,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0--1",
+          "lon": -6.25,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 874,
+          "slopeDeg": 11.1,
+          "scenarios": {
+            "actual": 0.81,
+            "atlanticSurge": 0.93,
+            "levanteReversal": 0.71,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-0",
+          "lon": -6.25,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 990,
+          "slopeDeg": 8,
+          "scenarios": {
+            "actual": 0.98,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.88,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-1",
+          "lon": -6.25,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 874,
+          "slopeDeg": 11.1,
+          "scenarios": {
+            "actual": 0.81,
+            "atlanticSurge": 0.93,
+            "levanteReversal": 0.71,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-1-0",
+          "lon": -6.11,
+          "lat": 41.92,
+          "state": "IGNITING",
+          "frp": 874,
+          "slopeDeg": 12.2,
+          "scenarios": {
+            "actual": 0.81,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.71,
+            "elNinoDroughtBoost": 0.99
+          }
+        }
+      ]
+    },
+    {
+      "hourOffset": 2,
+      "timestamp": "2022-06-17T14:00:00Z",
+      "synopticSummary": {
+        "windSpeedKmh": 43.4,
+        "windDirDeg": 249,
+        "windShear3hDeg": 39,
+        "tempC": 36.9
+      },
+      "cells": [
+        {
+          "id": "cell--1-0",
+          "lon": -6.39,
+          "lat": 41.92,
+          "state": "IGNITING",
+          "frp": 891,
+          "slopeDeg": 12.2,
+          "scenarios": {
+            "actual": 0.84,
+            "atlanticSurge": 0.96,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0--1",
+          "lon": -6.25,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 891,
+          "slopeDeg": 11.1,
+          "scenarios": {
+            "actual": 0.84,
+            "atlanticSurge": 0.96,
+            "levanteReversal": 0.73,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-0",
+          "lon": -6.25,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 993,
+          "slopeDeg": 8,
+          "scenarios": {
+            "actual": 0.99,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-1",
+          "lon": -6.25,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 891,
+          "slopeDeg": 11.1,
+          "scenarios": {
+            "actual": 0.84,
+            "atlanticSurge": 0.96,
+            "levanteReversal": 0.73,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-1-0",
+          "lon": -6.11,
+          "lat": 41.92,
+          "state": "IGNITING",
+          "frp": 891,
+          "slopeDeg": 12.2,
+          "scenarios": {
+            "actual": 0.84,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.73,
+            "elNinoDroughtBoost": 0.99
+          }
+        }
+      ]
+    },
+    {
+      "hourOffset": 3,
+      "timestamp": "2022-06-17T15:00:00Z",
+      "synopticSummary": {
+        "windSpeedKmh": 45.7,
+        "windDirDeg": 256,
+        "windShear3hDeg": 42,
+        "tempC": 37.9
+      },
+      "cells": [
+        {
+          "id": "cell--2--1",
+          "lon": -6.53,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 765,
+          "slopeDeg": 19.5,
+          "scenarios": {
+            "actual": 0.65,
+            "atlanticSurge": 0.75,
+            "levanteReversal": 0.87,
+            "elNinoDroughtBoost": 0.8
+          }
+        },
+        {
+          "id": "cell--2-0",
+          "lon": -6.53,
+          "lat": 41.92,
+          "state": "IGNITING",
+          "frp": 793,
+          "slopeDeg": 16.4,
+          "scenarios": {
+            "actual": 0.69,
+            "atlanticSurge": 0.79,
+            "levanteReversal": 0.91,
+            "elNinoDroughtBoost": 0.85
+          }
+        },
+        {
+          "id": "cell--2-1",
+          "lon": -6.53,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 765,
+          "slopeDeg": 13.3,
+          "scenarios": {
+            "actual": 0.65,
+            "atlanticSurge": 0.75,
+            "levanteReversal": 0.87,
+            "elNinoDroughtBoost": 0.8
+          }
+        },
+        {
+          "id": "cell--1--2",
+          "lon": -6.39,
+          "lat": 41.7,
+          "state": "IGNITING",
+          "frp": 765,
+          "slopeDeg": 18.4,
+          "scenarios": {
+            "actual": 0.65,
+            "atlanticSurge": 0.75,
+            "levanteReversal": 0.87,
+            "elNinoDroughtBoost": 0.8
+          }
+        },
+        {
+          "id": "cell--1--1",
+          "lon": -6.39,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 860,
+          "slopeDeg": 15.3,
+          "scenarios": {
+            "actual": 0.79,
+            "atlanticSurge": 0.91,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.97
+          }
+        },
+        {
+          "id": "cell--1-0",
+          "lon": -6.39,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 908,
+          "slopeDeg": 12.2,
+          "scenarios": {
+            "actual": 0.86,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--1-1",
+          "lon": -6.39,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 860,
+          "slopeDeg": 9.1,
+          "scenarios": {
+            "actual": 0.79,
+            "atlanticSurge": 0.91,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.97
+          }
+        },
+        {
+          "id": "cell--1-2",
+          "lon": -6.39,
+          "lat": 42.14,
+          "state": "IGNITING",
+          "frp": 765,
+          "slopeDeg": 10,
+          "scenarios": {
+            "actual": 0.65,
+            "atlanticSurge": 0.75,
+            "levanteReversal": 0.87,
+            "elNinoDroughtBoost": 0.8
+          }
+        },
+        {
+          "id": "cell-0--2",
+          "lon": -6.25,
+          "lat": 41.7,
+          "state": "IGNITING",
+          "frp": 793,
+          "slopeDeg": 14.2,
+          "scenarios": {
+            "actual": 0.69,
+            "atlanticSurge": 0.79,
+            "levanteReversal": 0.58,
+            "elNinoDroughtBoost": 0.85
+          }
+        },
+        {
+          "id": "cell-0--1",
+          "lon": -6.25,
+          "lat": 41.81,
+          "state": "BURNING",
+          "frp": 908,
+          "slopeDeg": 11.1,
+          "scenarios": {
+            "actual": 0.86,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.76,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-0",
+          "lon": -6.25,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 993,
+          "slopeDeg": 8,
+          "scenarios": {
+            "actual": 0.99,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-1",
+          "lon": -6.25,
+          "lat": 42.03,
+          "state": "BURNING",
+          "frp": 908,
+          "slopeDeg": 11.1,
+          "scenarios": {
+            "actual": 0.86,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.76,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-2",
+          "lon": -6.25,
+          "lat": 42.14,
+          "state": "IGNITING",
+          "frp": 793,
+          "slopeDeg": 14.2,
+          "scenarios": {
+            "actual": 0.69,
+            "atlanticSurge": 0.79,
+            "levanteReversal": 0.58,
+            "elNinoDroughtBoost": 0.85
+          }
+        },
+        {
+          "id": "cell-1--2",
+          "lon": -6.11,
+          "lat": 41.7,
+          "state": "IGNITING",
+          "frp": 765,
+          "slopeDeg": 10,
+          "scenarios": {
+            "actual": 0.65,
+            "atlanticSurge": 0.87,
+            "levanteReversal": 0.54,
+            "elNinoDroughtBoost": 0.8
+          }
+        },
+        {
+          "id": "cell-1--1",
+          "lon": -6.11,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 860,
+          "slopeDeg": 9.1,
+          "scenarios": {
+            "actual": 0.79,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.68,
+            "elNinoDroughtBoost": 0.97
+          }
+        },
+        {
+          "id": "cell-1-0",
+          "lon": -6.11,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 908,
+          "slopeDeg": 12.2,
+          "scenarios": {
+            "actual": 0.86,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.76,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-1-1",
+          "lon": -6.11,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 860,
+          "slopeDeg": 15.3,
+          "scenarios": {
+            "actual": 0.79,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.68,
+            "elNinoDroughtBoost": 0.97
+          }
+        },
+        {
+          "id": "cell-1-2",
+          "lon": -6.11,
+          "lat": 42.14,
+          "state": "IGNITING",
+          "frp": 765,
+          "slopeDeg": 18.4,
+          "scenarios": {
+            "actual": 0.65,
+            "atlanticSurge": 0.87,
+            "levanteReversal": 0.54,
+            "elNinoDroughtBoost": 0.8
+          }
+        },
+        {
+          "id": "cell-2--1",
+          "lon": -5.97,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 765,
+          "slopeDeg": 13.3,
+          "scenarios": {
+            "actual": 0.65,
+            "atlanticSurge": 0.87,
+            "levanteReversal": 0.54,
+            "elNinoDroughtBoost": 0.8
+          }
+        },
+        {
+          "id": "cell-2-0",
+          "lon": -5.97,
+          "lat": 41.92,
+          "state": "IGNITING",
+          "frp": 793,
+          "slopeDeg": 16.4,
+          "scenarios": {
+            "actual": 0.69,
+            "atlanticSurge": 0.91,
+            "levanteReversal": 0.58,
+            "elNinoDroughtBoost": 0.85
+          }
+        },
+        {
+          "id": "cell-2-1",
+          "lon": -5.97,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 765,
+          "slopeDeg": 19.5,
+          "scenarios": {
+            "actual": 0.65,
+            "atlanticSurge": 0.87,
+            "levanteReversal": 0.54,
+            "elNinoDroughtBoost": 0.8
+          }
+        }
+      ]
+    },
+    {
+      "hourOffset": 4,
+      "timestamp": "2022-06-17T16:00:00Z",
+      "synopticSummary": {
+        "windSpeedKmh": 45.7,
+        "windDirDeg": 263,
+        "windShear3hDeg": 39,
+        "tempC": 38.6
+      },
+      "cells": [
+        {
+          "id": "cell--2--1",
+          "lon": -6.53,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 782,
+          "slopeDeg": 19.5,
+          "scenarios": {
+            "actual": 0.68,
+            "atlanticSurge": 0.78,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.83
+          }
+        },
+        {
+          "id": "cell--2-0",
+          "lon": -6.53,
+          "lat": 41.92,
+          "state": "IGNITING",
+          "frp": 810,
+          "slopeDeg": 16.4,
+          "scenarios": {
+            "actual": 0.72,
+            "atlanticSurge": 0.82,
+            "levanteReversal": 0.94,
+            "elNinoDroughtBoost": 0.88
+          }
+        },
+        {
+          "id": "cell--2-1",
+          "lon": -6.53,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 782,
+          "slopeDeg": 13.3,
+          "scenarios": {
+            "actual": 0.68,
+            "atlanticSurge": 0.78,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.83
+          }
+        },
+        {
+          "id": "cell--1--2",
+          "lon": -6.39,
+          "lat": 41.7,
+          "state": "IGNITING",
+          "frp": 782,
+          "slopeDeg": 18.4,
+          "scenarios": {
+            "actual": 0.68,
+            "atlanticSurge": 0.78,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.83
+          }
+        },
+        {
+          "id": "cell--1--1",
+          "lon": -6.39,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 877,
+          "slopeDeg": 15.3,
+          "scenarios": {
+            "actual": 0.82,
+            "atlanticSurge": 0.93,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--1-0",
+          "lon": -6.39,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 925,
+          "slopeDeg": 12.2,
+          "scenarios": {
+            "actual": 0.89,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--1-1",
+          "lon": -6.39,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 877,
+          "slopeDeg": 9.1,
+          "scenarios": {
+            "actual": 0.82,
+            "atlanticSurge": 0.93,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--1-2",
+          "lon": -6.39,
+          "lat": 42.14,
+          "state": "IGNITING",
+          "frp": 782,
+          "slopeDeg": 10,
+          "scenarios": {
+            "actual": 0.68,
+            "atlanticSurge": 0.78,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.83
+          }
+        },
+        {
+          "id": "cell-0--2",
+          "lon": -6.25,
+          "lat": 41.7,
+          "state": "IGNITING",
+          "frp": 810,
+          "slopeDeg": 14.2,
+          "scenarios": {
+            "actual": 0.72,
+            "atlanticSurge": 0.82,
+            "levanteReversal": 0.61,
+            "elNinoDroughtBoost": 0.88
+          }
+        },
+        {
+          "id": "cell-0--1",
+          "lon": -6.25,
+          "lat": 41.81,
+          "state": "BURNING",
+          "frp": 925,
+          "slopeDeg": 11.1,
+          "scenarios": {
+            "actual": 0.89,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.78,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-0",
+          "lon": -6.25,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 993,
+          "slopeDeg": 8,
+          "scenarios": {
+            "actual": 0.99,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-1",
+          "lon": -6.25,
+          "lat": 42.03,
+          "state": "BURNING",
+          "frp": 925,
+          "slopeDeg": 11.1,
+          "scenarios": {
+            "actual": 0.89,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.78,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-2",
+          "lon": -6.25,
+          "lat": 42.14,
+          "state": "IGNITING",
+          "frp": 810,
+          "slopeDeg": 14.2,
+          "scenarios": {
+            "actual": 0.72,
+            "atlanticSurge": 0.82,
+            "levanteReversal": 0.61,
+            "elNinoDroughtBoost": 0.88
+          }
+        },
+        {
+          "id": "cell-1--2",
+          "lon": -6.11,
+          "lat": 41.7,
+          "state": "IGNITING",
+          "frp": 782,
+          "slopeDeg": 10,
+          "scenarios": {
+            "actual": 0.68,
+            "atlanticSurge": 0.9,
+            "levanteReversal": 0.56,
+            "elNinoDroughtBoost": 0.83
+          }
+        },
+        {
+          "id": "cell-1--1",
+          "lon": -6.11,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 877,
+          "slopeDeg": 9.1,
+          "scenarios": {
+            "actual": 0.82,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.71,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-1-0",
+          "lon": -6.11,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 925,
+          "slopeDeg": 12.2,
+          "scenarios": {
+            "actual": 0.89,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.78,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-1-1",
+          "lon": -6.11,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 877,
+          "slopeDeg": 15.3,
+          "scenarios": {
+            "actual": 0.82,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.71,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-1-2",
+          "lon": -6.11,
+          "lat": 42.14,
+          "state": "IGNITING",
+          "frp": 782,
+          "slopeDeg": 18.4,
+          "scenarios": {
+            "actual": 0.68,
+            "atlanticSurge": 0.9,
+            "levanteReversal": 0.56,
+            "elNinoDroughtBoost": 0.83
+          }
+        },
+        {
+          "id": "cell-2--1",
+          "lon": -5.97,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 782,
+          "slopeDeg": 13.3,
+          "scenarios": {
+            "actual": 0.68,
+            "atlanticSurge": 0.9,
+            "levanteReversal": 0.56,
+            "elNinoDroughtBoost": 0.83
+          }
+        },
+        {
+          "id": "cell-2-0",
+          "lon": -5.97,
+          "lat": 41.92,
+          "state": "IGNITING",
+          "frp": 810,
+          "slopeDeg": 16.4,
+          "scenarios": {
+            "actual": 0.72,
+            "atlanticSurge": 0.94,
+            "levanteReversal": 0.61,
+            "elNinoDroughtBoost": 0.88
+          }
+        },
+        {
+          "id": "cell-2-1",
+          "lon": -5.97,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 782,
+          "slopeDeg": 19.5,
+          "scenarios": {
+            "actual": 0.68,
+            "atlanticSurge": 0.9,
+            "levanteReversal": 0.56,
+            "elNinoDroughtBoost": 0.83
+          }
+        }
+      ]
+    },
+    {
+      "hourOffset": 5,
+      "timestamp": "2022-06-17T17:00:00Z",
+      "synopticSummary": {
+        "windSpeedKmh": 43.3,
+        "windDirDeg": 270,
+        "windShear3hDeg": 30,
+        "tempC": 39
+      },
+      "cells": [
+        {
+          "id": "cell--2--1",
+          "lon": -6.53,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 799,
+          "slopeDeg": 19.5,
+          "scenarios": {
+            "actual": 0.7,
+            "atlanticSurge": 0.8,
+            "levanteReversal": 0.92,
+            "elNinoDroughtBoost": 0.86
+          }
+        },
+        {
+          "id": "cell--2-0",
+          "lon": -6.53,
+          "lat": 41.92,
+          "state": "IGNITING",
+          "frp": 827,
+          "slopeDeg": 16.4,
+          "scenarios": {
+            "actual": 0.74,
+            "atlanticSurge": 0.85,
+            "levanteReversal": 0.96,
+            "elNinoDroughtBoost": 0.91
+          }
+        },
+        {
+          "id": "cell--2-1",
+          "lon": -6.53,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 799,
+          "slopeDeg": 13.3,
+          "scenarios": {
+            "actual": 0.7,
+            "atlanticSurge": 0.8,
+            "levanteReversal": 0.92,
+            "elNinoDroughtBoost": 0.86
+          }
+        },
+        {
+          "id": "cell--1--2",
+          "lon": -6.39,
+          "lat": 41.7,
+          "state": "IGNITING",
+          "frp": 799,
+          "slopeDeg": 18.4,
+          "scenarios": {
+            "actual": 0.7,
+            "atlanticSurge": 0.8,
+            "levanteReversal": 0.92,
+            "elNinoDroughtBoost": 0.86
+          }
+        },
+        {
+          "id": "cell--1--1",
+          "lon": -6.39,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 894,
+          "slopeDeg": 15.3,
+          "scenarios": {
+            "actual": 0.84,
+            "atlanticSurge": 0.96,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--1-0",
+          "lon": -6.39,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 942,
+          "slopeDeg": 12.2,
+          "scenarios": {
+            "actual": 0.91,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--1-1",
+          "lon": -6.39,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 894,
+          "slopeDeg": 9.1,
+          "scenarios": {
+            "actual": 0.84,
+            "atlanticSurge": 0.96,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--1-2",
+          "lon": -6.39,
+          "lat": 42.14,
+          "state": "IGNITING",
+          "frp": 799,
+          "slopeDeg": 10,
+          "scenarios": {
+            "actual": 0.7,
+            "atlanticSurge": 0.8,
+            "levanteReversal": 0.92,
+            "elNinoDroughtBoost": 0.86
+          }
+        },
+        {
+          "id": "cell-0--2",
+          "lon": -6.25,
+          "lat": 41.7,
+          "state": "IGNITING",
+          "frp": 827,
+          "slopeDeg": 14.2,
+          "scenarios": {
+            "actual": 0.74,
+            "atlanticSurge": 0.85,
+            "levanteReversal": 0.63,
+            "elNinoDroughtBoost": 0.91
+          }
+        },
+        {
+          "id": "cell-0--1",
+          "lon": -6.25,
+          "lat": 41.81,
+          "state": "BURNING",
+          "frp": 942,
+          "slopeDeg": 11.1,
+          "scenarios": {
+            "actual": 0.91,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.81,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-0",
+          "lon": -6.25,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 993,
+          "slopeDeg": 8,
+          "scenarios": {
+            "actual": 0.99,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-1",
+          "lon": -6.25,
+          "lat": 42.03,
+          "state": "BURNING",
+          "frp": 942,
+          "slopeDeg": 11.1,
+          "scenarios": {
+            "actual": 0.91,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.81,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-2",
+          "lon": -6.25,
+          "lat": 42.14,
+          "state": "IGNITING",
+          "frp": 827,
+          "slopeDeg": 14.2,
+          "scenarios": {
+            "actual": 0.74,
+            "atlanticSurge": 0.85,
+            "levanteReversal": 0.63,
+            "elNinoDroughtBoost": 0.91
+          }
+        },
+        {
+          "id": "cell-1--2",
+          "lon": -6.11,
+          "lat": 41.7,
+          "state": "IGNITING",
+          "frp": 799,
+          "slopeDeg": 10,
+          "scenarios": {
+            "actual": 0.7,
+            "atlanticSurge": 0.92,
+            "levanteReversal": 0.59,
+            "elNinoDroughtBoost": 0.86
+          }
+        },
+        {
+          "id": "cell-1--1",
+          "lon": -6.11,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 894,
+          "slopeDeg": 9.1,
+          "scenarios": {
+            "actual": 0.84,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.74,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-1-0",
+          "lon": -6.11,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 942,
+          "slopeDeg": 12.2,
+          "scenarios": {
+            "actual": 0.91,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.81,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-1-1",
+          "lon": -6.11,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 894,
+          "slopeDeg": 15.3,
+          "scenarios": {
+            "actual": 0.84,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.74,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-1-2",
+          "lon": -6.11,
+          "lat": 42.14,
+          "state": "IGNITING",
+          "frp": 799,
+          "slopeDeg": 18.4,
+          "scenarios": {
+            "actual": 0.7,
+            "atlanticSurge": 0.92,
+            "levanteReversal": 0.59,
+            "elNinoDroughtBoost": 0.86
+          }
+        },
+        {
+          "id": "cell-2--1",
+          "lon": -5.97,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 799,
+          "slopeDeg": 13.3,
+          "scenarios": {
+            "actual": 0.7,
+            "atlanticSurge": 0.92,
+            "levanteReversal": 0.59,
+            "elNinoDroughtBoost": 0.86
+          }
+        },
+        {
+          "id": "cell-2-0",
+          "lon": -5.97,
+          "lat": 41.92,
+          "state": "IGNITING",
+          "frp": 827,
+          "slopeDeg": 16.4,
+          "scenarios": {
+            "actual": 0.74,
+            "atlanticSurge": 0.97,
+            "levanteReversal": 0.63,
+            "elNinoDroughtBoost": 0.91
+          }
+        },
+        {
+          "id": "cell-2-1",
+          "lon": -5.97,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 799,
+          "slopeDeg": 19.5,
+          "scenarios": {
+            "actual": 0.7,
+            "atlanticSurge": 0.92,
+            "levanteReversal": 0.59,
+            "elNinoDroughtBoost": 0.86
+          }
+        }
+      ]
+    },
+    {
+      "hourOffset": 6,
+      "timestamp": "2022-06-17T18:00:00Z",
+      "synopticSummary": {
+        "windSpeedKmh": 39.1,
+        "windDirDeg": 277,
+        "windShear3hDeg": 19,
+        "tempC": 39
+      },
+      "cells": [
+        {
+          "id": "cell--3--1",
+          "lon": -6.67,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 709,
+          "slopeDeg": 23.7,
+          "scenarios": {
+            "actual": 0.57,
+            "atlanticSurge": 0.65,
+            "levanteReversal": 0.78,
+            "elNinoDroughtBoost": 0.7
+          }
+        },
+        {
+          "id": "cell--3-0",
+          "lon": -6.67,
+          "lat": 41.92,
+          "state": "IGNITING",
+          "frp": 728,
+          "slopeDeg": 20.6,
+          "scenarios": {
+            "actual": 0.6,
+            "atlanticSurge": 0.68,
+            "levanteReversal": 0.81,
+            "elNinoDroughtBoost": 0.73
+          }
+        },
+        {
+          "id": "cell--3-1",
+          "lon": -6.67,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 709,
+          "slopeDeg": 17.5,
+          "scenarios": {
+            "actual": 0.57,
+            "atlanticSurge": 0.65,
+            "levanteReversal": 0.78,
+            "elNinoDroughtBoost": 0.7
+          }
+        },
+        {
+          "id": "cell--2--2",
+          "lon": -6.53,
+          "lat": 41.7,
+          "state": "IGNITING",
+          "frp": 748,
+          "slopeDeg": 22.6,
+          "scenarios": {
+            "actual": 0.63,
+            "atlanticSurge": 0.72,
+            "levanteReversal": 0.84,
+            "elNinoDroughtBoost": 0.77
+          }
+        },
+        {
+          "id": "cell--2--1",
+          "lon": -6.53,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 816,
+          "slopeDeg": 19.5,
+          "scenarios": {
+            "actual": 0.73,
+            "atlanticSurge": 0.83,
+            "levanteReversal": 0.95,
+            "elNinoDroughtBoost": 0.89
+          }
+        },
+        {
+          "id": "cell--2-0",
+          "lon": -6.53,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 844,
+          "slopeDeg": 16.4,
+          "scenarios": {
+            "actual": 0.77,
+            "atlanticSurge": 0.88,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.94
+          }
+        },
+        {
+          "id": "cell--2-1",
+          "lon": -6.53,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 816,
+          "slopeDeg": 13.3,
+          "scenarios": {
+            "actual": 0.73,
+            "atlanticSurge": 0.83,
+            "levanteReversal": 0.95,
+            "elNinoDroughtBoost": 0.89
+          }
+        },
+        {
+          "id": "cell--2-2",
+          "lon": -6.53,
+          "lat": 42.14,
+          "state": "IGNITING",
+          "frp": 748,
+          "slopeDeg": 10.2,
+          "scenarios": {
+            "actual": 0.63,
+            "atlanticSurge": 0.72,
+            "levanteReversal": 0.84,
+            "elNinoDroughtBoost": 0.77
+          }
+        },
+        {
+          "id": "cell--1--3",
+          "lon": -6.39,
+          "lat": 41.59,
+          "state": "IGNITING",
+          "frp": 709,
+          "slopeDeg": 21.5,
+          "scenarios": {
+            "actual": 0.57,
+            "atlanticSurge": 0.65,
+            "levanteReversal": 0.78,
+            "elNinoDroughtBoost": 0.7
+          }
+        },
+        {
+          "id": "cell--1--2",
+          "lon": -6.39,
+          "lat": 41.7,
+          "state": "IGNITING",
+          "frp": 816,
+          "slopeDeg": 18.4,
+          "scenarios": {
+            "actual": 0.73,
+            "atlanticSurge": 0.83,
+            "levanteReversal": 0.95,
+            "elNinoDroughtBoost": 0.89
+          }
+        },
+        {
+          "id": "cell--1--1",
+          "lon": -6.39,
+          "lat": 41.81,
+          "state": "BURNING",
+          "frp": 911,
+          "slopeDeg": 15.3,
+          "scenarios": {
+            "actual": 0.87,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--1-0",
+          "lon": -6.39,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 959,
+          "slopeDeg": 12.2,
+          "scenarios": {
+            "actual": 0.94,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--1-1",
+          "lon": -6.39,
+          "lat": 42.03,
+          "state": "BURNING",
+          "frp": 911,
+          "slopeDeg": 9.1,
+          "scenarios": {
+            "actual": 0.87,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--1-2",
+          "lon": -6.39,
+          "lat": 42.14,
+          "state": "IGNITING",
+          "frp": 816,
+          "slopeDeg": 10,
+          "scenarios": {
+            "actual": 0.73,
+            "atlanticSurge": 0.83,
+            "levanteReversal": 0.95,
+            "elNinoDroughtBoost": 0.89
+          }
+        },
+        {
+          "id": "cell--1-3",
+          "lon": -6.39,
+          "lat": 42.25,
+          "state": "IGNITING",
+          "frp": 709,
+          "slopeDeg": 13.1,
+          "scenarios": {
+            "actual": 0.57,
+            "atlanticSurge": 0.65,
+            "levanteReversal": 0.78,
+            "elNinoDroughtBoost": 0.7
+          }
+        },
+        {
+          "id": "cell-0--3",
+          "lon": -6.25,
+          "lat": 41.59,
+          "state": "IGNITING",
+          "frp": 728,
+          "slopeDeg": 17.3,
+          "scenarios": {
+            "actual": 0.6,
+            "atlanticSurge": 0.68,
+            "levanteReversal": 0.48,
+            "elNinoDroughtBoost": 0.73
+          }
+        },
+        {
+          "id": "cell-0--2",
+          "lon": -6.25,
+          "lat": 41.7,
+          "state": "BURNING",
+          "frp": 844,
+          "slopeDeg": 14.2,
+          "scenarios": {
+            "actual": 0.77,
+            "atlanticSurge": 0.88,
+            "levanteReversal": 0.66,
+            "elNinoDroughtBoost": 0.94
+          }
+        },
+        {
+          "id": "cell-0--1",
+          "lon": -6.25,
+          "lat": 41.81,
+          "state": "BURNING",
+          "frp": 959,
+          "slopeDeg": 11.1,
+          "scenarios": {
+            "actual": 0.94,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.84,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-0",
+          "lon": -6.25,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 993,
+          "slopeDeg": 8,
+          "scenarios": {
+            "actual": 0.99,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-1",
+          "lon": -6.25,
+          "lat": 42.03,
+          "state": "BURNING",
+          "frp": 959,
+          "slopeDeg": 11.1,
+          "scenarios": {
+            "actual": 0.94,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.84,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-2",
+          "lon": -6.25,
+          "lat": 42.14,
+          "state": "BURNING",
+          "frp": 844,
+          "slopeDeg": 14.2,
+          "scenarios": {
+            "actual": 0.77,
+            "atlanticSurge": 0.88,
+            "levanteReversal": 0.66,
+            "elNinoDroughtBoost": 0.94
+          }
+        },
+        {
+          "id": "cell-0-3",
+          "lon": -6.25,
+          "lat": 42.25,
+          "state": "IGNITING",
+          "frp": 728,
+          "slopeDeg": 17.3,
+          "scenarios": {
+            "actual": 0.6,
+            "atlanticSurge": 0.68,
+            "levanteReversal": 0.48,
+            "elNinoDroughtBoost": 0.73
+          }
+        },
+        {
+          "id": "cell-1--3",
+          "lon": -6.11,
+          "lat": 41.59,
+          "state": "IGNITING",
+          "frp": 709,
+          "slopeDeg": 13.1,
+          "scenarios": {
+            "actual": 0.57,
+            "atlanticSurge": 0.77,
+            "levanteReversal": 0.45,
+            "elNinoDroughtBoost": 0.7
+          }
+        },
+        {
+          "id": "cell-1--2",
+          "lon": -6.11,
+          "lat": 41.7,
+          "state": "IGNITING",
+          "frp": 816,
+          "slopeDeg": 10,
+          "scenarios": {
+            "actual": 0.73,
+            "atlanticSurge": 0.95,
+            "levanteReversal": 0.62,
+            "elNinoDroughtBoost": 0.89
+          }
+        },
+        {
+          "id": "cell-1--1",
+          "lon": -6.11,
+          "lat": 41.81,
+          "state": "BURNING",
+          "frp": 911,
+          "slopeDeg": 9.1,
+          "scenarios": {
+            "actual": 0.87,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.76,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-1-0",
+          "lon": -6.11,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 959,
+          "slopeDeg": 12.2,
+          "scenarios": {
+            "actual": 0.94,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.84,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-1-1",
+          "lon": -6.11,
+          "lat": 42.03,
+          "state": "BURNING",
+          "frp": 911,
+          "slopeDeg": 15.3,
+          "scenarios": {
+            "actual": 0.87,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.76,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-1-2",
+          "lon": -6.11,
+          "lat": 42.14,
+          "state": "IGNITING",
+          "frp": 816,
+          "slopeDeg": 18.4,
+          "scenarios": {
+            "actual": 0.73,
+            "atlanticSurge": 0.95,
+            "levanteReversal": 0.62,
+            "elNinoDroughtBoost": 0.89
+          }
+        },
+        {
+          "id": "cell-1-3",
+          "lon": -6.11,
+          "lat": 42.25,
+          "state": "IGNITING",
+          "frp": 709,
+          "slopeDeg": 21.5,
+          "scenarios": {
+            "actual": 0.57,
+            "atlanticSurge": 0.77,
+            "levanteReversal": 0.45,
+            "elNinoDroughtBoost": 0.7
+          }
+        },
+        {
+          "id": "cell-2--2",
+          "lon": -5.97,
+          "lat": 41.7,
+          "state": "IGNITING",
+          "frp": 748,
+          "slopeDeg": 10.2,
+          "scenarios": {
+            "actual": 0.63,
+            "atlanticSurge": 0.84,
+            "levanteReversal": 0.51,
+            "elNinoDroughtBoost": 0.77
+          }
+        },
+        {
+          "id": "cell-2--1",
+          "lon": -5.97,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 816,
+          "slopeDeg": 13.3,
+          "scenarios": {
+            "actual": 0.73,
+            "atlanticSurge": 0.95,
+            "levanteReversal": 0.62,
+            "elNinoDroughtBoost": 0.89
+          }
+        },
+        {
+          "id": "cell-2-0",
+          "lon": -5.97,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 844,
+          "slopeDeg": 16.4,
+          "scenarios": {
+            "actual": 0.77,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.66,
+            "elNinoDroughtBoost": 0.94
+          }
+        },
+        {
+          "id": "cell-2-1",
+          "lon": -5.97,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 816,
+          "slopeDeg": 19.5,
+          "scenarios": {
+            "actual": 0.73,
+            "atlanticSurge": 0.95,
+            "levanteReversal": 0.62,
+            "elNinoDroughtBoost": 0.89
+          }
+        },
+        {
+          "id": "cell-2-2",
+          "lon": -5.97,
+          "lat": 42.14,
+          "state": "IGNITING",
+          "frp": 748,
+          "slopeDeg": 22.6,
+          "scenarios": {
+            "actual": 0.63,
+            "atlanticSurge": 0.84,
+            "levanteReversal": 0.51,
+            "elNinoDroughtBoost": 0.77
+          }
+        },
+        {
+          "id": "cell-3--1",
+          "lon": -5.83,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 709,
+          "slopeDeg": 17.5,
+          "scenarios": {
+            "actual": 0.57,
+            "atlanticSurge": 0.77,
+            "levanteReversal": 0.45,
+            "elNinoDroughtBoost": 0.7
+          }
+        },
+        {
+          "id": "cell-3-0",
+          "lon": -5.83,
+          "lat": 41.92,
+          "state": "IGNITING",
+          "frp": 728,
+          "slopeDeg": 20.6,
+          "scenarios": {
+            "actual": 0.6,
+            "atlanticSurge": 0.8,
+            "levanteReversal": 0.48,
+            "elNinoDroughtBoost": 0.73
+          }
+        },
+        {
+          "id": "cell-3-1",
+          "lon": -5.83,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 709,
+          "slopeDeg": 23.7,
+          "scenarios": {
+            "actual": 0.57,
+            "atlanticSurge": 0.77,
+            "levanteReversal": 0.45,
+            "elNinoDroughtBoost": 0.7
+          }
+        }
+      ]
+    },
+    {
+      "hourOffset": 7,
+      "timestamp": "2022-06-17T19:00:00Z",
+      "synopticSummary": {
+        "windSpeedKmh": 33.9,
+        "windDirDeg": 284,
+        "windShear3hDeg": 29,
+        "tempC": 38.6
+      },
+      "cells": [
+        {
+          "id": "cell--3--1",
+          "lon": -6.67,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 726,
+          "slopeDeg": 23.7,
+          "scenarios": {
+            "actual": 0.6,
+            "atlanticSurge": 0.68,
+            "levanteReversal": 0.81,
+            "elNinoDroughtBoost": 0.73
+          }
+        },
+        {
+          "id": "cell--3-0",
+          "lon": -6.67,
+          "lat": 41.92,
+          "state": "IGNITING",
+          "frp": 745,
+          "slopeDeg": 20.6,
+          "scenarios": {
+            "actual": 0.63,
+            "atlanticSurge": 0.71,
+            "levanteReversal": 0.84,
+            "elNinoDroughtBoost": 0.76
+          }
+        },
+        {
+          "id": "cell--3-1",
+          "lon": -6.67,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 726,
+          "slopeDeg": 17.5,
+          "scenarios": {
+            "actual": 0.6,
+            "atlanticSurge": 0.68,
+            "levanteReversal": 0.81,
+            "elNinoDroughtBoost": 0.73
+          }
+        },
+        {
+          "id": "cell--2--2",
+          "lon": -6.53,
+          "lat": 41.7,
+          "state": "IGNITING",
+          "frp": 765,
+          "slopeDeg": 22.6,
+          "scenarios": {
+            "actual": 0.65,
+            "atlanticSurge": 0.75,
+            "levanteReversal": 0.87,
+            "elNinoDroughtBoost": 0.8
+          }
+        },
+        {
+          "id": "cell--2--1",
+          "lon": -6.53,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 833,
+          "slopeDeg": 19.5,
+          "scenarios": {
+            "actual": 0.75,
+            "atlanticSurge": 0.86,
+            "levanteReversal": 0.97,
+            "elNinoDroughtBoost": 0.92
+          }
+        },
+        {
+          "id": "cell--2-0",
+          "lon": -6.53,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 861,
+          "slopeDeg": 16.4,
+          "scenarios": {
+            "actual": 0.79,
+            "atlanticSurge": 0.91,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.97
+          }
+        },
+        {
+          "id": "cell--2-1",
+          "lon": -6.53,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 833,
+          "slopeDeg": 13.3,
+          "scenarios": {
+            "actual": 0.75,
+            "atlanticSurge": 0.86,
+            "levanteReversal": 0.97,
+            "elNinoDroughtBoost": 0.92
+          }
+        },
+        {
+          "id": "cell--2-2",
+          "lon": -6.53,
+          "lat": 42.14,
+          "state": "IGNITING",
+          "frp": 765,
+          "slopeDeg": 10.2,
+          "scenarios": {
+            "actual": 0.65,
+            "atlanticSurge": 0.75,
+            "levanteReversal": 0.87,
+            "elNinoDroughtBoost": 0.8
+          }
+        },
+        {
+          "id": "cell--1--3",
+          "lon": -6.39,
+          "lat": 41.59,
+          "state": "IGNITING",
+          "frp": 726,
+          "slopeDeg": 21.5,
+          "scenarios": {
+            "actual": 0.6,
+            "atlanticSurge": 0.68,
+            "levanteReversal": 0.81,
+            "elNinoDroughtBoost": 0.73
+          }
+        },
+        {
+          "id": "cell--1--2",
+          "lon": -6.39,
+          "lat": 41.7,
+          "state": "IGNITING",
+          "frp": 833,
+          "slopeDeg": 18.4,
+          "scenarios": {
+            "actual": 0.75,
+            "atlanticSurge": 0.86,
+            "levanteReversal": 0.97,
+            "elNinoDroughtBoost": 0.92
+          }
+        },
+        {
+          "id": "cell--1--1",
+          "lon": -6.39,
+          "lat": 41.81,
+          "state": "BURNING",
+          "frp": 928,
+          "slopeDeg": 15.3,
+          "scenarios": {
+            "actual": 0.89,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--1-0",
+          "lon": -6.39,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 976,
+          "slopeDeg": 12.2,
+          "scenarios": {
+            "actual": 0.96,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--1-1",
+          "lon": -6.39,
+          "lat": 42.03,
+          "state": "BURNING",
+          "frp": 928,
+          "slopeDeg": 9.1,
+          "scenarios": {
+            "actual": 0.89,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--1-2",
+          "lon": -6.39,
+          "lat": 42.14,
+          "state": "IGNITING",
+          "frp": 833,
+          "slopeDeg": 10,
+          "scenarios": {
+            "actual": 0.75,
+            "atlanticSurge": 0.86,
+            "levanteReversal": 0.97,
+            "elNinoDroughtBoost": 0.92
+          }
+        },
+        {
+          "id": "cell--1-3",
+          "lon": -6.39,
+          "lat": 42.25,
+          "state": "IGNITING",
+          "frp": 726,
+          "slopeDeg": 13.1,
+          "scenarios": {
+            "actual": 0.6,
+            "atlanticSurge": 0.68,
+            "levanteReversal": 0.81,
+            "elNinoDroughtBoost": 0.73
+          }
+        },
+        {
+          "id": "cell-0--3",
+          "lon": -6.25,
+          "lat": 41.59,
+          "state": "IGNITING",
+          "frp": 745,
+          "slopeDeg": 17.3,
+          "scenarios": {
+            "actual": 0.63,
+            "atlanticSurge": 0.71,
+            "levanteReversal": 0.51,
+            "elNinoDroughtBoost": 0.76
+          }
+        },
+        {
+          "id": "cell-0--2",
+          "lon": -6.25,
+          "lat": 41.7,
+          "state": "BURNING",
+          "frp": 861,
+          "slopeDeg": 14.2,
+          "scenarios": {
+            "actual": 0.79,
+            "atlanticSurge": 0.91,
+            "levanteReversal": 0.68,
+            "elNinoDroughtBoost": 0.97
+          }
+        },
+        {
+          "id": "cell-0--1",
+          "lon": -6.25,
+          "lat": 41.81,
+          "state": "BURNING",
+          "frp": 976,
+          "slopeDeg": 11.1,
+          "scenarios": {
+            "actual": 0.96,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.86,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-0",
+          "lon": -6.25,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 993,
+          "slopeDeg": 8,
+          "scenarios": {
+            "actual": 0.99,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-1",
+          "lon": -6.25,
+          "lat": 42.03,
+          "state": "BURNING",
+          "frp": 976,
+          "slopeDeg": 11.1,
+          "scenarios": {
+            "actual": 0.96,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.86,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-2",
+          "lon": -6.25,
+          "lat": 42.14,
+          "state": "BURNING",
+          "frp": 861,
+          "slopeDeg": 14.2,
+          "scenarios": {
+            "actual": 0.79,
+            "atlanticSurge": 0.91,
+            "levanteReversal": 0.68,
+            "elNinoDroughtBoost": 0.97
+          }
+        },
+        {
+          "id": "cell-0-3",
+          "lon": -6.25,
+          "lat": 42.25,
+          "state": "IGNITING",
+          "frp": 745,
+          "slopeDeg": 17.3,
+          "scenarios": {
+            "actual": 0.63,
+            "atlanticSurge": 0.71,
+            "levanteReversal": 0.51,
+            "elNinoDroughtBoost": 0.76
+          }
+        },
+        {
+          "id": "cell-1--3",
+          "lon": -6.11,
+          "lat": 41.59,
+          "state": "IGNITING",
+          "frp": 726,
+          "slopeDeg": 13.1,
+          "scenarios": {
+            "actual": 0.6,
+            "atlanticSurge": 0.8,
+            "levanteReversal": 0.48,
+            "elNinoDroughtBoost": 0.73
+          }
+        },
+        {
+          "id": "cell-1--2",
+          "lon": -6.11,
+          "lat": 41.7,
+          "state": "IGNITING",
+          "frp": 833,
+          "slopeDeg": 10,
+          "scenarios": {
+            "actual": 0.75,
+            "atlanticSurge": 0.98,
+            "levanteReversal": 0.64,
+            "elNinoDroughtBoost": 0.92
+          }
+        },
+        {
+          "id": "cell-1--1",
+          "lon": -6.11,
+          "lat": 41.81,
+          "state": "BURNING",
+          "frp": 928,
+          "slopeDeg": 9.1,
+          "scenarios": {
+            "actual": 0.89,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.79,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-1-0",
+          "lon": -6.11,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 976,
+          "slopeDeg": 12.2,
+          "scenarios": {
+            "actual": 0.96,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.86,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-1-1",
+          "lon": -6.11,
+          "lat": 42.03,
+          "state": "BURNING",
+          "frp": 928,
+          "slopeDeg": 15.3,
+          "scenarios": {
+            "actual": 0.89,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.79,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-1-2",
+          "lon": -6.11,
+          "lat": 42.14,
+          "state": "IGNITING",
+          "frp": 833,
+          "slopeDeg": 18.4,
+          "scenarios": {
+            "actual": 0.75,
+            "atlanticSurge": 0.98,
+            "levanteReversal": 0.64,
+            "elNinoDroughtBoost": 0.92
+          }
+        },
+        {
+          "id": "cell-1-3",
+          "lon": -6.11,
+          "lat": 42.25,
+          "state": "IGNITING",
+          "frp": 726,
+          "slopeDeg": 21.5,
+          "scenarios": {
+            "actual": 0.6,
+            "atlanticSurge": 0.8,
+            "levanteReversal": 0.48,
+            "elNinoDroughtBoost": 0.73
+          }
+        },
+        {
+          "id": "cell-2--2",
+          "lon": -5.97,
+          "lat": 41.7,
+          "state": "IGNITING",
+          "frp": 765,
+          "slopeDeg": 10.2,
+          "scenarios": {
+            "actual": 0.65,
+            "atlanticSurge": 0.87,
+            "levanteReversal": 0.54,
+            "elNinoDroughtBoost": 0.8
+          }
+        },
+        {
+          "id": "cell-2--1",
+          "lon": -5.97,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 833,
+          "slopeDeg": 13.3,
+          "scenarios": {
+            "actual": 0.75,
+            "atlanticSurge": 0.98,
+            "levanteReversal": 0.64,
+            "elNinoDroughtBoost": 0.92
+          }
+        },
+        {
+          "id": "cell-2-0",
+          "lon": -5.97,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 861,
+          "slopeDeg": 16.4,
+          "scenarios": {
+            "actual": 0.79,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.68,
+            "elNinoDroughtBoost": 0.97
+          }
+        },
+        {
+          "id": "cell-2-1",
+          "lon": -5.97,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 833,
+          "slopeDeg": 19.5,
+          "scenarios": {
+            "actual": 0.75,
+            "atlanticSurge": 0.98,
+            "levanteReversal": 0.64,
+            "elNinoDroughtBoost": 0.92
+          }
+        },
+        {
+          "id": "cell-2-2",
+          "lon": -5.97,
+          "lat": 42.14,
+          "state": "IGNITING",
+          "frp": 765,
+          "slopeDeg": 22.6,
+          "scenarios": {
+            "actual": 0.65,
+            "atlanticSurge": 0.87,
+            "levanteReversal": 0.54,
+            "elNinoDroughtBoost": 0.8
+          }
+        },
+        {
+          "id": "cell-3--1",
+          "lon": -5.83,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 726,
+          "slopeDeg": 17.5,
+          "scenarios": {
+            "actual": 0.6,
+            "atlanticSurge": 0.8,
+            "levanteReversal": 0.48,
+            "elNinoDroughtBoost": 0.73
+          }
+        },
+        {
+          "id": "cell-3-0",
+          "lon": -5.83,
+          "lat": 41.92,
+          "state": "IGNITING",
+          "frp": 745,
+          "slopeDeg": 20.6,
+          "scenarios": {
+            "actual": 0.63,
+            "atlanticSurge": 0.83,
+            "levanteReversal": 0.51,
+            "elNinoDroughtBoost": 0.76
+          }
+        },
+        {
+          "id": "cell-3-1",
+          "lon": -5.83,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 726,
+          "slopeDeg": 23.7,
+          "scenarios": {
+            "actual": 0.6,
+            "atlanticSurge": 0.8,
+            "levanteReversal": 0.48,
+            "elNinoDroughtBoost": 0.73
+          }
+        }
+      ]
+    },
+    {
+      "hourOffset": 8,
+      "timestamp": "2022-06-17T20:00:00Z",
+      "synopticSummary": {
+        "windSpeedKmh": 28.7,
+        "windDirDeg": 291,
+        "windShear3hDeg": 38,
+        "tempC": 37.9
+      },
+      "cells": [
+        {
+          "id": "cell--3--1",
+          "lon": -6.67,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 743,
+          "slopeDeg": 23.7,
+          "scenarios": {
+            "actual": 0.62,
+            "atlanticSurge": 0.71,
+            "levanteReversal": 0.83,
+            "elNinoDroughtBoost": 0.76
+          }
+        },
+        {
+          "id": "cell--3-0",
+          "lon": -6.67,
+          "lat": 41.92,
+          "state": "IGNITING",
+          "frp": 762,
+          "slopeDeg": 20.6,
+          "scenarios": {
+            "actual": 0.65,
+            "atlanticSurge": 0.74,
+            "levanteReversal": 0.86,
+            "elNinoDroughtBoost": 0.79
+          }
+        },
+        {
+          "id": "cell--3-1",
+          "lon": -6.67,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 743,
+          "slopeDeg": 17.5,
+          "scenarios": {
+            "actual": 0.62,
+            "atlanticSurge": 0.71,
+            "levanteReversal": 0.83,
+            "elNinoDroughtBoost": 0.76
+          }
+        },
+        {
+          "id": "cell--2--2",
+          "lon": -6.53,
+          "lat": 41.7,
+          "state": "IGNITING",
+          "frp": 782,
+          "slopeDeg": 22.6,
+          "scenarios": {
+            "actual": 0.68,
+            "atlanticSurge": 0.77,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.83
+          }
+        },
+        {
+          "id": "cell--2--1",
+          "lon": -6.53,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 850,
+          "slopeDeg": 19.5,
+          "scenarios": {
+            "actual": 0.78,
+            "atlanticSurge": 0.89,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.95
+          }
+        },
+        {
+          "id": "cell--2-0",
+          "lon": -6.53,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 878,
+          "slopeDeg": 16.4,
+          "scenarios": {
+            "actual": 0.82,
+            "atlanticSurge": 0.93,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--2-1",
+          "lon": -6.53,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 850,
+          "slopeDeg": 13.3,
+          "scenarios": {
+            "actual": 0.78,
+            "atlanticSurge": 0.89,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.95
+          }
+        },
+        {
+          "id": "cell--2-2",
+          "lon": -6.53,
+          "lat": 42.14,
+          "state": "IGNITING",
+          "frp": 782,
+          "slopeDeg": 10.2,
+          "scenarios": {
+            "actual": 0.68,
+            "atlanticSurge": 0.77,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.83
+          }
+        },
+        {
+          "id": "cell--1--3",
+          "lon": -6.39,
+          "lat": 41.59,
+          "state": "IGNITING",
+          "frp": 743,
+          "slopeDeg": 21.5,
+          "scenarios": {
+            "actual": 0.62,
+            "atlanticSurge": 0.71,
+            "levanteReversal": 0.83,
+            "elNinoDroughtBoost": 0.76
+          }
+        },
+        {
+          "id": "cell--1--2",
+          "lon": -6.39,
+          "lat": 41.7,
+          "state": "IGNITING",
+          "frp": 850,
+          "slopeDeg": 18.4,
+          "scenarios": {
+            "actual": 0.78,
+            "atlanticSurge": 0.89,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.95
+          }
+        },
+        {
+          "id": "cell--1--1",
+          "lon": -6.39,
+          "lat": 41.81,
+          "state": "BURNING",
+          "frp": 945,
+          "slopeDeg": 15.3,
+          "scenarios": {
+            "actual": 0.92,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--1-0",
+          "lon": -6.39,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 993,
+          "slopeDeg": 12.2,
+          "scenarios": {
+            "actual": 0.99,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--1-1",
+          "lon": -6.39,
+          "lat": 42.03,
+          "state": "BURNING",
+          "frp": 945,
+          "slopeDeg": 9.1,
+          "scenarios": {
+            "actual": 0.92,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--1-2",
+          "lon": -6.39,
+          "lat": 42.14,
+          "state": "IGNITING",
+          "frp": 850,
+          "slopeDeg": 10,
+          "scenarios": {
+            "actual": 0.78,
+            "atlanticSurge": 0.89,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.95
+          }
+        },
+        {
+          "id": "cell--1-3",
+          "lon": -6.39,
+          "lat": 42.25,
+          "state": "IGNITING",
+          "frp": 743,
+          "slopeDeg": 13.1,
+          "scenarios": {
+            "actual": 0.62,
+            "atlanticSurge": 0.71,
+            "levanteReversal": 0.83,
+            "elNinoDroughtBoost": 0.76
+          }
+        },
+        {
+          "id": "cell-0--3",
+          "lon": -6.25,
+          "lat": 41.59,
+          "state": "IGNITING",
+          "frp": 762,
+          "slopeDeg": 17.3,
+          "scenarios": {
+            "actual": 0.65,
+            "atlanticSurge": 0.74,
+            "levanteReversal": 0.53,
+            "elNinoDroughtBoost": 0.79
+          }
+        },
+        {
+          "id": "cell-0--2",
+          "lon": -6.25,
+          "lat": 41.7,
+          "state": "BURNING",
+          "frp": 878,
+          "slopeDeg": 14.2,
+          "scenarios": {
+            "actual": 0.82,
+            "atlanticSurge": 0.93,
+            "levanteReversal": 0.71,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0--1",
+          "lon": -6.25,
+          "lat": 41.81,
+          "state": "BURNING",
+          "frp": 993,
+          "slopeDeg": 11.1,
+          "scenarios": {
+            "actual": 0.99,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-0",
+          "lon": -6.25,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 993,
+          "slopeDeg": 8,
+          "scenarios": {
+            "actual": 0.99,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-1",
+          "lon": -6.25,
+          "lat": 42.03,
+          "state": "BURNING",
+          "frp": 993,
+          "slopeDeg": 11.1,
+          "scenarios": {
+            "actual": 0.99,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-2",
+          "lon": -6.25,
+          "lat": 42.14,
+          "state": "BURNING",
+          "frp": 878,
+          "slopeDeg": 14.2,
+          "scenarios": {
+            "actual": 0.82,
+            "atlanticSurge": 0.93,
+            "levanteReversal": 0.71,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-3",
+          "lon": -6.25,
+          "lat": 42.25,
+          "state": "IGNITING",
+          "frp": 762,
+          "slopeDeg": 17.3,
+          "scenarios": {
+            "actual": 0.65,
+            "atlanticSurge": 0.74,
+            "levanteReversal": 0.53,
+            "elNinoDroughtBoost": 0.79
+          }
+        },
+        {
+          "id": "cell-1--3",
+          "lon": -6.11,
+          "lat": 41.59,
+          "state": "IGNITING",
+          "frp": 743,
+          "slopeDeg": 13.1,
+          "scenarios": {
+            "actual": 0.62,
+            "atlanticSurge": 0.83,
+            "levanteReversal": 0.5,
+            "elNinoDroughtBoost": 0.76
+          }
+        },
+        {
+          "id": "cell-1--2",
+          "lon": -6.11,
+          "lat": 41.7,
+          "state": "IGNITING",
+          "frp": 850,
+          "slopeDeg": 10,
+          "scenarios": {
+            "actual": 0.78,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.67,
+            "elNinoDroughtBoost": 0.95
+          }
+        },
+        {
+          "id": "cell-1--1",
+          "lon": -6.11,
+          "lat": 41.81,
+          "state": "BURNING",
+          "frp": 945,
+          "slopeDeg": 9.1,
+          "scenarios": {
+            "actual": 0.92,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.82,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-1-0",
+          "lon": -6.11,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 993,
+          "slopeDeg": 12.2,
+          "scenarios": {
+            "actual": 0.99,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-1-1",
+          "lon": -6.11,
+          "lat": 42.03,
+          "state": "BURNING",
+          "frp": 945,
+          "slopeDeg": 15.3,
+          "scenarios": {
+            "actual": 0.92,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.82,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-1-2",
+          "lon": -6.11,
+          "lat": 42.14,
+          "state": "IGNITING",
+          "frp": 850,
+          "slopeDeg": 18.4,
+          "scenarios": {
+            "actual": 0.78,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.67,
+            "elNinoDroughtBoost": 0.95
+          }
+        },
+        {
+          "id": "cell-1-3",
+          "lon": -6.11,
+          "lat": 42.25,
+          "state": "IGNITING",
+          "frp": 743,
+          "slopeDeg": 21.5,
+          "scenarios": {
+            "actual": 0.62,
+            "atlanticSurge": 0.83,
+            "levanteReversal": 0.5,
+            "elNinoDroughtBoost": 0.76
+          }
+        },
+        {
+          "id": "cell-2--2",
+          "lon": -5.97,
+          "lat": 41.7,
+          "state": "IGNITING",
+          "frp": 782,
+          "slopeDeg": 10.2,
+          "scenarios": {
+            "actual": 0.68,
+            "atlanticSurge": 0.89,
+            "levanteReversal": 0.56,
+            "elNinoDroughtBoost": 0.83
+          }
+        },
+        {
+          "id": "cell-2--1",
+          "lon": -5.97,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 850,
+          "slopeDeg": 13.3,
+          "scenarios": {
+            "actual": 0.78,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.67,
+            "elNinoDroughtBoost": 0.95
+          }
+        },
+        {
+          "id": "cell-2-0",
+          "lon": -5.97,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 878,
+          "slopeDeg": 16.4,
+          "scenarios": {
+            "actual": 0.82,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.71,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-2-1",
+          "lon": -5.97,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 850,
+          "slopeDeg": 19.5,
+          "scenarios": {
+            "actual": 0.78,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.67,
+            "elNinoDroughtBoost": 0.95
+          }
+        },
+        {
+          "id": "cell-2-2",
+          "lon": -5.97,
+          "lat": 42.14,
+          "state": "IGNITING",
+          "frp": 782,
+          "slopeDeg": 22.6,
+          "scenarios": {
+            "actual": 0.68,
+            "atlanticSurge": 0.89,
+            "levanteReversal": 0.56,
+            "elNinoDroughtBoost": 0.83
+          }
+        },
+        {
+          "id": "cell-3--1",
+          "lon": -5.83,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 743,
+          "slopeDeg": 17.5,
+          "scenarios": {
+            "actual": 0.62,
+            "atlanticSurge": 0.83,
+            "levanteReversal": 0.5,
+            "elNinoDroughtBoost": 0.76
+          }
+        },
+        {
+          "id": "cell-3-0",
+          "lon": -5.83,
+          "lat": 41.92,
+          "state": "IGNITING",
+          "frp": 762,
+          "slopeDeg": 20.6,
+          "scenarios": {
+            "actual": 0.65,
+            "atlanticSurge": 0.86,
+            "levanteReversal": 0.53,
+            "elNinoDroughtBoost": 0.79
+          }
+        },
+        {
+          "id": "cell-3-1",
+          "lon": -5.83,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 743,
+          "slopeDeg": 23.7,
+          "scenarios": {
+            "actual": 0.62,
+            "atlanticSurge": 0.83,
+            "levanteReversal": 0.5,
+            "elNinoDroughtBoost": 0.76
+          }
+        }
+      ]
+    },
+    {
+      "hourOffset": 9,
+      "timestamp": "2022-06-17T21:00:00Z",
+      "synopticSummary": {
+        "windSpeedKmh": 24.5,
+        "windDirDeg": 298,
+        "windShear3hDeg": 42,
+        "tempC": 36.9
+      },
+      "cells": [
+        {
+          "id": "cell--4--1",
+          "lon": -6.81,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 649,
+          "slopeDeg": 27.9,
+          "scenarios": {
+            "actual": 0.48,
+            "atlanticSurge": 0.55,
+            "levanteReversal": 0.69,
+            "elNinoDroughtBoost": 0.59
+          }
+        },
+        {
+          "id": "cell--4-0",
+          "lon": -6.81,
+          "lat": 41.92,
+          "state": "IGNITING",
+          "frp": 663,
+          "slopeDeg": 24.8,
+          "scenarios": {
+            "actual": 0.5,
+            "atlanticSurge": 0.58,
+            "levanteReversal": 0.71,
+            "elNinoDroughtBoost": 0.62
+          }
+        },
+        {
+          "id": "cell--4-1",
+          "lon": -6.81,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 649,
+          "slopeDeg": 21.7,
+          "scenarios": {
+            "actual": 0.48,
+            "atlanticSurge": 0.55,
+            "levanteReversal": 0.69,
+            "elNinoDroughtBoost": 0.59
+          }
+        },
+        {
+          "id": "cell--3--3",
+          "lon": -6.67,
+          "lat": 41.59,
+          "state": "IGNITING",
+          "frp": 635,
+          "slopeDeg": 29.9,
+          "scenarios": {
+            "actual": 0.46,
+            "atlanticSurge": 0.53,
+            "levanteReversal": 0.67,
+            "elNinoDroughtBoost": 0.57
+          }
+        },
+        {
+          "id": "cell--3--2",
+          "lon": -6.67,
+          "lat": 41.7,
+          "state": "IGNITING",
+          "frp": 709,
+          "slopeDeg": 26.8,
+          "scenarios": {
+            "actual": 0.57,
+            "atlanticSurge": 0.65,
+            "levanteReversal": 0.78,
+            "elNinoDroughtBoost": 0.7
+          }
+        },
+        {
+          "id": "cell--3--1",
+          "lon": -6.67,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 760,
+          "slopeDeg": 23.7,
+          "scenarios": {
+            "actual": 0.65,
+            "atlanticSurge": 0.74,
+            "levanteReversal": 0.86,
+            "elNinoDroughtBoost": 0.79
+          }
+        },
+        {
+          "id": "cell--3-0",
+          "lon": -6.67,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 779,
+          "slopeDeg": 20.6,
+          "scenarios": {
+            "actual": 0.67,
+            "atlanticSurge": 0.77,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.82
+          }
+        },
+        {
+          "id": "cell--3-1",
+          "lon": -6.67,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 760,
+          "slopeDeg": 17.5,
+          "scenarios": {
+            "actual": 0.65,
+            "atlanticSurge": 0.74,
+            "levanteReversal": 0.86,
+            "elNinoDroughtBoost": 0.79
+          }
+        },
+        {
+          "id": "cell--3-2",
+          "lon": -6.67,
+          "lat": 42.14,
+          "state": "IGNITING",
+          "frp": 709,
+          "slopeDeg": 14.4,
+          "scenarios": {
+            "actual": 0.57,
+            "atlanticSurge": 0.65,
+            "levanteReversal": 0.78,
+            "elNinoDroughtBoost": 0.7
+          }
+        },
+        {
+          "id": "cell--3-3",
+          "lon": -6.67,
+          "lat": 42.25,
+          "state": "IGNITING",
+          "frp": 635,
+          "slopeDeg": 11.3,
+          "scenarios": {
+            "actual": 0.46,
+            "atlanticSurge": 0.53,
+            "levanteReversal": 0.67,
+            "elNinoDroughtBoost": 0.57
+          }
+        },
+        {
+          "id": "cell--2--3",
+          "lon": -6.53,
+          "lat": 41.59,
+          "state": "IGNITING",
+          "frp": 709,
+          "slopeDeg": 25.7,
+          "scenarios": {
+            "actual": 0.57,
+            "atlanticSurge": 0.65,
+            "levanteReversal": 0.78,
+            "elNinoDroughtBoost": 0.7
+          }
+        },
+        {
+          "id": "cell--2--2",
+          "lon": -6.53,
+          "lat": 41.7,
+          "state": "BURNING",
+          "frp": 799,
+          "slopeDeg": 22.6,
+          "scenarios": {
+            "actual": 0.7,
+            "atlanticSurge": 0.8,
+            "levanteReversal": 0.92,
+            "elNinoDroughtBoost": 0.86
+          }
+        },
+        {
+          "id": "cell--2--1",
+          "lon": -6.53,
+          "lat": 41.81,
+          "state": "BURNING",
+          "frp": 867,
+          "slopeDeg": 19.5,
+          "scenarios": {
+            "actual": 0.8,
+            "atlanticSurge": 0.92,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.98
+          }
+        },
+        {
+          "id": "cell--2-0",
+          "lon": -6.53,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 895,
+          "slopeDeg": 16.4,
+          "scenarios": {
+            "actual": 0.84,
+            "atlanticSurge": 0.96,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--2-1",
+          "lon": -6.53,
+          "lat": 42.03,
+          "state": "BURNING",
+          "frp": 867,
+          "slopeDeg": 13.3,
+          "scenarios": {
+            "actual": 0.8,
+            "atlanticSurge": 0.92,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.98
+          }
+        },
+        {
+          "id": "cell--2-2",
+          "lon": -6.53,
+          "lat": 42.14,
+          "state": "BURNING",
+          "frp": 799,
+          "slopeDeg": 10.2,
+          "scenarios": {
+            "actual": 0.7,
+            "atlanticSurge": 0.8,
+            "levanteReversal": 0.92,
+            "elNinoDroughtBoost": 0.86
+          }
+        },
+        {
+          "id": "cell--2-3",
+          "lon": -6.53,
+          "lat": 42.25,
+          "state": "IGNITING",
+          "frp": 709,
+          "slopeDeg": 8.9,
+          "scenarios": {
+            "actual": 0.57,
+            "atlanticSurge": 0.65,
+            "levanteReversal": 0.78,
+            "elNinoDroughtBoost": 0.7
+          }
+        },
+        {
+          "id": "cell--1--4",
+          "lon": -6.39,
+          "lat": 41.48,
+          "state": "IGNITING",
+          "frp": 649,
+          "slopeDeg": 24.6,
+          "scenarios": {
+            "actual": 0.48,
+            "atlanticSurge": 0.55,
+            "levanteReversal": 0.69,
+            "elNinoDroughtBoost": 0.59
+          }
+        },
+        {
+          "id": "cell--1--3",
+          "lon": -6.39,
+          "lat": 41.59,
+          "state": "IGNITING",
+          "frp": 760,
+          "slopeDeg": 21.5,
+          "scenarios": {
+            "actual": 0.65,
+            "atlanticSurge": 0.74,
+            "levanteReversal": 0.86,
+            "elNinoDroughtBoost": 0.79
+          }
+        },
+        {
+          "id": "cell--1--2",
+          "lon": -6.39,
+          "lat": 41.7,
+          "state": "BURNING",
+          "frp": 867,
+          "slopeDeg": 18.4,
+          "scenarios": {
+            "actual": 0.8,
+            "atlanticSurge": 0.92,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.98
+          }
+        },
+        {
+          "id": "cell--1--1",
+          "lon": -6.39,
+          "lat": 41.81,
+          "state": "BURNING",
+          "frp": 962,
+          "slopeDeg": 15.3,
+          "scenarios": {
+            "actual": 0.94,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--1-0",
+          "lon": -6.39,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 993,
+          "slopeDeg": 12.2,
+          "scenarios": {
+            "actual": 0.99,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--1-1",
+          "lon": -6.39,
+          "lat": 42.03,
+          "state": "BURNING",
+          "frp": 962,
+          "slopeDeg": 9.1,
+          "scenarios": {
+            "actual": 0.94,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--1-2",
+          "lon": -6.39,
+          "lat": 42.14,
+          "state": "BURNING",
+          "frp": 867,
+          "slopeDeg": 10,
+          "scenarios": {
+            "actual": 0.8,
+            "atlanticSurge": 0.92,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.98
+          }
+        },
+        {
+          "id": "cell--1-3",
+          "lon": -6.39,
+          "lat": 42.25,
+          "state": "IGNITING",
+          "frp": 760,
+          "slopeDeg": 13.1,
+          "scenarios": {
+            "actual": 0.65,
+            "atlanticSurge": 0.74,
+            "levanteReversal": 0.86,
+            "elNinoDroughtBoost": 0.79
+          }
+        },
+        {
+          "id": "cell--1-4",
+          "lon": -6.39,
+          "lat": 42.36,
+          "state": "IGNITING",
+          "frp": 649,
+          "slopeDeg": 16.2,
+          "scenarios": {
+            "actual": 0.48,
+            "atlanticSurge": 0.55,
+            "levanteReversal": 0.69,
+            "elNinoDroughtBoost": 0.59
+          }
+        },
+        {
+          "id": "cell-0--4",
+          "lon": -6.25,
+          "lat": 41.48,
+          "state": "IGNITING",
+          "frp": 663,
+          "slopeDeg": 20.4,
+          "scenarios": {
+            "actual": 0.5,
+            "atlanticSurge": 0.58,
+            "levanteReversal": 0.38,
+            "elNinoDroughtBoost": 0.62
+          }
+        },
+        {
+          "id": "cell-0--3",
+          "lon": -6.25,
+          "lat": 41.59,
+          "state": "BURNING",
+          "frp": 779,
+          "slopeDeg": 17.3,
+          "scenarios": {
+            "actual": 0.67,
+            "atlanticSurge": 0.77,
+            "levanteReversal": 0.56,
+            "elNinoDroughtBoost": 0.82
+          }
+        },
+        {
+          "id": "cell-0--2",
+          "lon": -6.25,
+          "lat": 41.7,
+          "state": "BURNING",
+          "frp": 895,
+          "slopeDeg": 14.2,
+          "scenarios": {
+            "actual": 0.84,
+            "atlanticSurge": 0.96,
+            "levanteReversal": 0.74,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0--1",
+          "lon": -6.25,
+          "lat": 41.81,
+          "state": "BURNING",
+          "frp": 993,
+          "slopeDeg": 11.1,
+          "scenarios": {
+            "actual": 0.99,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-0",
+          "lon": -6.25,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 993,
+          "slopeDeg": 8,
+          "scenarios": {
+            "actual": 0.99,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-1",
+          "lon": -6.25,
+          "lat": 42.03,
+          "state": "BURNING",
+          "frp": 993,
+          "slopeDeg": 11.1,
+          "scenarios": {
+            "actual": 0.99,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-2",
+          "lon": -6.25,
+          "lat": 42.14,
+          "state": "BURNING",
+          "frp": 895,
+          "slopeDeg": 14.2,
+          "scenarios": {
+            "actual": 0.84,
+            "atlanticSurge": 0.96,
+            "levanteReversal": 0.74,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-3",
+          "lon": -6.25,
+          "lat": 42.25,
+          "state": "BURNING",
+          "frp": 779,
+          "slopeDeg": 17.3,
+          "scenarios": {
+            "actual": 0.67,
+            "atlanticSurge": 0.77,
+            "levanteReversal": 0.56,
+            "elNinoDroughtBoost": 0.82
+          }
+        },
+        {
+          "id": "cell-0-4",
+          "lon": -6.25,
+          "lat": 42.36,
+          "state": "IGNITING",
+          "frp": 663,
+          "slopeDeg": 20.4,
+          "scenarios": {
+            "actual": 0.5,
+            "atlanticSurge": 0.58,
+            "levanteReversal": 0.38,
+            "elNinoDroughtBoost": 0.62
+          }
+        },
+        {
+          "id": "cell-1--4",
+          "lon": -6.11,
+          "lat": 41.48,
+          "state": "IGNITING",
+          "frp": 649,
+          "slopeDeg": 16.2,
+          "scenarios": {
+            "actual": 0.48,
+            "atlanticSurge": 0.67,
+            "levanteReversal": 0.36,
+            "elNinoDroughtBoost": 0.59
+          }
+        },
+        {
+          "id": "cell-1--3",
+          "lon": -6.11,
+          "lat": 41.59,
+          "state": "IGNITING",
+          "frp": 760,
+          "slopeDeg": 13.1,
+          "scenarios": {
+            "actual": 0.65,
+            "atlanticSurge": 0.86,
+            "levanteReversal": 0.53,
+            "elNinoDroughtBoost": 0.79
+          }
+        },
+        {
+          "id": "cell-1--2",
+          "lon": -6.11,
+          "lat": 41.7,
+          "state": "BURNING",
+          "frp": 867,
+          "slopeDeg": 10,
+          "scenarios": {
+            "actual": 0.8,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.7,
+            "elNinoDroughtBoost": 0.98
+          }
+        },
+        {
+          "id": "cell-1--1",
+          "lon": -6.11,
+          "lat": 41.81,
+          "state": "BURNING",
+          "frp": 962,
+          "slopeDeg": 9.1,
+          "scenarios": {
+            "actual": 0.94,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.84,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-1-0",
+          "lon": -6.11,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 993,
+          "slopeDeg": 12.2,
+          "scenarios": {
+            "actual": 0.99,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-1-1",
+          "lon": -6.11,
+          "lat": 42.03,
+          "state": "BURNING",
+          "frp": 962,
+          "slopeDeg": 15.3,
+          "scenarios": {
+            "actual": 0.94,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.84,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-1-2",
+          "lon": -6.11,
+          "lat": 42.14,
+          "state": "BURNING",
+          "frp": 867,
+          "slopeDeg": 18.4,
+          "scenarios": {
+            "actual": 0.8,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.7,
+            "elNinoDroughtBoost": 0.98
+          }
+        },
+        {
+          "id": "cell-1-3",
+          "lon": -6.11,
+          "lat": 42.25,
+          "state": "IGNITING",
+          "frp": 760,
+          "slopeDeg": 21.5,
+          "scenarios": {
+            "actual": 0.65,
+            "atlanticSurge": 0.86,
+            "levanteReversal": 0.53,
+            "elNinoDroughtBoost": 0.79
+          }
+        },
+        {
+          "id": "cell-1-4",
+          "lon": -6.11,
+          "lat": 42.36,
+          "state": "IGNITING",
+          "frp": 649,
+          "slopeDeg": 24.6,
+          "scenarios": {
+            "actual": 0.48,
+            "atlanticSurge": 0.67,
+            "levanteReversal": 0.36,
+            "elNinoDroughtBoost": 0.59
+          }
+        },
+        {
+          "id": "cell-2--3",
+          "lon": -5.97,
+          "lat": 41.59,
+          "state": "IGNITING",
+          "frp": 709,
+          "slopeDeg": 8.9,
+          "scenarios": {
+            "actual": 0.57,
+            "atlanticSurge": 0.77,
+            "levanteReversal": 0.45,
+            "elNinoDroughtBoost": 0.7
+          }
+        },
+        {
+          "id": "cell-2--2",
+          "lon": -5.97,
+          "lat": 41.7,
+          "state": "BURNING",
+          "frp": 799,
+          "slopeDeg": 10.2,
+          "scenarios": {
+            "actual": 0.7,
+            "atlanticSurge": 0.92,
+            "levanteReversal": 0.59,
+            "elNinoDroughtBoost": 0.86
+          }
+        },
+        {
+          "id": "cell-2--1",
+          "lon": -5.97,
+          "lat": 41.81,
+          "state": "BURNING",
+          "frp": 867,
+          "slopeDeg": 13.3,
+          "scenarios": {
+            "actual": 0.8,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.7,
+            "elNinoDroughtBoost": 0.98
+          }
+        },
+        {
+          "id": "cell-2-0",
+          "lon": -5.97,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 895,
+          "slopeDeg": 16.4,
+          "scenarios": {
+            "actual": 0.84,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.74,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-2-1",
+          "lon": -5.97,
+          "lat": 42.03,
+          "state": "BURNING",
+          "frp": 867,
+          "slopeDeg": 19.5,
+          "scenarios": {
+            "actual": 0.8,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.7,
+            "elNinoDroughtBoost": 0.98
+          }
+        },
+        {
+          "id": "cell-2-2",
+          "lon": -5.97,
+          "lat": 42.14,
+          "state": "BURNING",
+          "frp": 799,
+          "slopeDeg": 22.6,
+          "scenarios": {
+            "actual": 0.7,
+            "atlanticSurge": 0.92,
+            "levanteReversal": 0.59,
+            "elNinoDroughtBoost": 0.86
+          }
+        },
+        {
+          "id": "cell-2-3",
+          "lon": -5.97,
+          "lat": 42.25,
+          "state": "IGNITING",
+          "frp": 709,
+          "slopeDeg": 25.7,
+          "scenarios": {
+            "actual": 0.57,
+            "atlanticSurge": 0.77,
+            "levanteReversal": 0.45,
+            "elNinoDroughtBoost": 0.7
+          }
+        },
+        {
+          "id": "cell-3--3",
+          "lon": -5.83,
+          "lat": 41.59,
+          "state": "IGNITING",
+          "frp": 635,
+          "slopeDeg": 11.3,
+          "scenarios": {
+            "actual": 0.46,
+            "atlanticSurge": 0.65,
+            "levanteReversal": 0.34,
+            "elNinoDroughtBoost": 0.57
+          }
+        },
+        {
+          "id": "cell-3--2",
+          "lon": -5.83,
+          "lat": 41.7,
+          "state": "IGNITING",
+          "frp": 709,
+          "slopeDeg": 14.4,
+          "scenarios": {
+            "actual": 0.57,
+            "atlanticSurge": 0.77,
+            "levanteReversal": 0.45,
+            "elNinoDroughtBoost": 0.7
+          }
+        },
+        {
+          "id": "cell-3--1",
+          "lon": -5.83,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 760,
+          "slopeDeg": 17.5,
+          "scenarios": {
+            "actual": 0.65,
+            "atlanticSurge": 0.86,
+            "levanteReversal": 0.53,
+            "elNinoDroughtBoost": 0.79
+          }
+        },
+        {
+          "id": "cell-3-0",
+          "lon": -5.83,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 779,
+          "slopeDeg": 20.6,
+          "scenarios": {
+            "actual": 0.67,
+            "atlanticSurge": 0.89,
+            "levanteReversal": 0.56,
+            "elNinoDroughtBoost": 0.82
+          }
+        },
+        {
+          "id": "cell-3-1",
+          "lon": -5.83,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 760,
+          "slopeDeg": 23.7,
+          "scenarios": {
+            "actual": 0.65,
+            "atlanticSurge": 0.86,
+            "levanteReversal": 0.53,
+            "elNinoDroughtBoost": 0.79
+          }
+        },
+        {
+          "id": "cell-3-2",
+          "lon": -5.83,
+          "lat": 42.14,
+          "state": "IGNITING",
+          "frp": 709,
+          "slopeDeg": 26.8,
+          "scenarios": {
+            "actual": 0.57,
+            "atlanticSurge": 0.77,
+            "levanteReversal": 0.45,
+            "elNinoDroughtBoost": 0.7
+          }
+        },
+        {
+          "id": "cell-3-3",
+          "lon": -5.83,
+          "lat": 42.25,
+          "state": "IGNITING",
+          "frp": 635,
+          "slopeDeg": 29.9,
+          "scenarios": {
+            "actual": 0.46,
+            "atlanticSurge": 0.65,
+            "levanteReversal": 0.34,
+            "elNinoDroughtBoost": 0.57
+          }
+        },
+        {
+          "id": "cell-4--1",
+          "lon": -5.69,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 649,
+          "slopeDeg": 21.7,
+          "scenarios": {
+            "actual": 0.48,
+            "atlanticSurge": 0.67,
+            "levanteReversal": 0.36,
+            "elNinoDroughtBoost": 0.59
+          }
+        },
+        {
+          "id": "cell-4-0",
+          "lon": -5.69,
+          "lat": 41.92,
+          "state": "IGNITING",
+          "frp": 663,
+          "slopeDeg": 24.8,
+          "scenarios": {
+            "actual": 0.5,
+            "atlanticSurge": 0.7,
+            "levanteReversal": 0.38,
+            "elNinoDroughtBoost": 0.62
+          }
+        },
+        {
+          "id": "cell-4-1",
+          "lon": -5.69,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 649,
+          "slopeDeg": 27.9,
+          "scenarios": {
+            "actual": 0.48,
+            "atlanticSurge": 0.67,
+            "levanteReversal": 0.36,
+            "elNinoDroughtBoost": 0.59
+          }
+        }
+      ]
+    },
+    {
+      "hourOffset": 10,
+      "timestamp": "2022-06-17T22:00:00Z",
+      "synopticSummary": {
+        "windSpeedKmh": 22.3,
+        "windDirDeg": 305,
+        "windShear3hDeg": 39,
+        "tempC": 35.8
+      },
+      "cells": [
+        {
+          "id": "cell--4--1",
+          "lon": -6.81,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 666,
+          "slopeDeg": 27.9,
+          "scenarios": {
+            "actual": 0.51,
+            "atlanticSurge": 0.58,
+            "levanteReversal": 0.71,
+            "elNinoDroughtBoost": 0.62
+          }
+        },
+        {
+          "id": "cell--4-0",
+          "lon": -6.81,
+          "lat": 41.92,
+          "state": "IGNITING",
+          "frp": 680,
+          "slopeDeg": 24.8,
+          "scenarios": {
+            "actual": 0.53,
+            "atlanticSurge": 0.6,
+            "levanteReversal": 0.74,
+            "elNinoDroughtBoost": 0.65
+          }
+        },
+        {
+          "id": "cell--4-1",
+          "lon": -6.81,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 666,
+          "slopeDeg": 21.7,
+          "scenarios": {
+            "actual": 0.51,
+            "atlanticSurge": 0.58,
+            "levanteReversal": 0.71,
+            "elNinoDroughtBoost": 0.62
+          }
+        },
+        {
+          "id": "cell--3--3",
+          "lon": -6.67,
+          "lat": 41.59,
+          "state": "IGNITING",
+          "frp": 652,
+          "slopeDeg": 29.9,
+          "scenarios": {
+            "actual": 0.49,
+            "atlanticSurge": 0.56,
+            "levanteReversal": 0.69,
+            "elNinoDroughtBoost": 0.6
+          }
+        },
+        {
+          "id": "cell--3--2",
+          "lon": -6.67,
+          "lat": 41.7,
+          "state": "IGNITING",
+          "frp": 726,
+          "slopeDeg": 26.8,
+          "scenarios": {
+            "actual": 0.6,
+            "atlanticSurge": 0.68,
+            "levanteReversal": 0.81,
+            "elNinoDroughtBoost": 0.73
+          }
+        },
+        {
+          "id": "cell--3--1",
+          "lon": -6.67,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 777,
+          "slopeDeg": 23.7,
+          "scenarios": {
+            "actual": 0.67,
+            "atlanticSurge": 0.77,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.82
+          }
+        },
+        {
+          "id": "cell--3-0",
+          "lon": -6.67,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 796,
+          "slopeDeg": 20.6,
+          "scenarios": {
+            "actual": 0.7,
+            "atlanticSurge": 0.8,
+            "levanteReversal": 0.92,
+            "elNinoDroughtBoost": 0.85
+          }
+        },
+        {
+          "id": "cell--3-1",
+          "lon": -6.67,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 777,
+          "slopeDeg": 17.5,
+          "scenarios": {
+            "actual": 0.67,
+            "atlanticSurge": 0.77,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.82
+          }
+        },
+        {
+          "id": "cell--3-2",
+          "lon": -6.67,
+          "lat": 42.14,
+          "state": "IGNITING",
+          "frp": 726,
+          "slopeDeg": 14.4,
+          "scenarios": {
+            "actual": 0.6,
+            "atlanticSurge": 0.68,
+            "levanteReversal": 0.81,
+            "elNinoDroughtBoost": 0.73
+          }
+        },
+        {
+          "id": "cell--3-3",
+          "lon": -6.67,
+          "lat": 42.25,
+          "state": "IGNITING",
+          "frp": 652,
+          "slopeDeg": 11.3,
+          "scenarios": {
+            "actual": 0.49,
+            "atlanticSurge": 0.56,
+            "levanteReversal": 0.69,
+            "elNinoDroughtBoost": 0.6
+          }
+        },
+        {
+          "id": "cell--2--3",
+          "lon": -6.53,
+          "lat": 41.59,
+          "state": "IGNITING",
+          "frp": 726,
+          "slopeDeg": 25.7,
+          "scenarios": {
+            "actual": 0.6,
+            "atlanticSurge": 0.68,
+            "levanteReversal": 0.81,
+            "elNinoDroughtBoost": 0.73
+          }
+        },
+        {
+          "id": "cell--2--2",
+          "lon": -6.53,
+          "lat": 41.7,
+          "state": "BURNING",
+          "frp": 816,
+          "slopeDeg": 22.6,
+          "scenarios": {
+            "actual": 0.73,
+            "atlanticSurge": 0.83,
+            "levanteReversal": 0.95,
+            "elNinoDroughtBoost": 0.89
+          }
+        },
+        {
+          "id": "cell--2--1",
+          "lon": -6.53,
+          "lat": 41.81,
+          "state": "BURNING",
+          "frp": 884,
+          "slopeDeg": 19.5,
+          "scenarios": {
+            "actual": 0.83,
+            "atlanticSurge": 0.95,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--2-0",
+          "lon": -6.53,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 912,
+          "slopeDeg": 16.4,
+          "scenarios": {
+            "actual": 0.87,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--2-1",
+          "lon": -6.53,
+          "lat": 42.03,
+          "state": "BURNING",
+          "frp": 884,
+          "slopeDeg": 13.3,
+          "scenarios": {
+            "actual": 0.83,
+            "atlanticSurge": 0.95,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--2-2",
+          "lon": -6.53,
+          "lat": 42.14,
+          "state": "BURNING",
+          "frp": 816,
+          "slopeDeg": 10.2,
+          "scenarios": {
+            "actual": 0.73,
+            "atlanticSurge": 0.83,
+            "levanteReversal": 0.95,
+            "elNinoDroughtBoost": 0.89
+          }
+        },
+        {
+          "id": "cell--2-3",
+          "lon": -6.53,
+          "lat": 42.25,
+          "state": "IGNITING",
+          "frp": 726,
+          "slopeDeg": 8.9,
+          "scenarios": {
+            "actual": 0.6,
+            "atlanticSurge": 0.68,
+            "levanteReversal": 0.81,
+            "elNinoDroughtBoost": 0.73
+          }
+        },
+        {
+          "id": "cell--1--4",
+          "lon": -6.39,
+          "lat": 41.48,
+          "state": "IGNITING",
+          "frp": 666,
+          "slopeDeg": 24.6,
+          "scenarios": {
+            "actual": 0.51,
+            "atlanticSurge": 0.58,
+            "levanteReversal": 0.71,
+            "elNinoDroughtBoost": 0.62
+          }
+        },
+        {
+          "id": "cell--1--3",
+          "lon": -6.39,
+          "lat": 41.59,
+          "state": "IGNITING",
+          "frp": 777,
+          "slopeDeg": 21.5,
+          "scenarios": {
+            "actual": 0.67,
+            "atlanticSurge": 0.77,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.82
+          }
+        },
+        {
+          "id": "cell--1--2",
+          "lon": -6.39,
+          "lat": 41.7,
+          "state": "BURNING",
+          "frp": 884,
+          "slopeDeg": 18.4,
+          "scenarios": {
+            "actual": 0.83,
+            "atlanticSurge": 0.95,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--1--1",
+          "lon": -6.39,
+          "lat": 41.81,
+          "state": "BURNING",
+          "frp": 979,
+          "slopeDeg": 15.3,
+          "scenarios": {
+            "actual": 0.97,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--1-0",
+          "lon": -6.39,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 993,
+          "slopeDeg": 12.2,
+          "scenarios": {
+            "actual": 0.99,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--1-1",
+          "lon": -6.39,
+          "lat": 42.03,
+          "state": "BURNING",
+          "frp": 979,
+          "slopeDeg": 9.1,
+          "scenarios": {
+            "actual": 0.97,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--1-2",
+          "lon": -6.39,
+          "lat": 42.14,
+          "state": "BURNING",
+          "frp": 884,
+          "slopeDeg": 10,
+          "scenarios": {
+            "actual": 0.83,
+            "atlanticSurge": 0.95,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--1-3",
+          "lon": -6.39,
+          "lat": 42.25,
+          "state": "IGNITING",
+          "frp": 777,
+          "slopeDeg": 13.1,
+          "scenarios": {
+            "actual": 0.67,
+            "atlanticSurge": 0.77,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.82
+          }
+        },
+        {
+          "id": "cell--1-4",
+          "lon": -6.39,
+          "lat": 42.36,
+          "state": "IGNITING",
+          "frp": 666,
+          "slopeDeg": 16.2,
+          "scenarios": {
+            "actual": 0.51,
+            "atlanticSurge": 0.58,
+            "levanteReversal": 0.71,
+            "elNinoDroughtBoost": 0.62
+          }
+        },
+        {
+          "id": "cell-0--4",
+          "lon": -6.25,
+          "lat": 41.48,
+          "state": "IGNITING",
+          "frp": 680,
+          "slopeDeg": 20.4,
+          "scenarios": {
+            "actual": 0.53,
+            "atlanticSurge": 0.6,
+            "levanteReversal": 0.41,
+            "elNinoDroughtBoost": 0.65
+          }
+        },
+        {
+          "id": "cell-0--3",
+          "lon": -6.25,
+          "lat": 41.59,
+          "state": "BURNING",
+          "frp": 796,
+          "slopeDeg": 17.3,
+          "scenarios": {
+            "actual": 0.7,
+            "atlanticSurge": 0.8,
+            "levanteReversal": 0.58,
+            "elNinoDroughtBoost": 0.85
+          }
+        },
+        {
+          "id": "cell-0--2",
+          "lon": -6.25,
+          "lat": 41.7,
+          "state": "BURNING",
+          "frp": 912,
+          "slopeDeg": 14.2,
+          "scenarios": {
+            "actual": 0.87,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.76,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0--1",
+          "lon": -6.25,
+          "lat": 41.81,
+          "state": "BURNING",
+          "frp": 993,
+          "slopeDeg": 11.1,
+          "scenarios": {
+            "actual": 0.99,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-0",
+          "lon": -6.25,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 993,
+          "slopeDeg": 8,
+          "scenarios": {
+            "actual": 0.99,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-1",
+          "lon": -6.25,
+          "lat": 42.03,
+          "state": "BURNING",
+          "frp": 993,
+          "slopeDeg": 11.1,
+          "scenarios": {
+            "actual": 0.99,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-2",
+          "lon": -6.25,
+          "lat": 42.14,
+          "state": "BURNING",
+          "frp": 912,
+          "slopeDeg": 14.2,
+          "scenarios": {
+            "actual": 0.87,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.76,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-3",
+          "lon": -6.25,
+          "lat": 42.25,
+          "state": "BURNING",
+          "frp": 796,
+          "slopeDeg": 17.3,
+          "scenarios": {
+            "actual": 0.7,
+            "atlanticSurge": 0.8,
+            "levanteReversal": 0.58,
+            "elNinoDroughtBoost": 0.85
+          }
+        },
+        {
+          "id": "cell-0-4",
+          "lon": -6.25,
+          "lat": 42.36,
+          "state": "IGNITING",
+          "frp": 680,
+          "slopeDeg": 20.4,
+          "scenarios": {
+            "actual": 0.53,
+            "atlanticSurge": 0.6,
+            "levanteReversal": 0.41,
+            "elNinoDroughtBoost": 0.65
+          }
+        },
+        {
+          "id": "cell-1--4",
+          "lon": -6.11,
+          "lat": 41.48,
+          "state": "IGNITING",
+          "frp": 666,
+          "slopeDeg": 16.2,
+          "scenarios": {
+            "actual": 0.51,
+            "atlanticSurge": 0.7,
+            "levanteReversal": 0.38,
+            "elNinoDroughtBoost": 0.62
+          }
+        },
+        {
+          "id": "cell-1--3",
+          "lon": -6.11,
+          "lat": 41.59,
+          "state": "IGNITING",
+          "frp": 777,
+          "slopeDeg": 13.1,
+          "scenarios": {
+            "actual": 0.67,
+            "atlanticSurge": 0.89,
+            "levanteReversal": 0.56,
+            "elNinoDroughtBoost": 0.82
+          }
+        },
+        {
+          "id": "cell-1--2",
+          "lon": -6.11,
+          "lat": 41.7,
+          "state": "BURNING",
+          "frp": 884,
+          "slopeDeg": 10,
+          "scenarios": {
+            "actual": 0.83,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.72,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-1--1",
+          "lon": -6.11,
+          "lat": 41.81,
+          "state": "BURNING",
+          "frp": 979,
+          "slopeDeg": 9.1,
+          "scenarios": {
+            "actual": 0.97,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.87,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-1-0",
+          "lon": -6.11,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 993,
+          "slopeDeg": 12.2,
+          "scenarios": {
+            "actual": 0.99,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-1-1",
+          "lon": -6.11,
+          "lat": 42.03,
+          "state": "BURNING",
+          "frp": 979,
+          "slopeDeg": 15.3,
+          "scenarios": {
+            "actual": 0.97,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.87,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-1-2",
+          "lon": -6.11,
+          "lat": 42.14,
+          "state": "BURNING",
+          "frp": 884,
+          "slopeDeg": 18.4,
+          "scenarios": {
+            "actual": 0.83,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.72,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-1-3",
+          "lon": -6.11,
+          "lat": 42.25,
+          "state": "IGNITING",
+          "frp": 777,
+          "slopeDeg": 21.5,
+          "scenarios": {
+            "actual": 0.67,
+            "atlanticSurge": 0.89,
+            "levanteReversal": 0.56,
+            "elNinoDroughtBoost": 0.82
+          }
+        },
+        {
+          "id": "cell-1-4",
+          "lon": -6.11,
+          "lat": 42.36,
+          "state": "IGNITING",
+          "frp": 666,
+          "slopeDeg": 24.6,
+          "scenarios": {
+            "actual": 0.51,
+            "atlanticSurge": 0.7,
+            "levanteReversal": 0.38,
+            "elNinoDroughtBoost": 0.62
+          }
+        },
+        {
+          "id": "cell-2--3",
+          "lon": -5.97,
+          "lat": 41.59,
+          "state": "IGNITING",
+          "frp": 726,
+          "slopeDeg": 8.9,
+          "scenarios": {
+            "actual": 0.6,
+            "atlanticSurge": 0.8,
+            "levanteReversal": 0.48,
+            "elNinoDroughtBoost": 0.73
+          }
+        },
+        {
+          "id": "cell-2--2",
+          "lon": -5.97,
+          "lat": 41.7,
+          "state": "BURNING",
+          "frp": 816,
+          "slopeDeg": 10.2,
+          "scenarios": {
+            "actual": 0.73,
+            "atlanticSurge": 0.95,
+            "levanteReversal": 0.62,
+            "elNinoDroughtBoost": 0.89
+          }
+        },
+        {
+          "id": "cell-2--1",
+          "lon": -5.97,
+          "lat": 41.81,
+          "state": "BURNING",
+          "frp": 884,
+          "slopeDeg": 13.3,
+          "scenarios": {
+            "actual": 0.83,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.72,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-2-0",
+          "lon": -5.97,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 912,
+          "slopeDeg": 16.4,
+          "scenarios": {
+            "actual": 0.87,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.76,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-2-1",
+          "lon": -5.97,
+          "lat": 42.03,
+          "state": "BURNING",
+          "frp": 884,
+          "slopeDeg": 19.5,
+          "scenarios": {
+            "actual": 0.83,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.72,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-2-2",
+          "lon": -5.97,
+          "lat": 42.14,
+          "state": "BURNING",
+          "frp": 816,
+          "slopeDeg": 22.6,
+          "scenarios": {
+            "actual": 0.73,
+            "atlanticSurge": 0.95,
+            "levanteReversal": 0.62,
+            "elNinoDroughtBoost": 0.89
+          }
+        },
+        {
+          "id": "cell-2-3",
+          "lon": -5.97,
+          "lat": 42.25,
+          "state": "IGNITING",
+          "frp": 726,
+          "slopeDeg": 25.7,
+          "scenarios": {
+            "actual": 0.6,
+            "atlanticSurge": 0.8,
+            "levanteReversal": 0.48,
+            "elNinoDroughtBoost": 0.73
+          }
+        },
+        {
+          "id": "cell-3--3",
+          "lon": -5.83,
+          "lat": 41.59,
+          "state": "IGNITING",
+          "frp": 652,
+          "slopeDeg": 11.3,
+          "scenarios": {
+            "actual": 0.49,
+            "atlanticSurge": 0.68,
+            "levanteReversal": 0.36,
+            "elNinoDroughtBoost": 0.6
+          }
+        },
+        {
+          "id": "cell-3--2",
+          "lon": -5.83,
+          "lat": 41.7,
+          "state": "IGNITING",
+          "frp": 726,
+          "slopeDeg": 14.4,
+          "scenarios": {
+            "actual": 0.6,
+            "atlanticSurge": 0.8,
+            "levanteReversal": 0.48,
+            "elNinoDroughtBoost": 0.73
+          }
+        },
+        {
+          "id": "cell-3--1",
+          "lon": -5.83,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 777,
+          "slopeDeg": 17.5,
+          "scenarios": {
+            "actual": 0.67,
+            "atlanticSurge": 0.89,
+            "levanteReversal": 0.56,
+            "elNinoDroughtBoost": 0.82
+          }
+        },
+        {
+          "id": "cell-3-0",
+          "lon": -5.83,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 796,
+          "slopeDeg": 20.6,
+          "scenarios": {
+            "actual": 0.7,
+            "atlanticSurge": 0.92,
+            "levanteReversal": 0.58,
+            "elNinoDroughtBoost": 0.85
+          }
+        },
+        {
+          "id": "cell-3-1",
+          "lon": -5.83,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 777,
+          "slopeDeg": 23.7,
+          "scenarios": {
+            "actual": 0.67,
+            "atlanticSurge": 0.89,
+            "levanteReversal": 0.56,
+            "elNinoDroughtBoost": 0.82
+          }
+        },
+        {
+          "id": "cell-3-2",
+          "lon": -5.83,
+          "lat": 42.14,
+          "state": "IGNITING",
+          "frp": 726,
+          "slopeDeg": 26.8,
+          "scenarios": {
+            "actual": 0.6,
+            "atlanticSurge": 0.8,
+            "levanteReversal": 0.48,
+            "elNinoDroughtBoost": 0.73
+          }
+        },
+        {
+          "id": "cell-3-3",
+          "lon": -5.83,
+          "lat": 42.25,
+          "state": "IGNITING",
+          "frp": 652,
+          "slopeDeg": 29.9,
+          "scenarios": {
+            "actual": 0.49,
+            "atlanticSurge": 0.68,
+            "levanteReversal": 0.36,
+            "elNinoDroughtBoost": 0.6
+          }
+        },
+        {
+          "id": "cell-4--1",
+          "lon": -5.69,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 666,
+          "slopeDeg": 21.7,
+          "scenarios": {
+            "actual": 0.51,
+            "atlanticSurge": 0.7,
+            "levanteReversal": 0.38,
+            "elNinoDroughtBoost": 0.62
+          }
+        },
+        {
+          "id": "cell-4-0",
+          "lon": -5.69,
+          "lat": 41.92,
+          "state": "IGNITING",
+          "frp": 680,
+          "slopeDeg": 24.8,
+          "scenarios": {
+            "actual": 0.53,
+            "atlanticSurge": 0.72,
+            "levanteReversal": 0.41,
+            "elNinoDroughtBoost": 0.65
+          }
+        },
+        {
+          "id": "cell-4-1",
+          "lon": -5.69,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 666,
+          "slopeDeg": 27.9,
+          "scenarios": {
+            "actual": 0.51,
+            "atlanticSurge": 0.7,
+            "levanteReversal": 0.38,
+            "elNinoDroughtBoost": 0.62
+          }
+        }
+      ]
+    },
+    {
+      "hourOffset": 11,
+      "timestamp": "2022-06-17T23:00:00Z",
+      "synopticSummary": {
+        "windSpeedKmh": 22.3,
+        "windDirDeg": 312,
+        "windShear3hDeg": 31,
+        "tempC": 34.5
+      },
+      "cells": [
+        {
+          "id": "cell--4--1",
+          "lon": -6.81,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 683,
+          "slopeDeg": 27.9,
+          "scenarios": {
+            "actual": 0.53,
+            "atlanticSurge": 0.61,
+            "levanteReversal": 0.74,
+            "elNinoDroughtBoost": 0.65
+          }
+        },
+        {
+          "id": "cell--4-0",
+          "lon": -6.81,
+          "lat": 41.92,
+          "state": "IGNITING",
+          "frp": 697,
+          "slopeDeg": 24.8,
+          "scenarios": {
+            "actual": 0.55,
+            "atlanticSurge": 0.63,
+            "levanteReversal": 0.76,
+            "elNinoDroughtBoost": 0.68
+          }
+        },
+        {
+          "id": "cell--4-1",
+          "lon": -6.81,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 683,
+          "slopeDeg": 21.7,
+          "scenarios": {
+            "actual": 0.53,
+            "atlanticSurge": 0.61,
+            "levanteReversal": 0.74,
+            "elNinoDroughtBoost": 0.65
+          }
+        },
+        {
+          "id": "cell--3--3",
+          "lon": -6.67,
+          "lat": 41.59,
+          "state": "IGNITING",
+          "frp": 669,
+          "slopeDeg": 29.9,
+          "scenarios": {
+            "actual": 0.51,
+            "atlanticSurge": 0.59,
+            "levanteReversal": 0.72,
+            "elNinoDroughtBoost": 0.63
+          }
+        },
+        {
+          "id": "cell--3--2",
+          "lon": -6.67,
+          "lat": 41.7,
+          "state": "IGNITING",
+          "frp": 743,
+          "slopeDeg": 26.8,
+          "scenarios": {
+            "actual": 0.62,
+            "atlanticSurge": 0.71,
+            "levanteReversal": 0.83,
+            "elNinoDroughtBoost": 0.76
+          }
+        },
+        {
+          "id": "cell--3--1",
+          "lon": -6.67,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 794,
+          "slopeDeg": 23.7,
+          "scenarios": {
+            "actual": 0.7,
+            "atlanticSurge": 0.8,
+            "levanteReversal": 0.91,
+            "elNinoDroughtBoost": 0.85
+          }
+        },
+        {
+          "id": "cell--3-0",
+          "lon": -6.67,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 813,
+          "slopeDeg": 20.6,
+          "scenarios": {
+            "actual": 0.72,
+            "atlanticSurge": 0.83,
+            "levanteReversal": 0.94,
+            "elNinoDroughtBoost": 0.88
+          }
+        },
+        {
+          "id": "cell--3-1",
+          "lon": -6.67,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 794,
+          "slopeDeg": 17.5,
+          "scenarios": {
+            "actual": 0.7,
+            "atlanticSurge": 0.8,
+            "levanteReversal": 0.91,
+            "elNinoDroughtBoost": 0.85
+          }
+        },
+        {
+          "id": "cell--3-2",
+          "lon": -6.67,
+          "lat": 42.14,
+          "state": "IGNITING",
+          "frp": 743,
+          "slopeDeg": 14.4,
+          "scenarios": {
+            "actual": 0.62,
+            "atlanticSurge": 0.71,
+            "levanteReversal": 0.83,
+            "elNinoDroughtBoost": 0.76
+          }
+        },
+        {
+          "id": "cell--3-3",
+          "lon": -6.67,
+          "lat": 42.25,
+          "state": "IGNITING",
+          "frp": 669,
+          "slopeDeg": 11.3,
+          "scenarios": {
+            "actual": 0.51,
+            "atlanticSurge": 0.59,
+            "levanteReversal": 0.72,
+            "elNinoDroughtBoost": 0.63
+          }
+        },
+        {
+          "id": "cell--2--3",
+          "lon": -6.53,
+          "lat": 41.59,
+          "state": "IGNITING",
+          "frp": 743,
+          "slopeDeg": 25.7,
+          "scenarios": {
+            "actual": 0.62,
+            "atlanticSurge": 0.71,
+            "levanteReversal": 0.83,
+            "elNinoDroughtBoost": 0.76
+          }
+        },
+        {
+          "id": "cell--2--2",
+          "lon": -6.53,
+          "lat": 41.7,
+          "state": "BURNING",
+          "frp": 833,
+          "slopeDeg": 22.6,
+          "scenarios": {
+            "actual": 0.75,
+            "atlanticSurge": 0.86,
+            "levanteReversal": 0.97,
+            "elNinoDroughtBoost": 0.92
+          }
+        },
+        {
+          "id": "cell--2--1",
+          "lon": -6.53,
+          "lat": 41.81,
+          "state": "BURNING",
+          "frp": 901,
+          "slopeDeg": 19.5,
+          "scenarios": {
+            "actual": 0.85,
+            "atlanticSurge": 0.97,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--2-0",
+          "lon": -6.53,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 929,
+          "slopeDeg": 16.4,
+          "scenarios": {
+            "actual": 0.89,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--2-1",
+          "lon": -6.53,
+          "lat": 42.03,
+          "state": "BURNING",
+          "frp": 901,
+          "slopeDeg": 13.3,
+          "scenarios": {
+            "actual": 0.85,
+            "atlanticSurge": 0.97,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--2-2",
+          "lon": -6.53,
+          "lat": 42.14,
+          "state": "BURNING",
+          "frp": 833,
+          "slopeDeg": 10.2,
+          "scenarios": {
+            "actual": 0.75,
+            "atlanticSurge": 0.86,
+            "levanteReversal": 0.97,
+            "elNinoDroughtBoost": 0.92
+          }
+        },
+        {
+          "id": "cell--2-3",
+          "lon": -6.53,
+          "lat": 42.25,
+          "state": "IGNITING",
+          "frp": 743,
+          "slopeDeg": 8.9,
+          "scenarios": {
+            "actual": 0.62,
+            "atlanticSurge": 0.71,
+            "levanteReversal": 0.83,
+            "elNinoDroughtBoost": 0.76
+          }
+        },
+        {
+          "id": "cell--1--4",
+          "lon": -6.39,
+          "lat": 41.48,
+          "state": "IGNITING",
+          "frp": 683,
+          "slopeDeg": 24.6,
+          "scenarios": {
+            "actual": 0.53,
+            "atlanticSurge": 0.61,
+            "levanteReversal": 0.74,
+            "elNinoDroughtBoost": 0.65
+          }
+        },
+        {
+          "id": "cell--1--3",
+          "lon": -6.39,
+          "lat": 41.59,
+          "state": "IGNITING",
+          "frp": 794,
+          "slopeDeg": 21.5,
+          "scenarios": {
+            "actual": 0.7,
+            "atlanticSurge": 0.8,
+            "levanteReversal": 0.91,
+            "elNinoDroughtBoost": 0.85
+          }
+        },
+        {
+          "id": "cell--1--2",
+          "lon": -6.39,
+          "lat": 41.7,
+          "state": "BURNING",
+          "frp": 901,
+          "slopeDeg": 18.4,
+          "scenarios": {
+            "actual": 0.85,
+            "atlanticSurge": 0.97,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--1--1",
+          "lon": -6.39,
+          "lat": 41.81,
+          "state": "BURNING",
+          "frp": 993,
+          "slopeDeg": 15.3,
+          "scenarios": {
+            "actual": 0.99,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--1-0",
+          "lon": -6.39,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 993,
+          "slopeDeg": 12.2,
+          "scenarios": {
+            "actual": 0.99,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--1-1",
+          "lon": -6.39,
+          "lat": 42.03,
+          "state": "BURNING",
+          "frp": 993,
+          "slopeDeg": 9.1,
+          "scenarios": {
+            "actual": 0.99,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--1-2",
+          "lon": -6.39,
+          "lat": 42.14,
+          "state": "BURNING",
+          "frp": 901,
+          "slopeDeg": 10,
+          "scenarios": {
+            "actual": 0.85,
+            "atlanticSurge": 0.97,
+            "levanteReversal": 0.99,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell--1-3",
+          "lon": -6.39,
+          "lat": 42.25,
+          "state": "IGNITING",
+          "frp": 794,
+          "slopeDeg": 13.1,
+          "scenarios": {
+            "actual": 0.7,
+            "atlanticSurge": 0.8,
+            "levanteReversal": 0.91,
+            "elNinoDroughtBoost": 0.85
+          }
+        },
+        {
+          "id": "cell--1-4",
+          "lon": -6.39,
+          "lat": 42.36,
+          "state": "IGNITING",
+          "frp": 683,
+          "slopeDeg": 16.2,
+          "scenarios": {
+            "actual": 0.53,
+            "atlanticSurge": 0.61,
+            "levanteReversal": 0.74,
+            "elNinoDroughtBoost": 0.65
+          }
+        },
+        {
+          "id": "cell-0--4",
+          "lon": -6.25,
+          "lat": 41.48,
+          "state": "IGNITING",
+          "frp": 697,
+          "slopeDeg": 20.4,
+          "scenarios": {
+            "actual": 0.55,
+            "atlanticSurge": 0.63,
+            "levanteReversal": 0.43,
+            "elNinoDroughtBoost": 0.68
+          }
+        },
+        {
+          "id": "cell-0--3",
+          "lon": -6.25,
+          "lat": 41.59,
+          "state": "BURNING",
+          "frp": 813,
+          "slopeDeg": 17.3,
+          "scenarios": {
+            "actual": 0.72,
+            "atlanticSurge": 0.83,
+            "levanteReversal": 0.61,
+            "elNinoDroughtBoost": 0.88
+          }
+        },
+        {
+          "id": "cell-0--2",
+          "lon": -6.25,
+          "lat": 41.7,
+          "state": "BURNING",
+          "frp": 929,
+          "slopeDeg": 14.2,
+          "scenarios": {
+            "actual": 0.89,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.79,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0--1",
+          "lon": -6.25,
+          "lat": 41.81,
+          "state": "BURNING",
+          "frp": 993,
+          "slopeDeg": 11.1,
+          "scenarios": {
+            "actual": 0.99,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-0",
+          "lon": -6.25,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 993,
+          "slopeDeg": 8,
+          "scenarios": {
+            "actual": 0.99,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-1",
+          "lon": -6.25,
+          "lat": 42.03,
+          "state": "BURNING",
+          "frp": 993,
+          "slopeDeg": 11.1,
+          "scenarios": {
+            "actual": 0.99,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-2",
+          "lon": -6.25,
+          "lat": 42.14,
+          "state": "BURNING",
+          "frp": 929,
+          "slopeDeg": 14.2,
+          "scenarios": {
+            "actual": 0.89,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.79,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-0-3",
+          "lon": -6.25,
+          "lat": 42.25,
+          "state": "BURNING",
+          "frp": 813,
+          "slopeDeg": 17.3,
+          "scenarios": {
+            "actual": 0.72,
+            "atlanticSurge": 0.83,
+            "levanteReversal": 0.61,
+            "elNinoDroughtBoost": 0.88
+          }
+        },
+        {
+          "id": "cell-0-4",
+          "lon": -6.25,
+          "lat": 42.36,
+          "state": "IGNITING",
+          "frp": 697,
+          "slopeDeg": 20.4,
+          "scenarios": {
+            "actual": 0.55,
+            "atlanticSurge": 0.63,
+            "levanteReversal": 0.43,
+            "elNinoDroughtBoost": 0.68
+          }
+        },
+        {
+          "id": "cell-1--4",
+          "lon": -6.11,
+          "lat": 41.48,
+          "state": "IGNITING",
+          "frp": 683,
+          "slopeDeg": 16.2,
+          "scenarios": {
+            "actual": 0.53,
+            "atlanticSurge": 0.73,
+            "levanteReversal": 0.41,
+            "elNinoDroughtBoost": 0.65
+          }
+        },
+        {
+          "id": "cell-1--3",
+          "lon": -6.11,
+          "lat": 41.59,
+          "state": "IGNITING",
+          "frp": 794,
+          "slopeDeg": 13.1,
+          "scenarios": {
+            "actual": 0.7,
+            "atlanticSurge": 0.92,
+            "levanteReversal": 0.58,
+            "elNinoDroughtBoost": 0.85
+          }
+        },
+        {
+          "id": "cell-1--2",
+          "lon": -6.11,
+          "lat": 41.7,
+          "state": "BURNING",
+          "frp": 901,
+          "slopeDeg": 10,
+          "scenarios": {
+            "actual": 0.85,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.75,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-1--1",
+          "lon": -6.11,
+          "lat": 41.81,
+          "state": "BURNING",
+          "frp": 993,
+          "slopeDeg": 9.1,
+          "scenarios": {
+            "actual": 0.99,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-1-0",
+          "lon": -6.11,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 993,
+          "slopeDeg": 12.2,
+          "scenarios": {
+            "actual": 0.99,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-1-1",
+          "lon": -6.11,
+          "lat": 42.03,
+          "state": "BURNING",
+          "frp": 993,
+          "slopeDeg": 15.3,
+          "scenarios": {
+            "actual": 0.99,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.89,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-1-2",
+          "lon": -6.11,
+          "lat": 42.14,
+          "state": "BURNING",
+          "frp": 901,
+          "slopeDeg": 18.4,
+          "scenarios": {
+            "actual": 0.85,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.75,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-1-3",
+          "lon": -6.11,
+          "lat": 42.25,
+          "state": "IGNITING",
+          "frp": 794,
+          "slopeDeg": 21.5,
+          "scenarios": {
+            "actual": 0.7,
+            "atlanticSurge": 0.92,
+            "levanteReversal": 0.58,
+            "elNinoDroughtBoost": 0.85
+          }
+        },
+        {
+          "id": "cell-1-4",
+          "lon": -6.11,
+          "lat": 42.36,
+          "state": "IGNITING",
+          "frp": 683,
+          "slopeDeg": 24.6,
+          "scenarios": {
+            "actual": 0.53,
+            "atlanticSurge": 0.73,
+            "levanteReversal": 0.41,
+            "elNinoDroughtBoost": 0.65
+          }
+        },
+        {
+          "id": "cell-2--3",
+          "lon": -5.97,
+          "lat": 41.59,
+          "state": "IGNITING",
+          "frp": 743,
+          "slopeDeg": 8.9,
+          "scenarios": {
+            "actual": 0.62,
+            "atlanticSurge": 0.83,
+            "levanteReversal": 0.5,
+            "elNinoDroughtBoost": 0.76
+          }
+        },
+        {
+          "id": "cell-2--2",
+          "lon": -5.97,
+          "lat": 41.7,
+          "state": "BURNING",
+          "frp": 833,
+          "slopeDeg": 10.2,
+          "scenarios": {
+            "actual": 0.75,
+            "atlanticSurge": 0.98,
+            "levanteReversal": 0.64,
+            "elNinoDroughtBoost": 0.92
+          }
+        },
+        {
+          "id": "cell-2--1",
+          "lon": -5.97,
+          "lat": 41.81,
+          "state": "BURNING",
+          "frp": 901,
+          "slopeDeg": 13.3,
+          "scenarios": {
+            "actual": 0.85,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.75,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-2-0",
+          "lon": -5.97,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 929,
+          "slopeDeg": 16.4,
+          "scenarios": {
+            "actual": 0.89,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.79,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-2-1",
+          "lon": -5.97,
+          "lat": 42.03,
+          "state": "BURNING",
+          "frp": 901,
+          "slopeDeg": 19.5,
+          "scenarios": {
+            "actual": 0.85,
+            "atlanticSurge": 0.99,
+            "levanteReversal": 0.75,
+            "elNinoDroughtBoost": 0.99
+          }
+        },
+        {
+          "id": "cell-2-2",
+          "lon": -5.97,
+          "lat": 42.14,
+          "state": "BURNING",
+          "frp": 833,
+          "slopeDeg": 22.6,
+          "scenarios": {
+            "actual": 0.75,
+            "atlanticSurge": 0.98,
+            "levanteReversal": 0.64,
+            "elNinoDroughtBoost": 0.92
+          }
+        },
+        {
+          "id": "cell-2-3",
+          "lon": -5.97,
+          "lat": 42.25,
+          "state": "IGNITING",
+          "frp": 743,
+          "slopeDeg": 25.7,
+          "scenarios": {
+            "actual": 0.62,
+            "atlanticSurge": 0.83,
+            "levanteReversal": 0.5,
+            "elNinoDroughtBoost": 0.76
+          }
+        },
+        {
+          "id": "cell-3--3",
+          "lon": -5.83,
+          "lat": 41.59,
+          "state": "IGNITING",
+          "frp": 669,
+          "slopeDeg": 11.3,
+          "scenarios": {
+            "actual": 0.51,
+            "atlanticSurge": 0.71,
+            "levanteReversal": 0.39,
+            "elNinoDroughtBoost": 0.63
+          }
+        },
+        {
+          "id": "cell-3--2",
+          "lon": -5.83,
+          "lat": 41.7,
+          "state": "IGNITING",
+          "frp": 743,
+          "slopeDeg": 14.4,
+          "scenarios": {
+            "actual": 0.62,
+            "atlanticSurge": 0.83,
+            "levanteReversal": 0.5,
+            "elNinoDroughtBoost": 0.76
+          }
+        },
+        {
+          "id": "cell-3--1",
+          "lon": -5.83,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 794,
+          "slopeDeg": 17.5,
+          "scenarios": {
+            "actual": 0.7,
+            "atlanticSurge": 0.92,
+            "levanteReversal": 0.58,
+            "elNinoDroughtBoost": 0.85
+          }
+        },
+        {
+          "id": "cell-3-0",
+          "lon": -5.83,
+          "lat": 41.92,
+          "state": "BURNING",
+          "frp": 813,
+          "slopeDeg": 20.6,
+          "scenarios": {
+            "actual": 0.72,
+            "atlanticSurge": 0.95,
+            "levanteReversal": 0.61,
+            "elNinoDroughtBoost": 0.88
+          }
+        },
+        {
+          "id": "cell-3-1",
+          "lon": -5.83,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 794,
+          "slopeDeg": 23.7,
+          "scenarios": {
+            "actual": 0.7,
+            "atlanticSurge": 0.92,
+            "levanteReversal": 0.58,
+            "elNinoDroughtBoost": 0.85
+          }
+        },
+        {
+          "id": "cell-3-2",
+          "lon": -5.83,
+          "lat": 42.14,
+          "state": "IGNITING",
+          "frp": 743,
+          "slopeDeg": 26.8,
+          "scenarios": {
+            "actual": 0.62,
+            "atlanticSurge": 0.83,
+            "levanteReversal": 0.5,
+            "elNinoDroughtBoost": 0.76
+          }
+        },
+        {
+          "id": "cell-3-3",
+          "lon": -5.83,
+          "lat": 42.25,
+          "state": "IGNITING",
+          "frp": 669,
+          "slopeDeg": 29.9,
+          "scenarios": {
+            "actual": 0.51,
+            "atlanticSurge": 0.71,
+            "levanteReversal": 0.39,
+            "elNinoDroughtBoost": 0.63
+          }
+        },
+        {
+          "id": "cell-4--1",
+          "lon": -5.69,
+          "lat": 41.81,
+          "state": "IGNITING",
+          "frp": 683,
+          "slopeDeg": 21.7,
+          "scenarios": {
+            "actual": 0.53,
+            "atlanticSurge": 0.73,
+            "levanteReversal": 0.41,
+            "elNinoDroughtBoost": 0.65
+          }
+        },
+        {
+          "id": "cell-4-0",
+          "lon": -5.69,
+          "lat": 41.92,
+          "state": "IGNITING",
+          "frp": 697,
+          "slopeDeg": 24.8,
+          "scenarios": {
+            "actual": 0.55,
+            "atlanticSurge": 0.75,
+            "levanteReversal": 0.43,
+            "elNinoDroughtBoost": 0.68
+          }
+        },
+        {
+          "id": "cell-4-1",
+          "lon": -5.69,
+          "lat": 42.03,
+          "state": "IGNITING",
+          "frp": 683,
+          "slopeDeg": 27.9,
+          "scenarios": {
+            "actual": 0.53,
+            "atlanticSurge": 0.73,
+            "levanteReversal": 0.41,
+            "elNinoDroughtBoost": 0.65
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,580 @@
+import { Injectable, signal } from '@angular/core';
+import {
+  BackendCalendarPayload,
+  BackendDownloadProgress,
+  BackendSyncStatus,
+  BoundingBox,
+  CalendarSummaryData,
+  ClimateInertiaData,
+  EvacuationData,
+  HarmonizedHotspotRecord,
+  HarmonizedHotspotsPayload,
+  HotspotSensor,
+  MlSpreadFramesData,
+  WildfireAoi
+} from '../models/wildfire.model';
+
+interface EnsoHistoryJson {
+  index?: {
+    firstMonth?: string;
+    lastMonth?: string;
+    oni?: number[];
+  };
+  provisional?: {
+    month?: string;
+    oni?: number;
+  };
+}
+
+interface TimelineMetaJson {
+  keyframes?: Array<{
+    date: string;
+    s?: number;
+    nino34?: number;
+  }>;
+}
+
+/**
+ * Fallback AOI registry matching aoi.csv from Issue #22
+ * (used until Marcin's PR lands src/assets/data/aoi.csv).
+ */
+const DEFAULT_AOIS: WildfireAoi[] = [
+  {
+    aoiId: 'piodao_2025',
+    name: 'Piódão (Arganil) – Serra do Açor',
+    year: 2025,
+    country: 'Portugal',
+    ignitionLat: 40.2240,
+    ignitionLon: -7.8294,
+    bbox: [-8.11, 40.0, -7.62, 40.43],
+    burnedAreaHa: 64451,
+    startDate: '2025-08-13',
+    endDate: '2025-08-24'
+  },
+  {
+    aoiId: 'larouco_2025',
+    name: 'Larouco – Quiroga – Oencia',
+    year: 2025,
+    country: 'Spain',
+    ignitionLat: 42.3465,
+    ignitionLon: -7.1608,
+    bbox: [-7.33, 42.26, -6.91, 42.59],
+    burnedAreaHa: 44879,
+    startDate: '2025-08-13',
+    endDate: '2025-08-22'
+  },
+  {
+    aoiId: 'burgohondo_2026_avila',
+    name: 'Burgohondo – Navaluenga / El Barraco',
+    year: 2026,
+    country: 'Spain',
+    ignitionLat: 40.4136,
+    ignitionLon: -4.7864,
+    bbox: [-4.88, 40.28, -4.4, 40.54],
+    burnedAreaHa: 33943,
+    startDate: '2026-07-22',
+    endDate: '2026-08-15'
+  },
+  {
+    aoiId: 'burgohondo_2026_kompleks',
+    name: 'Burgohondo – Ávila–Madrid–Toledo',
+    year: 2026,
+    country: 'Spain',
+    ignitionLat: 40.4136,
+    ignitionLon: -4.7864,
+    bbox: [-4.88, 40.18, -4.19, 40.54],
+    burnedAreaHa: 80000,
+    startDate: '2026-07-22',
+    endDate: '2026-08-15'
+  },
+  {
+    aoiId: 'losacio_2022_lipiec',
+    name: 'Losacio (Sierra de la Culebra) – July',
+    year: 2022,
+    country: 'Spain',
+    ignitionLat: 41.7109,
+    ignitionLon: -6.0406,
+    bbox: [-6.28, 41.62, -5.87, 41.93],
+    burnedAreaHa: 31473,
+    startDate: '2022-07-17',
+    endDate: '2022-08-14'
+  },
+  {
+    aoiId: 'losacio_2022_lacznie',
+    name: 'Losacio + Sierra de la Culebra (Combined)',
+    year: 2022,
+    country: 'Spain',
+    ignitionLat: 41.7109,
+    ignitionLon: -6.0406,
+    bbox: [-6.51, 41.62, -5.87, 42.03],
+    burnedAreaHa: 65600,
+    startDate: '2022-06-15',
+    endDate: '2022-08-14'
+  }
+];
+
+@Injectable({
+  providedIn: 'root'
+})
+export class WildfireDataService {
+  readonly aois = signal<WildfireAoi[]>(DEFAULT_AOIS);
+  readonly calendar = signal<CalendarSummaryData | null>(null);
+  readonly climateInertia = signal<ClimateInertiaData | null>(null);
+  readonly spreadFrames = signal<MlSpreadFramesData | null>(null);
+  readonly evacuation = signal<EvacuationData | null>(null);
+  readonly hotspots = signal<HarmonizedHotspotRecord[]>([]);
+  readonly hotspotDatasetName = signal<string>('');
+  readonly isCustomDataset = signal<boolean>(false);
+  readonly importError = signal<string | null>(null);
+  readonly isLoaded = signal<boolean>(false);
+
+  readonly backendCalendar = signal<BackendCalendarPayload | null>(null);
+  readonly backendStatus = signal<BackendSyncStatus>('idle');
+  readonly backendProgress = signal<BackendDownloadProgress | null>(null);
+  readonly backendError = signal<string | null>(null);
+
+  private defaultHotspots: HarmonizedHotspotRecord[] = [];
+  private readonly oniByMonth = new Map<string, number>();
+  private readonly gsByMonth = new Map<string, number>();
+  private loadPromise: Promise<void> | null = null;
+  private apiAbort: AbortController | null = null;
+  private apiPollTimer: ReturnType<typeof setTimeout> | null = null;
+  private activeApiQuery = '';
+  private resolvedBaseCache: string | null = null;
+
+  resolveApiUrl(apiPath: string): string {
+    const winBase = typeof window !== 'undefined' ? (window as { __KMD_API_BASE__?: string }).__KMD_API_BASE__ : '';
+    const lsBase = typeof localStorage !== 'undefined' ? localStorage.getItem('kmd.fireApiBase') : '';
+    const base = (winBase || lsBase || this.resolvedBaseCache || '').replace(/\/+$/, '');
+    return `${base}${apiPath}`;
+  }
+
+  cancelBackendSync(): void {
+    if (this.apiPollTimer !== null) {
+      clearTimeout(this.apiPollTimer);
+      this.apiPollTimer = null;
+    }
+    if (this.apiAbort) {
+      this.apiAbort.abort();
+      this.apiAbort = null;
+    }
+  }
+
+  getBackendHotspotsCsvUrl(bbox: BoundingBox, dateStart: string, dateEnd: string): string {
+    const bboxStr = bbox.map(v => Number(v.toFixed(4))).join(',');
+    const params = new URLSearchParams({ bbox: bboxStr, from: dateStart, to: dateEnd });
+    return this.resolveApiUrl(`/api/hotspots.csv?${params.toString()}`);
+  }
+
+  async syncCalendarFromBackend(bbox: BoundingBox, dateStart: string, dateEnd: string): Promise<void> {
+    if (this.isCustomDataset()) {
+      this.cancelBackendSync();
+      return;
+    }
+
+    const bboxStr = bbox.map(v => Number(v.toFixed(4))).join(',');
+    const fromYm = dateStart.slice(0, 7);
+    const toYm = dateEnd.slice(0, 7);
+    const queryKey = `${bboxStr}|${fromYm}|${toYm}`;
+    this.activeApiQuery = queryKey;
+
+    this.cancelBackendSync();
+    const controller = new AbortController();
+    this.apiAbort = controller;
+
+    if (this.backendStatus() !== 'downloading') {
+      this.backendStatus.set('loading');
+    }
+    this.backendError.set(null);
+
+    const apiPath = `/api/calendar?bbox=${encodeURIComponent(bboxStr)}&from=${encodeURIComponent(fromYm)}&to=${encodeURIComponent(toYm)}`;
+
+    try {
+      let resp = await fetch(this.resolveApiUrl(apiPath), { signal: controller.signal });
+      if (this.activeApiQuery !== queryKey || controller.signal.aborted) return;
+
+      let contentType = resp.headers.get('content-type') ?? '';
+      if (!contentType.includes('application/json') && this.resolvedBaseCache === null && typeof window !== 'undefined' && window.location.port === '4200') {
+        const directBase = `${window.location.protocol}//${window.location.hostname}:8000`;
+        try {
+          const directResp = await fetch(`${directBase}${apiPath}`, { signal: controller.signal });
+          if (this.activeApiQuery !== queryKey || controller.signal.aborted) return;
+          if ((directResp.headers.get('content-type') ?? '').includes('application/json')) {
+            this.resolvedBaseCache = directBase;
+            resp = directResp;
+            contentType = resp.headers.get('content-type') ?? '';
+          }
+        } catch {
+          // ignore if direct local backend port is also unavailable
+        }
+      }
+
+      if (!contentType.includes('application/json')) {
+        this.backendStatus.set('offline');
+        this.backendProgress.set(null);
+        return;
+      }
+
+      const body = await resp.json();
+      if (this.activeApiQuery !== queryKey || controller.signal.aborted) return;
+
+      if (resp.status === 202 && body?.status === 'downloading') {
+        this.backendStatus.set('downloading');
+        this.backendProgress.set(body.progress ?? { done: 0, total: 0 });
+        this.apiPollTimer = setTimeout(() => {
+          if (this.activeApiQuery === queryKey && !this.isCustomDataset()) {
+            void this.syncCalendarFromBackend(bbox, dateStart, dateEnd);
+          }
+        }, 2500);
+        return;
+      }
+
+      if (resp.ok && body?.months && body?.selection) {
+        this.backendCalendar.set(body as BackendCalendarPayload);
+        this.backendStatus.set('live');
+        this.backendProgress.set(null);
+        this.backendError.set(null);
+        return;
+      }
+
+      this.backendStatus.set('error');
+      this.backendProgress.set(null);
+      this.backendError.set(typeof body?.error === 'string' ? body.error : `HTTP ${resp.status}`);
+    } catch (err) {
+      if ((err as { name?: string })?.name === 'AbortError') return;
+      this.backendStatus.set('offline');
+      this.backendProgress.set(null);
+    }
+  }
+
+  loadAll(): Promise<void> {
+    if (this.loadPromise) return this.loadPromise;
+    this.loadPromise = this.fetchAll();
+    return this.loadPromise;
+  }
+
+  getEnsoOni(yearMonth: string): number {
+    const exact = this.oniByMonth.get(yearMonth);
+    if (exact !== undefined) return exact;
+    const [y, m] = yearMonth.split('-').map(Number);
+    return Number((0.9 * Math.sin(((y - 2000) * 12 + m) * 0.14)).toFixed(2));
+  }
+
+  getGulfStreamAnomaly(yearMonth: string): number {
+    const exact = this.gsByMonth.get(yearMonth);
+    if (exact !== undefined) return exact;
+    const [y, m] = yearMonth.split('-').map(Number);
+    // North Atlantic Gulf Stream SST anomaly seasonal + multi-year oscillation (°C)
+    const val = 0.55 * Math.sin(((y - 2020) * 12 + m) * 0.18) + 0.35 * Math.cos((m - 8) * (Math.PI / 6));
+    return Number(val.toFixed(2));
+  }
+
+  resetToDefaultHotspots(): void {
+    this.importError.set(null);
+    this.isCustomDataset.set(false);
+    this.hotspotDatasetName.set('');
+    this.hotspots.set(this.defaultHotspots);
+  }
+
+  getSampleCsvTemplate(): string {
+    return [
+      'date,lon,lat,frpMw,confidence,sensor,rawModisCount,rawViirsCount,harmonizedCount,biome,regionName',
+      '2022-06-17,-6.2500,41.9200,1480.5,94,HARMONIZED,8,29,30,Mediterranean Pine/Scrub,Sierra de la Culebra',
+      '2022-07-18,-6.0406,41.7109,1820.0,96,HARMONIZED,11,38,39,Mediterranean Pine/Scrub,Losacio',
+      '2025-08-14,-7.8294,40.2240,2140.2,95,HARMONIZED,14,47,48,Atlantic Eucalyptus/Pine,Piódão',
+      '2017-06-18,-8.2200,39.9500,2610.8,98,HARMONIZED,17,58,60,Atlantic Eucalyptus/Pine,Pedrógão Grande'
+    ].join('\n');
+  }
+
+  importHotspotFile(
+    filename: string,
+    rawText: string
+  ): { ok: boolean; count: number; minDate?: string; maxDate?: string; bbox?: BoundingBox } {
+    this.importError.set(null);
+    const trimmed = rawText.trim();
+    if (!trimmed) {
+      this.importError.set('empty');
+      return { ok: false, count: 0 };
+    }
+
+    try {
+      let parsed: HarmonizedHotspotRecord[] = [];
+      if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        parsed = this.parseHotspotJson(trimmed);
+      } else {
+        parsed = this.parseHotspotCsv(trimmed);
+      }
+
+      if (parsed.length === 0) {
+        this.importError.set('noValidRows');
+        return { ok: false, count: 0 };
+      }
+
+      parsed.sort((a, b) => a.date.localeCompare(b.date));
+      let minLon = 180;
+      let minLat = 90;
+      let maxLon = -180;
+      let maxLat = -90;
+      for (const r of parsed) {
+        if (r.lon < minLon) minLon = r.lon;
+        if (r.lon > maxLon) maxLon = r.lon;
+        if (r.lat < minLat) minLat = r.lat;
+        if (r.lat > maxLat) maxLat = r.lat;
+      }
+
+      // Add a tiny padding when single point or tight cluster
+      const padLon = maxLon - minLon < 0.05 ? 0.25 : 0.08;
+      const padLat = maxLat - minLat < 0.05 ? 0.25 : 0.08;
+
+      this.hotspots.set(parsed);
+      this.hotspotDatasetName.set(filename);
+      this.isCustomDataset.set(true);
+
+      return {
+        ok: true,
+        count: parsed.length,
+        minDate: parsed[0].date,
+        maxDate: parsed[parsed.length - 1].date,
+        bbox: [
+          Number(Math.max(-180, minLon - padLon).toFixed(2)),
+          Number(Math.max(-85, minLat - padLat).toFixed(2)),
+          Number(Math.min(180, maxLon + padLon).toFixed(2)),
+          Number(Math.min(85, maxLat + padLat).toFixed(2))
+        ]
+      };
+    } catch {
+      this.importError.set('parseError');
+      return { ok: false, count: 0 };
+    }
+  }
+
+  private parseHotspotJson(text: string): HarmonizedHotspotRecord[] {
+    const raw = JSON.parse(text);
+    const arr = Array.isArray(raw) ? raw : Array.isArray(raw?.records) ? raw.records : [];
+    const out: HarmonizedHotspotRecord[] = [];
+    for (let i = 0; i < arr.length; i++) {
+      const rec = this.normalizeRecord(arr[i], i);
+      if (rec) out.push(rec);
+    }
+    return out;
+  }
+
+  private parseHotspotCsv(text: string): HarmonizedHotspotRecord[] {
+    const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+    if (lines.length < 2) return [];
+    const headers = this.splitCsvLine(lines[0]).map(h => h.trim().toLowerCase());
+    const out: HarmonizedHotspotRecord[] = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const cols = this.splitCsvLine(lines[i]);
+      const obj: Record<string, string> = {};
+      for (let c = 0; c < headers.length; c++) {
+        obj[headers[c]] = cols[c] ?? '';
+      }
+      const rec = this.normalizeRecord(obj, i - 1);
+      if (rec) out.push(rec);
+    }
+    return out;
+  }
+
+  private normalizeRecord(raw: Record<string, any>, idx: number): HarmonizedHotspotRecord | null {
+    const get = (...keys: string[]) => {
+      for (const k of keys) {
+        if (raw[k] !== undefined && raw[k] !== null && raw[k] !== '') return raw[k];
+        const lower = k.toLowerCase();
+        if (raw[lower] !== undefined && raw[lower] !== null && raw[lower] !== '') return raw[lower];
+      }
+      return undefined;
+    };
+
+    const rawDate = String(get('date', 'acq_date', 'timestamp', 'acqDate') ?? '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) return null;
+
+    const lat = Number(get('lat', 'latitude', 'zaplon_lat'));
+    const lon = Number(get('lon', 'lng', 'longitude', 'zaplon_lon'));
+    if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+      return null;
+    }
+
+    const rawModisCount = Math.max(0, Number(get('rawModisCount', 'raw_modis_count', 'modisCount', 'modis_count') ?? 0) || 0);
+    const rawViirsCount = Math.max(0, Number(get('rawViirsCount', 'raw_viirs_count', 'viirsCount', 'viirs_count') ?? 0) || 0);
+    const explicitHarm = Number(get('harmonizedCount', 'harmonized_count', 'count', 'fires', 'detections'));
+    const harmonizedCount = Number.isFinite(explicitHarm) && explicitHarm > 0
+      ? Math.round(explicitHarm)
+      : Math.max(1, rawViirsCount > 0 ? rawViirsCount : Math.round(rawModisCount * 3.5) || 1);
+
+    const frpMw = Math.max(0, Number(get('frpMw', 'frp_mw', 'frp', 'harmonizedFrpMw') ?? harmonizedCount * 24) || 0);
+    const confidence = Math.max(0, Math.min(100, Number(get('confidence', 'conf') ?? 85) || 85));
+    const sensorRaw = String(get('sensor', 'satellite', 'instrument') ?? 'HARMONIZED').toUpperCase();
+    const sensor: HotspotSensor = sensorRaw.includes('MODIS')
+      ? 'MODIS'
+      : sensorRaw.includes('VIIRS')
+        ? 'VIIRS'
+        : 'HARMONIZED';
+
+    return {
+      id: String(get('id') ?? `custom-${idx + 1}`),
+      date: rawDate,
+      lon: Number(lon.toFixed(4)),
+      lat: Number(lat.toFixed(4)),
+      frpMw: Number(frpMw.toFixed(1)),
+      confidence: Math.round(confidence),
+      sensor,
+      rawModisCount: rawModisCount || (sensor === 'MODIS' ? 1 : Math.max(1, Math.round(harmonizedCount / 3.5))),
+      rawViirsCount: rawViirsCount || (sensor === 'VIIRS' ? harmonizedCount : 0),
+      harmonizedCount,
+      biome: String(get('biome', 'landcover') ?? 'Mixed Forest/Scrub'),
+      regionName: get('regionName', 'region_name', 'region', 'name') ? String(get('regionName', 'region_name', 'region', 'name')) : undefined
+    };
+  }
+
+  private async fetchAll(): Promise<void> {
+    try {
+      const [cal, inertia, spread, evac, enso, meta, csvText, hotspotsPayload] = await Promise.all([
+        this.fetchJson<CalendarSummaryData>('assets/data/calendar-summary.json'),
+        this.fetchJson<ClimateInertiaData>('assets/data/climate-inertia.json'),
+        this.fetchJson<MlSpreadFramesData>('assets/data/ml-spread-frames.json'),
+        this.fetchJson<EvacuationData>('assets/data/evacuation-zones.json'),
+        this.fetchJson<EnsoHistoryJson>('assets/data/enso-history.json'),
+        this.fetchJson<TimelineMetaJson>('assets/data/timeline-meta.json'),
+        this.fetchText('assets/data/aoi.csv'),
+        this.fetchJson<HarmonizedHotspotsPayload>('assets/data/harmonized-hotspots.json')
+      ]);
+
+      if (cal) this.calendar.set(cal);
+      if (inertia) this.climateInertia.set(inertia);
+      if (spread) this.spreadFrames.set(spread);
+      if (evac) this.evacuation.set(evac);
+      if (enso) this.indexEnsoHistory(enso);
+      if (meta) this.indexGulfStreamMeta(meta);
+      if (csvText) {
+        const parsed = this.parseAoiCsv(csvText);
+        if (parsed.length > 0) this.aois.set(parsed);
+      }
+      if (hotspotsPayload?.records) {
+        this.defaultHotspots = hotspotsPayload.records;
+        if (!this.isCustomDataset()) {
+          this.hotspots.set(this.defaultHotspots);
+        }
+      }
+      this.isLoaded.set(true);
+    } catch (err) {
+      console.warn('Could not load wildfire datasets:', err);
+    }
+  }
+
+  private indexEnsoHistory(enso: EnsoHistoryJson) {
+    const first = enso.index?.firstMonth;
+    const oni = enso.index?.oni;
+    if (first && Array.isArray(oni)) {
+      const [startY, startM] = first.split('-').map(Number);
+      for (let i = 0; i < oni.length; i++) {
+        const totalM = startY * 12 + (startM - 1) + i;
+        const y = Math.floor(totalM / 12);
+        const m = (totalM % 12) + 1;
+        const key = `${y}-${String(m).padStart(2, '0')}`;
+        this.oniByMonth.set(key, oni[i]);
+      }
+    }
+    if (enso.provisional?.month && enso.provisional.oni !== undefined) {
+      this.oniByMonth.set(enso.provisional.month, enso.provisional.oni);
+    }
+  }
+
+  private indexGulfStreamMeta(meta: TimelineMetaJson) {
+    const accum = new Map<string, { sum: number; count: number }>();
+    for (const kf of meta.keyframes ?? []) {
+      if (kf.s === undefined) continue;
+      const ym = kf.date.slice(0, 7);
+      const entry = accum.get(ym) ?? { sum: 0, count: 0 };
+      entry.sum += kf.s;
+      entry.count += 1;
+      accum.set(ym, entry);
+    }
+    for (const [ym, { sum, count }] of accum.entries()) {
+      this.gsByMonth.set(ym, Number((sum / count).toFixed(2)));
+    }
+  }
+
+  private parseAoiCsv(csv: string): WildfireAoi[] {
+    const lines = csv.trim().split(/\r?\n/);
+    if (lines.length < 2) return [];
+    const headers = this.splitCsvLine(lines[0]);
+    const idx = (col: string) => headers.indexOf(col);
+    const out: WildfireAoi[] = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const cols = this.splitCsvLine(lines[i]);
+      const aoiId = cols[idx('aoi_id')];
+      if (!aoiId) continue;
+
+      const preEnd = cols[idx('pre_fire_do')] || `${cols[idx('rok')]}-07-01`;
+      const postStart = cols[idx('post_fire_od')] || `${cols[idx('rok')]}-08-25`;
+      const start = this.addDays(preEnd, 1);
+      const end = this.addDays(postStart, -1);
+
+      out.push({
+        aoiId,
+        name: cols[idx('pozar')] || aoiId,
+        year: Number(cols[idx('rok')]) || 2025,
+        country: cols[idx('kraj')] || 'Iberia',
+        ignitionLat: Number(cols[idx('zaplon_lat')]) || 40.2,
+        ignitionLon: Number(cols[idx('zaplon_lon')]) || -3.7,
+        bbox: [
+          Number(cols[idx('bbox_w')]) || -9.6,
+          Number(cols[idx('bbox_s')]) || 36.0,
+          Number(cols[idx('bbox_e')]) || 3.4,
+          Number(cols[idx('bbox_n')]) || 43.8
+        ],
+        burnedAreaHa: Number(cols[idx('areal_pozaru_ha')]) || 0,
+        startDate: start,
+        endDate: end
+      });
+    }
+    return out;
+  }
+
+  private splitCsvLine(line: string): string[] {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    for (const ch of line) {
+      if (ch === '"') {
+        inQuotes = !inQuotes;
+      } else if (ch === ',' && !inQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += ch;
+      }
+    }
+    result.push(current.trim());
+    return result;
+  }
+
+  private addDays(isoDate: string, days: number): string {
+    const d = new Date(`${isoDate}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + days);
+    return d.toISOString().slice(0, 10);
+  }
+
+  private async fetchJson<T>(url: string): Promise<T | null> {
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) return null;
+      return (await resp.json()) as T;
+    } catch {
+      return null;
+    }
+  }
+
+  private async fetchText(url: string): Promise<string | null> {
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) return null;
+      return await resp.text();
+    } catch {
+      return null;
+    }
+  }
+}
