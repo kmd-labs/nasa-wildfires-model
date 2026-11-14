@@ -348,3 +348,11 @@ def test_calendar_carries_the_seam_test(tmp_path, monkeypatch):
     assert snpp["naiveSum"]["verdict"] == "seamUp" and snpp["naiveSum"]["stepPct"] > 150
     assert abs(snpp["harmonized"]["stepPct"]) < 25 and abs(snpp["rawModis"]["stepPct"]) < 1
     assert svc.burned_area(bbox)["seamTest"]["witness"] == "MCD64A1"
+
+
+def test_overlapping_bboxes_and_large_bbox(tmp_path):
+    assert service._overlapping(((-9, 37, -8, 38), (-8.5, 37.5, -7, 39)))
+    assert not service._overlapping(((-9, 37, -8, 38), (-8, 37, -7, 38)))       # touching edges only
+    svc = CalendarService(RegionStore(tmp_path), FirmsClient(map_key=""), FakeBurned())
+    with pytest.raises(BadRequest, match="burned area"):
+        svc.burned_area("-30,30,0,50")

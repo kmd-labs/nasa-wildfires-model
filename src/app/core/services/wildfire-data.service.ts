@@ -11,8 +11,40 @@ import {
   HarmonizedHotspotsPayload,
   HotspotSensor,
   MlSpreadFramesData,
+  MultiPolygonCoords,
+  PolygonCoords,
+  PredefinedCountry,
   WildfireAoi
 } from '../models/wildfire.model';
+
+interface CountryGeoJsonPayload {
+  type: string;
+  features?: Array<{
+    properties?: { code?: string; name?: string; res?: string };
+    geometry?: { type?: 'Polygon' | 'MultiPolygon'; coordinates?: any };
+  }>;
+}
+
+const ISO3_TO_ISO2: Record<string, string> = {
+  ESP: 'ES', PRT: 'PT', FRA: 'FR', ITA: 'IT', GRC: 'GR', POL: 'PL', DEU: 'DE', GBR: 'GB',
+  IRL: 'IE', BEL: 'BE', NLD: 'NL', LUX: 'LU', CHE: 'CH', AUT: 'AT', CZE: 'CZ', SVK: 'SK',
+  HUN: 'HU', SVN: 'SI', HRV: 'HR', BIH: 'BA', SRB: 'RS', MNE: 'ME', ALB: 'AL', MKD: 'MK',
+  BGR: 'BG', ROU: 'RO', MDA: 'MD', UKR: 'UA', BLR: 'BY', LTU: 'LT', LVA: 'LV', EST: 'EE',
+  DNK: 'DK', NOR: 'NO', SWE: 'SE', FIN: 'FI', ISL: 'IS', AND: 'AD', MCO: 'MC', MLT: 'MT',
+  CYP: 'CY', TUR: 'TR', MAR: 'MA', DZA: 'DZ', TUN: 'TN', LBY: 'LY', EGY: 'EG', USA: 'US',
+  CAN: 'CA', MEX: 'MX', BRA: 'BR', ARG: 'AR', CHL: 'CL', COL: 'CO', PER: 'PE', VEN: 'VE',
+  BOL: 'BO', PRY: 'PY', URY: 'UY', ECU: 'EC', AUS: 'AU', NZL: 'NZ', ZAF: 'ZA', AGO: 'AO',
+  MOZ: 'MZ', MDG: 'MG', KEN: 'KE', TZA: 'TZ', ETH: 'ET', NGA: 'NG', SEN: 'SN', CIV: 'CI',
+  GHA: 'GH', CMR: 'CM', COD: 'CD', SDN: 'SD', CHN: 'CN', IND: 'IN', JPN: 'JP', KOR: 'KR',
+  IDN: 'ID', MYS: 'MY', THA: 'TH', VNM: 'VN', PHL: 'PH', MMR: 'MM', KHM: 'KH', LAO: 'LA',
+  RUS: 'RU', KAZ: 'KZ', GEO: 'GE', ARM: 'AM', AZE: 'AZ', ISR: 'IL', LBN: 'LB', JOR: 'JO',
+  SYR: 'SY', IRQ: 'IQ', IRN: 'IR', SAU: 'SA', PAK: 'PK', AFG: 'AF', NPL: 'NP', LKA: 'LK'
+};
+
+const PRIORITY_COUNTRY_CODES = [
+  'PRT', 'ESP', 'FRA', 'ITA', 'GRC', 'HRV', 'TUR', 'MAR', 'DZA', 'POL',
+  'DEU', 'GBR', 'SWE', 'NOR', 'FIN', 'USA', 'CAN', 'AUS', 'BRA', 'CHL'
+];
 
 interface EnsoHistoryJson {
   index?: {
@@ -118,6 +150,7 @@ const DEFAULT_AOIS: WildfireAoi[] = [
 })
 export class WildfireDataService {
   readonly aois = signal<WildfireAoi[]>(DEFAULT_AOIS);
+  readonly countries = signal<PredefinedCountry[]>([]);
   readonly calendar = signal<CalendarSummaryData | null>(null);
   readonly climateInertia = signal<ClimateInertiaData | null>(null);
   readonly spreadFrames = signal<MlSpreadFramesData | null>(null);
@@ -141,6 +174,7 @@ export class WildfireDataService {
   private apiPollTimer: ReturnType<typeof setTimeout> | null = null;
   private activeApiQuery = '';
   private resolvedBaseCache: string | null = null;
+  private offlineRetryDelayMs = 5000;
 
   resolveApiUrl(apiPath: string): string {
     const winBase = typeof window !== 'undefined' ? (window as { __KMD_API_BASE__?: string }).__KMD_API_BASE__ : '';
@@ -160,19 +194,49 @@ export class WildfireDataService {
     }
   }
 
-  getBackendHotspotsCsvUrl(bbox: BoundingBox, dateStart: string, dateEnd: string): string {
-    const bboxStr = bbox.map(v => Number(v.toFixed(4))).join(',');
+  clearBackendCalendar(): void {
+    this.activeApiQuery = '';
+    this.cancelBackendSync();
+    this.backendCalendar.set(null);
+    this.backendProgress.set(null);
+    this.backendError.set(null);
+    this.backendStatus.set('idle');
+  }
+
+  private formatBboxesParam(bboxOrList: BoundingBox | BoundingBox[]): { bboxStr: string; fallbackStr: string; primaryBox: BoundingBox } {
+    const list: BoundingBox[] = Array.isArray(bboxOrList[0])
+      ? (bboxOrList as BoundingBox[])
+      : [bboxOrList as BoundingBox];
+    const valid = list.length > 0 ? list : [[-9.6, 36.0, 3.4, 43.8] as BoundingBox];
+    const bboxStr = valid
+      .map(b => b.map(v => Number(v.toFixed(4))).join(','))
+      .join(';');
+    let minW = 180, minS = 90, maxE = -180, maxN = -90;
+    for (const [w, s, e, n] of valid) {
+      if (w < minW) minW = w;
+      if (s < minS) minS = s;
+      if (e > maxE) maxE = e;
+      if (n > maxN) maxN = n;
+    }
+    const envArea = (maxE - minW) * (maxN - minS);
+    const fallbackBox: BoundingBox = envArea <= 3500 ? [minW, minS, maxE, maxN] : valid[0];
+    const fallbackStr = fallbackBox.map(v => Number(v.toFixed(4))).join(',');
+    return { bboxStr, fallbackStr, primaryBox: fallbackBox };
+  }
+
+  getBackendHotspotsCsvUrl(bboxOrList: BoundingBox | BoundingBox[], dateStart: string, dateEnd: string): string {
+    const { bboxStr } = this.formatBboxesParam(bboxOrList);
     const params = new URLSearchParams({ bbox: bboxStr, from: dateStart, to: dateEnd });
     return this.resolveApiUrl(`/api/hotspots.csv?${params.toString()}`);
   }
 
-  async syncCalendarFromBackend(bbox: BoundingBox, dateStart: string, dateEnd: string): Promise<void> {
+  async syncCalendarFromBackend(bboxOrList: BoundingBox | BoundingBox[], dateStart: string, dateEnd: string): Promise<void> {
     if (this.isCustomDataset()) {
       this.cancelBackendSync();
       return;
     }
 
-    const bboxStr = bbox.map(v => Number(v.toFixed(4))).join(',');
+    const { bboxStr, fallbackStr, primaryBox } = this.formatBboxesParam(bboxOrList);
     const fromYm = dateStart.slice(0, 7);
     const toYm = dateEnd.slice(0, 7);
     const queryKey = `${bboxStr}|${fromYm}|${toYm}`;
@@ -182,19 +246,31 @@ export class WildfireDataService {
     const controller = new AbortController();
     this.apiAbort = controller;
 
+    if (!this.isInsideCachedRegion(primaryBox)) {
+      this.backendCalendar.set(null);
+    }
     if (this.backendStatus() !== 'downloading') {
       this.backendStatus.set('loading');
     }
     this.backendError.set(null);
 
-    const apiPath = `/api/calendar?bbox=${encodeURIComponent(bboxStr)}&from=${encodeURIComponent(fromYm)}&to=${encodeURIComponent(toYm)}`;
+    const buildApiPath = (bParam: string) =>
+      `/api/calendar?bbox=${encodeURIComponent(bParam)}&from=${encodeURIComponent(fromYm)}&to=${encodeURIComponent(toYm)}`;
+    const apiPath = buildApiPath(bboxStr);
 
     try {
       let resp = await fetch(this.resolveApiUrl(apiPath), { signal: controller.signal });
       if (this.activeApiQuery !== queryKey || controller.signal.aborted) return;
 
       let contentType = resp.headers.get('content-type') ?? '';
-      if (!contentType.includes('application/json') && this.resolvedBaseCache === null && typeof window !== 'undefined' && window.location.port === '4200') {
+      // Only probe direct :8000 if /api returned SPA HTML or 404 (no dev proxy), not 5xx proxy refusal
+      const shouldProbeDirect =
+        !contentType.includes('application/json') &&
+        resp.status < 500 &&
+        this.resolvedBaseCache === null &&
+        typeof window !== 'undefined' &&
+        window.location.port === '4200';
+      if (shouldProbeDirect) {
         const directBase = `${window.location.protocol}//${window.location.hostname}:8000`;
         try {
           const directResp = await fetch(`${directBase}${apiPath}`, { signal: controller.signal });
@@ -210,41 +286,88 @@ export class WildfireDataService {
       }
 
       if (!contentType.includes('application/json')) {
+        if (!this.isInsideCachedRegion(primaryBox)) {
+          this.backendCalendar.set(null);
+        }
         this.backendStatus.set('offline');
         this.backendProgress.set(null);
+        const delay = this.offlineRetryDelayMs;
+        this.offlineRetryDelayMs = Math.min(30000, this.offlineRetryDelayMs * 2);
+        this.apiPollTimer = setTimeout(() => {
+          if (this.activeApiQuery === queryKey && !this.isCustomDataset()) {
+            void this.syncCalendarFromBackend(bboxOrList, dateStart, dateEnd);
+          }
+        }, delay);
         return;
       }
 
-      const body = await resp.json();
+      let body = await resp.json();
       if (this.activeApiQuery !== queryKey || controller.signal.aborted) return;
 
+      // Fallback if running backend only supports single W,S,E,N bbox parameter
+      if (resp.status === 400 && bboxStr.includes(';') && fallbackStr !== bboxStr) {
+        resp = await fetch(this.resolveApiUrl(buildApiPath(fallbackStr)), { signal: controller.signal });
+        if (this.activeApiQuery !== queryKey || controller.signal.aborted) return;
+        body = await resp.json();
+        if (this.activeApiQuery !== queryKey || controller.signal.aborted) return;
+      }
+
       if (resp.status === 202 && body?.status === 'downloading') {
+        this.offlineRetryDelayMs = 5000;
+        if (!this.isInsideCachedRegion(primaryBox)) {
+          this.backendCalendar.set(null);
+        }
         this.backendStatus.set('downloading');
         this.backendProgress.set(body.progress ?? { done: 0, total: 0 });
         this.apiPollTimer = setTimeout(() => {
           if (this.activeApiQuery === queryKey && !this.isCustomDataset()) {
-            void this.syncCalendarFromBackend(bbox, dateStart, dateEnd);
+            void this.syncCalendarFromBackend(bboxOrList, dateStart, dateEnd);
           }
         }, 2500);
         return;
       }
 
       if (resp.ok && body?.months && body?.selection) {
+        this.offlineRetryDelayMs = 5000;
         this.backendCalendar.set(body as BackendCalendarPayload);
         this.backendStatus.set('live');
         this.backendProgress.set(null);
         this.backendError.set(null);
+        if (body.metadata?.refreshing) {
+          this.apiPollTimer = setTimeout(() => {
+            if (this.activeApiQuery === queryKey && !this.isCustomDataset()) {
+              void this.syncCalendarFromBackend(bboxOrList, dateStart, dateEnd);
+            }
+          }, 3500);
+        }
         return;
       }
 
+      this.backendCalendar.set(null);
       this.backendStatus.set('error');
       this.backendProgress.set(null);
       this.backendError.set(typeof body?.error === 'string' ? body.error : `HTTP ${resp.status}`);
     } catch (err) {
       if ((err as { name?: string })?.name === 'AbortError') return;
+      if (!this.isInsideCachedRegion(primaryBox)) {
+        this.backendCalendar.set(null);
+      }
       this.backendStatus.set('offline');
       this.backendProgress.set(null);
+      const delay = this.offlineRetryDelayMs;
+      this.offlineRetryDelayMs = Math.min(30000, this.offlineRetryDelayMs * 2);
+      this.apiPollTimer = setTimeout(() => {
+        if (this.activeApiQuery === queryKey && !this.isCustomDataset()) {
+          void this.syncCalendarFromBackend(bboxOrList, dateStart, dateEnd);
+        }
+      }, delay);
     }
+  }
+
+  private isInsideCachedRegion(bbox: BoundingBox): boolean {
+    const cached = this.backendCalendar()?.metadata.cachedRegion;
+    if (!cached) return false;
+    return bbox[0] >= cached[0] && bbox[1] >= cached[1] && bbox[2] <= cached[2] && bbox[3] <= cached[3];
   }
 
   loadAll(): Promise<void> {
@@ -430,37 +553,151 @@ export class WildfireDataService {
 
   private async fetchAll(): Promise<void> {
     try {
-      const [cal, inertia, spread, evac, enso, meta, csvText, hotspotsPayload] = await Promise.all([
+      const [cal, inertia, enso, meta, hotspotsPayload, countriesGeo] = await Promise.all([
         this.fetchJson<CalendarSummaryData>('assets/data/calendar-summary.json'),
         this.fetchJson<ClimateInertiaData>('assets/data/climate-inertia.json'),
-        this.fetchJson<MlSpreadFramesData>('assets/data/ml-spread-frames.json'),
-        this.fetchJson<EvacuationData>('assets/data/evacuation-zones.json'),
         this.fetchJson<EnsoHistoryJson>('assets/data/enso-history.json'),
         this.fetchJson<TimelineMetaJson>('assets/data/timeline-meta.json'),
-        this.fetchText('assets/data/aoi.csv'),
-        this.fetchJson<HarmonizedHotspotsPayload>('assets/data/harmonized-hotspots.json')
+        this.fetchJson<HarmonizedHotspotsPayload>('assets/data/harmonized-hotspots.json'),
+        this.fetchJson<CountryGeoJsonPayload>('assets/data/uk-land-10m.json')
       ]);
 
       if (cal) this.calendar.set(cal);
       if (inertia) this.climateInertia.set(inertia);
-      if (spread) this.spreadFrames.set(spread);
-      if (evac) this.evacuation.set(evac);
       if (enso) this.indexEnsoHistory(enso);
       if (meta) this.indexGulfStreamMeta(meta);
-      if (csvText) {
-        const parsed = this.parseAoiCsv(csvText);
-        if (parsed.length > 0) this.aois.set(parsed);
-      }
       if (hotspotsPayload?.records) {
-        this.defaultHotspots = hotspotsPayload.records;
-        if (!this.isCustomDataset()) {
-          this.hotspots.set(this.defaultHotspots);
-        }
+        // Do not populate defaultHotspots with the static Iberia-only sample;
+        // live bounding-box data from /api/calendar is the sole spatial source of truth.
+        this.defaultHotspots = [];
+      }
+      if (countriesGeo?.features) {
+        this.countries.set(this.parseCountriesGeoJson(countriesGeo));
       }
       this.isLoaded.set(true);
     } catch (err) {
       console.warn('Could not load wildfire datasets:', err);
     }
+  }
+
+  private parseCountriesGeoJson(geo: CountryGeoJsonPayload): PredefinedCountry[] {
+    const out: PredefinedCountry[] = [];
+    const seen = new Set<string>();
+
+    const ringBbox = (ring: [number, number][]): BoundingBox => {
+      let w = 180, s = 90, e = -180, n = -90;
+      for (const [x, y] of ring) {
+        if (x < w) w = x;
+        if (x > e) e = x;
+        if (y < s) s = y;
+        if (y > n) n = y;
+      }
+      return [
+        Math.max(-180, Number(w.toFixed(2))),
+        Math.max(-85, Number(s.toFixed(2))),
+        Math.min(180, Number(e.toFixed(2))),
+        Math.min(85, Number(n.toFixed(2)))
+      ];
+    };
+
+    for (const feat of geo.features ?? []) {
+      const code = (feat.properties?.code ?? '').trim().toUpperCase();
+      const name = (feat.properties?.name ?? code).trim();
+      const geom = feat.geometry;
+      if (!code || code === '-99' || seen.has(code) || !geom?.coordinates) continue;
+
+      const rawPolys: PolygonCoords[] =
+        geom.type === 'Polygon' ? [geom.coordinates] : geom.type === 'MultiPolygon' ? geom.coordinates : [];
+      if (rawPolys.length === 0) continue;
+
+      const withBox = rawPolys
+        .filter(p => Array.isArray(p[0]) && p[0].length >= 4)
+        .map(poly => {
+          const bbox = ringBbox(poly[0]);
+          const area = Math.max(0.0001, (bbox[2] - bbox[0]) * (bbox[3] - bbox[1]));
+          return { poly, bbox, area };
+        })
+        .sort((a, b) => b.area - a.area);
+
+      if (withBox.length === 0) continue;
+      const main = withBox[0].bbox;
+
+      // Keep polygons within 26 deg of main landmass so distant overseas islands don't span oceans
+      const kept = withBox.filter((item, idx) => {
+        if (idx === 0) return true;
+        const b = item.bbox;
+        const dx = Math.max(0, main[0] - b[2], b[0] - main[2]);
+        const dy = Math.max(0, main[1] - b[3], b[1] - main[3]);
+        return Math.hypot(dx, dy) <= 26;
+      });
+
+      const clusters: BoundingBox[] = [];
+      for (const item of kept) {
+        const b: BoundingBox = [...item.bbox];
+        let merged = false;
+        for (const c of clusters) {
+          const dx = Math.max(0, c[0] - b[2], b[0] - c[2]);
+          const dy = Math.max(0, c[1] - b[3], b[1] - c[3]);
+          if (Math.hypot(dx, dy) <= 3.5) {
+            c[0] = Math.min(c[0], b[0]);
+            c[1] = Math.min(c[1], b[1]);
+            c[2] = Math.max(c[2], b[2]);
+            c[3] = Math.max(c[3], b[3]);
+            merged = true;
+            break;
+          }
+        }
+        if (!merged) clusters.push(b);
+      }
+
+      const normClusters = clusters
+        .slice(0, 4)
+        .map(([w, s, e, n]): BoundingBox => [
+          Number(Math.max(-180, e - w < 0.06 ? w - 0.04 : w).toFixed(2)),
+          Number(Math.max(-85, n - s < 0.06 ? s - 0.04 : s).toFixed(2)),
+          Number(Math.min(180, e - w < 0.06 ? e + 0.04 : e).toFixed(2)),
+          Number(Math.min(85, n - s < 0.06 ? n + 0.04 : n).toFixed(2))
+        ]);
+
+      let primaryBbox: BoundingBox = normClusters[0] ?? [...main];
+      let bboxes: BoundingBox[] = normClusters.length > 0 ? normClusters : [primaryBbox];
+
+      // Align Spain & Portugal primary Iberian bounding boxes with the pre-seeded Iberia FIRMS cache
+      if (code === 'ESP') {
+        primaryBbox = [-9.3, 36.0, 3.48, 43.79];
+        bboxes = [primaryBbox];
+      } else if (code === 'PRT') {
+        primaryBbox = [-9.5, 36.97, -6.21, 42.15];
+        bboxes = [primaryBbox];
+      }
+
+      const center: [number, number] = [
+        Number(((primaryBbox[0] + primaryBbox[2]) / 2).toFixed(2)),
+        Number(((primaryBbox[1] + primaryBbox[3]) / 2).toFixed(2))
+      ];
+
+      seen.add(code);
+      out.push({
+        code,
+        iso2: ISO3_TO_ISO2[code],
+        name,
+        bboxes,
+        primaryBbox,
+        polygons: kept.map(k => k.poly),
+        center
+      });
+    }
+
+    out.sort((a, b) => {
+      const ia = PRIORITY_COUNTRY_CODES.indexOf(a.code);
+      const ib = PRIORITY_COUNTRY_CODES.indexOf(b.code);
+      if (ia !== -1 && ib !== -1) return ia - ib;
+      if (ia !== -1) return -1;
+      if (ib !== -1) return 1;
+      return a.name.localeCompare(b.name);
+    });
+
+    return out;
   }
 
   private indexEnsoHistory(enso: EnsoHistoryJson) {

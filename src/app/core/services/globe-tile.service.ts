@@ -23,7 +23,7 @@ export class GlobeTileService {
   private readonly math = inject(GlobeMathService);
   private readonly loader = new THREE.TextureLoader();
 
-  private readonly MAX_CACHE = 110;
+  private readonly MAX_CACHE = 320;
   private readonly cache = new Map<string, CachedTile>();
   private accessTick = 0;
 
@@ -65,8 +65,19 @@ export class GlobeTileService {
     centerLat: number;
     baseRadiusFactor: number;
     renderOrderBase: number;
+    onTileLoaded?: () => void;
   }) {
-    const { group, provider, enabled, z, centerLon, centerLat, baseRadiusFactor, renderOrderBase } = params;
+    const {
+      group,
+      provider,
+      enabled,
+      z,
+      centerLon,
+      centerLat,
+      baseRadiusFactor,
+      renderOrderBase,
+      onTileLoaded
+    } = params;
 
     if (!enabled) {
       group.visible = false;
@@ -74,33 +85,62 @@ export class GlobeTileService {
     }
     group.visible = true;
 
+    const wantedKeys = new Set<string>();
+    const wantedCoords: Array<{ z: number; x: number; y: number; key: string }> = [];
+
+    // Always keep global z=2 (4x4) OSM base tiles loaded so the whole globe is seamless at all zooms
+    if (provider === 'osm') {
+      for (let by = 0; by < 4; by++) {
+        for (let bx = 0; bx < 4; bx++) {
+          const bKey = `${provider}:2:${bx}:${by}`;
+          wantedKeys.add(bKey);
+          wantedCoords.push({ z: 2, x: bx, y: by, key: bKey });
+        }
+      }
+    }
+
     const n = 1 << z;
     const { tx: centerX, ty: centerY } = this.lonLatToTile(centerLon, centerLat, z);
-    const radiusX = z <= 3 ? 3 : 2;
-    const radiusY = 2;
+    const radiusX = z <= 3 ? 4 : z <= 6 ? 5 : 4;
+    const radiusY = z <= 3 ? 3 : z <= 6 ? 4 : 3;
 
-    const wantedKeys = new Set<string>();
-    const wantedCoords: Array<{ x: number; y: number; key: string }> = [];
+    const cLatRad = (centerLat * Math.PI) / 180;
+    const cLonRad = (centerLon * Math.PI) / 180;
+    const sinCLat = Math.sin(cLatRad);
+    const cosCLat = Math.cos(cLatRad);
 
+    const detailTiles: Array<{ z: number; x: number; y: number; key: string; dist: number }> = [];
     for (let dy = -radiusY; dy <= radiusY; dy++) {
       const y = centerY + dy;
       if (y < 0 || y >= n) continue;
+      const mercMid = Math.PI * (1 - (2 * (y + 0.5)) / n);
+      const tLatRad = Math.atan(Math.sinh(mercMid));
+      const sinTLat = Math.sin(tLatRad);
+      const cosTLat = Math.cos(tLatRad);
       for (let dx = -radiusX; dx <= radiusX; dx++) {
         const wrappedX = ((centerX + dx) % n + n) % n;
+        const tLonRad = (((wrappedX + 0.5) / n) * 360 - 180) * (Math.PI / 180);
+        const cosAngle = sinCLat * sinTLat + cosCLat * cosTLat * Math.cos(tLonRad - cLonRad);
+        if (z >= 4 && cosAngle < -0.2) continue;
+
         const key = `${provider}:${z}:${wrappedX}:${y}`;
         if (wantedKeys.has(key)) continue;
         wantedKeys.add(key);
-        wantedCoords.push({ x: wrappedX, y, key });
+        detailTiles.push({ z, x: wrappedX, y, key, dist: dx * dx + dy * dy });
       }
+    }
+    detailTiles.sort((a, b) => a.dist - b.dist);
+    for (const t of detailTiles) {
+      wantedCoords.push(t);
     }
 
     // Request/promote wanted tiles
     let allWantedLoaded = true;
     const nowTick = ++this.accessTick;
-    for (const { x, y, key } of wantedCoords) {
+    for (const { z: tz, x, y, key } of wantedCoords) {
       let entry = this.cache.get(key);
       if (!entry) {
-        entry = this.createTileEntry(provider, z, x, y, key, baseRadiusFactor, renderOrderBase);
+        entry = this.createTileEntry(provider, tz, x, y, key, baseRadiusFactor, renderOrderBase, onTileLoaded);
         this.cache.set(key, entry);
       }
       entry.lastUsed = nowTick;
@@ -118,7 +158,7 @@ export class GlobeTileService {
       if (!key) continue;
       if (wantedKeys.has(key)) continue;
       const cached = this.cache.get(key);
-      const keepFallback = !allWantedLoaded && cached && cached.loaded && Math.abs(cached.z - z) <= 2;
+      const keepFallback = !allWantedLoaded && cached && cached.loaded && Math.abs(cached.z - z) <= 3;
       if (!keepFallback) {
         group.remove(child);
       }
@@ -165,7 +205,8 @@ export class GlobeTileService {
     y: number,
     key: string,
     baseRadiusFactor: number,
-    renderOrderBase: number
+    renderOrderBase: number,
+    onTileLoaded?: () => void
   ): CachedTile {
     const n = 1 << z;
     const lonW = (x / n) * 360 - 180;
@@ -174,8 +215,8 @@ export class GlobeTileService {
     const mercBot = Math.PI * (1 - (2 * (y + 1)) / n);
 
     // Slight radial & renderOrder step per zoom avoids Z-fighting between parent & child tiles
-    const radius = this.math.R * (baseRadiusFactor + z * 0.000004);
-    const segs = z <= 4 ? 10 : z <= 7 ? 6 : 3;
+    const radius = this.math.R * (baseRadiusFactor + z * 0.000006);
+    const segs = z <= 2 ? 28 : z <= 4 ? 16 : z <= 7 ? 6 : 3;
     const geo = this.createMercatorSphericalPatch(lonW, lonE, mercBot, mercTop, radius, segs);
 
     const url = this.buildTileUrl(provider, z, x, y);
@@ -220,6 +261,7 @@ export class GlobeTileService {
         mat.opacity = 1;
         mat.needsUpdate = true;
         entry.loaded = true;
+        onTileLoaded?.();
       },
       undefined,
       () => {

@@ -5,11 +5,13 @@ import {
   BurningCalendarCell,
   HarmonizedHotspotRecord,
   HotspotAnalyticsSummary,
+  MultiPolygonCoords,
+  PolygonRing,
   YearlyComparisonPoint
 } from '../models/wildfire.model';
 import { ColorRampService } from './color-ramp.service';
 import { WildfireDataService } from './wildfire-data.service';
-import { WildfireStateService } from './wildfire-state.service';
+import { WildfireStateService, isPointInPolygonCoords } from './wildfire-state.service';
 import { I18nService } from '../i18n/i18n.service';
 
 export interface BurningCalendarModel {
@@ -36,6 +38,7 @@ export class HotspotAnalyticsService {
       const bbox = this.state.regionBbox();
       const start = this.state.dateStart();
       const end = this.state.dateEnd();
+      const hasDates = this.state.hasDateRange();
       const isCustom = this.data.isCustomDataset();
 
       untracked(() => {
@@ -43,8 +46,8 @@ export class HotspotAnalyticsService {
           clearTimeout(this.backendDebounce);
           this.backendDebounce = null;
         }
-        if (isCustom) {
-          this.data.cancelBackendSync();
+        if (isCustom || !bbox || !hasDates) {
+          this.data.clearBackendCalendar();
           return;
         }
         this.backendDebounce = setTimeout(() => {
@@ -58,62 +61,76 @@ export class HotspotAnalyticsService {
     () => !this.data.isCustomDataset() && this.data.backendCalendar() !== null
   );
 
-  /** All hotspot records inside the selected region bounding box (across all years). */
+  /** Backend already clips all cells and series directly to the active bounding box. */
+  private readonly backendSpatialRatio = computed<number>(() => 1);
+
+  /** All hotspot records inside the selected region bounding box (for custom uploaded datasets). */
   readonly regionHotspots = computed<HarmonizedHotspotRecord[]>(() => {
-    const [w, s, e, n] = this.state.regionBbox();
-    return this.data.hotspots().filter(r => r.lon >= w && r.lon <= e && r.lat >= s && r.lat <= n);
+    if (!this.data.isCustomDataset()) {
+      return [];
+    }
+    this.state.regionBbox();
+    return this.data.hotspots().filter(r => this.state.isPointInRegion(r.lon, r.lat));
   });
 
-  /** Hotspot records inside BOTH the selected region bounding box AND the selected date range. */
+  /** Hotspot records inside BOTH the selected bounding box AND the selected date range. */
   readonly filteredHotspots = computed<HarmonizedHotspotRecord[]>(() => {
     const backend = this.data.backendCalendar();
-    if (!this.data.isCustomDataset() && backend) {
+    this.state.regionBbox();
+    if (!this.data.isCustomDataset()) {
+      if (!backend) return [];
       const meanFrp = backend.selection.frp?.meanMw ?? 22;
       const dateStamp = `${backend.selection.from}-15`;
-      return backend.selection.cells.map(c => ({
-        id: c.h3,
-        date: dateStamp,
-        lon: c.lon,
-        lat: c.lat,
-        frpMw: Number((c.harmonized * meanFrp).toFixed(1)),
-        confidence: 90,
-        sensor: 'HARMONIZED',
-        rawModisCount: c.rawModis,
-        rawViirsCount: c.rawViirs,
-        harmonizedCount: c.harmonized,
-        biome: 'NASA FIRMS H3'
-      }));
+      return backend.selection.cells
+        .filter(c => this.state.isPointInRegion(c.lon, c.lat))
+        .map(c => ({
+          id: c.h3,
+          date: dateStamp,
+          lon: c.lon,
+          lat: c.lat,
+          frpMw: Number((c.harmonized * meanFrp).toFixed(1)),
+          confidence: 90,
+          sensor: 'HARMONIZED',
+          rawModisCount: c.rawModis,
+          rawViirsCount: c.rawViirs,
+          harmonizedCount: c.harmonized,
+          biome: 'NASA FIRMS H3'
+        }));
     }
     const start = this.state.dateStart();
     const end = this.state.dateEnd();
     return this.regionHotspots().filter(r => r.date >= start && r.date <= end);
   });
 
-  /** Approximate bounding box area in km² and hectares using spherical latitude cosine. */
+  /** Approximate MultiPolygon area in km² and hectares using spherical latitude cosine. */
   readonly bboxArea = computed<{ km2: number; ha: number }>(() => {
-    return this.computeBboxArea(this.state.regionBbox());
+    return this.computeMultiPolygonArea(this.state.regionMultiPolygon());
   });
 
   /** Historical multi-year comparison (2000–2026 or dataset span) for the selected region & seasonal window. */
   readonly yearlyComparison = computed<YearlyComparisonPoint[]>(() => {
     const start = this.state.dateStart();
     const end = this.state.dateEnd();
-    const startYear = Number(start.slice(0, 4));
-    const endYear = Number(end.slice(0, 4));
-    const spanDays = Math.max(1, Math.round((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / 86400000) + 1);
-    const useSeasonalWindow = spanDays < 330;
+    const hasDates = this.state.hasDateRange();
+    const startYear = hasDates ? Number(start.slice(0, 4)) : 2000;
+    const endYear = hasDates ? Number(end.slice(0, 4)) : 2026;
+    const spanDays = hasDates
+      ? Math.max(1, Math.round((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / 86400000) + 1)
+      : 365;
+    const useSeasonalWindow = hasDates && spanDays < 330;
 
     const backend = this.data.backendCalendar();
     if (!this.data.isCustomDataset() && backend) {
+      const ratio = this.backendSpatialRatio();
       const startM = Number(start.slice(5, 7));
       const endM = Number(end.slice(5, 7));
       const byYear = new Map<number, { modis: number; viirs: number; harm: number; frp: number }>();
       for (const yr of backend.yearly) {
         byYear.set(yr.year, {
-          modis: useSeasonalWindow ? 0 : yr.rawModis,
-          viirs: useSeasonalWindow ? 0 : yr.rawViirs,
-          harm: useSeasonalWindow ? 0 : yr.harmonized,
-          frp: yr.frpMw ?? 0
+          modis: useSeasonalWindow ? 0 : Math.round(yr.rawModis * ratio),
+          viirs: useSeasonalWindow ? 0 : Math.round(yr.rawViirs * ratio),
+          harm: useSeasonalWindow ? 0 : yr.harmonized * ratio,
+          frp: (yr.frpMw ?? 0) * ratio
         });
       }
 
@@ -126,9 +143,9 @@ export class HotspotAnalyticsService {
           if (!matches) continue;
           const b = byYear.get(y);
           if (!b) continue;
-          b.modis += backend.series.rawModis[i] ?? 0;
-          b.viirs += backend.series.rawViirs[i] ?? 0;
-          b.harm += backend.series.harmonized[i] ?? 0;
+          b.modis += Math.round((backend.series.rawModis[i] ?? 0) * ratio);
+          b.viirs += Math.round((backend.series.rawViirs[i] ?? 0) * ratio);
+          b.harm += (backend.series.harmonized[i] ?? 0) * ratio;
         }
       }
 
@@ -227,15 +244,16 @@ export class HotspotAnalyticsService {
     const backend = this.data.backendCalendar();
 
     if (!this.data.isCustomDataset() && backend) {
+      const ratio = this.backendSpatialRatio();
       const sel = backend.selection;
-      const harm = Math.round(sel.hotspots.harmonized);
-      const modis = sel.hotspots.rawModis;
-      const viirs = sel.hotspots.rawViirs;
-      const totalFrp = sel.frp?.totalMw ?? 0;
+      const harm = Math.round(sel.hotspots.harmonized * ratio);
+      const modis = Math.round(sel.hotspots.rawModis * ratio);
+      const viirs = Math.round(sel.hotspots.rawViirs * ratio);
+      const totalFrp = Math.round((sel.frp?.totalMw ?? 0) * ratio);
       const meanFrp = sel.frp?.meanMw ?? 0;
       const activeFireDays = sel.frp?.activeFireDays ?? 0;
       const peakDate = sel.frp?.peakDate ?? null;
-      const peakCount = sel.frp?.peakCount ?? 0;
+      const peakCount = Math.round((sel.frp?.peakCount ?? 0) * ratio);
 
       const activeYears = yearly.filter(y => y.inSelectedRange);
       const numSelectedYears = Math.max(1, activeYears.length);
@@ -334,13 +352,14 @@ export class HotspotAnalyticsService {
 
     const backend = this.data.backendCalendar();
     if (!this.data.isCustomDataset() && backend) {
+      const ratio = this.backendSpatialRatio();
       if (mode === 'daily') {
         const byMmDd = new Map<string, BackendDailyBucket>();
         for (const row of backend.selection.daily ?? []) {
           byMmDd.set(row.mmdd, row);
         }
-        const maxCount = Math.max(1, ...Array.from(byMmDd.values()).map(v => Math.round(v.harmonized)));
-        const maxFrp = Math.max(1, ...Array.from(byMmDd.values()).map(v => v.frpMw));
+        const maxCount = Math.max(1, ...Array.from(byMmDd.values()).map(v => Math.round(v.harmonized * ratio)));
+        const maxFrp = Math.max(1, ...Array.from(byMmDd.values()).map(v => Math.round(v.frpMw * ratio)));
 
         const cells: BurningCalendarCell[] = [];
         for (let m = 0; m < 12; m++) {
@@ -349,8 +368,8 @@ export class HotspotAnalyticsService {
             const validDay = d < daysInMonth;
             const mmdd = `${String(m + 1).padStart(2, '0')}-${String(d + 1).padStart(2, '0')}`;
             const b = byMmDd.get(mmdd);
-            const harm = b ? Math.round(b.harmonized) : 0;
-            const avg = b ? b.baselineAvg : 0;
+            const harm = b ? Math.round(b.harmonized * ratio) : 0;
+            const avg = b ? b.baselineAvg * ratio : 0;
             const z = avg > 0 ? (harm - avg) / Math.max(1, Math.sqrt(avg)) : harm > 0 ? 1.5 : 0;
             cells.push({
               key: mmdd,
@@ -358,9 +377,9 @@ export class HotspotAnalyticsService {
               row: m,
               col: d,
               harmonizedCount: harm,
-              rawModisCount: b?.rawModis ?? 0,
-              rawViirsCount: b?.rawViirs ?? 0,
-              frpMw: b?.frpMw ?? 0,
+              rawModisCount: Math.round((b?.rawModis ?? 0) * ratio),
+              rawViirsCount: Math.round((b?.rawViirs ?? 0) * ratio),
+              frpMw: Math.round((b?.frpMw ?? 0) * ratio),
               multiYearAvg: Number(avg.toFixed(1)),
               anomalyZScore: Number(z.toFixed(2)),
               intensity: validDay && harm > 0 ? Math.min(1, Math.pow(harm / maxCount, 0.72)) : 0,
@@ -391,9 +410,9 @@ export class HotspotAnalyticsService {
       const byYm = new Map<string, { harm: number; modis: number; viirs: number; z: number }>();
       for (let i = 0; i < backend.months.length; i++) {
         byYm.set(backend.months[i], {
-          harm: Math.round(backend.series.harmonized[i] ?? 0),
-          modis: backend.series.rawModis[i] ?? 0,
-          viirs: backend.series.rawViirs[i] ?? 0,
+          harm: Math.round((backend.series.harmonized[i] ?? 0) * ratio),
+          modis: Math.round((backend.series.rawModis[i] ?? 0) * ratio),
+          viirs: Math.round((backend.series.rawViirs[i] ?? 0) * ratio),
           z: backend.series.anomalyZ[i] ?? 0
         });
       }
@@ -416,7 +435,7 @@ export class HotspotAnalyticsService {
           const inRange = ym >= startYm && ym <= endYm;
           const b = byYm.get(ym);
           const harm = b?.harm ?? 0;
-          const avg = backend.climatology.monthMean[m] ?? 0;
+          const avg = (backend.climatology.monthMean[m] ?? 0) * ratio;
           const z = b?.z ?? 0;
           cells.push({
             key: ym,
@@ -599,12 +618,122 @@ export class HotspotAnalyticsService {
     return { km2, ha: km2 * 100 };
   }
 
+  computeMultiPolygonArea(multi: MultiPolygonCoords): { km2: number; ha: number } {
+    let totalKm2 = 0;
+    for (const poly of multi) {
+      if (poly.length === 0) continue;
+      totalKm2 += this.computeRingAreaKm2(poly[0]);
+      for (let h = 1; h < poly.length; h++) {
+        totalKm2 -= this.computeRingAreaKm2(poly[h]);
+      }
+    }
+    const km2 = Math.max(1, Math.round(totalKm2));
+    return { km2, ha: km2 * 100 };
+  }
+
+  /** Localized geographic area name where the globe camera is currently pointed. */
+  readonly pointedAreaName = computed<string>(() => {
+    const t = this.i18n.t();
+    const lang = this.i18n.lang();
+    const [lon, lat] = this.state.cameraTargetLonLat();
+    const countries = this.data.countries();
+
+    let displayNames: Intl.DisplayNames | null = null;
+    try {
+      displayNames = new Intl.DisplayNames([lang], { type: 'region' });
+    } catch {
+      displayNames = null;
+    }
+
+    for (const c of countries) {
+      if (!c.bboxes.some(([w, s, e, n]) => lon >= w && lon <= e && lat >= s && lat <= n)) continue;
+      for (const poly of c.polygons) {
+        if (isPointInPolygonCoords(lon, lat, poly)) {
+          if (displayNames && c.iso2) {
+            try {
+              const localized = displayNames.of(c.iso2);
+              if (localized) return localized;
+            } catch {
+              // fallback to raw name
+            }
+          }
+          return c.name;
+        }
+      }
+    }
+
+    return t.globeAreaUnknown;
+  });
+
+  /**
+   * Smart dynamic alt text for the 3D wildfire globe describing the current camera area,
+   * bounding box, fire count (harmonized + MODIS/VIIRS), and active time range.
+   */
+  readonly globeAltText = computed<string>(() => {
+    const t = this.i18n.t();
+    const lang = this.i18n.lang();
+    const [lon, lat] = this.state.cameraTargetLonLat();
+    const area = this.pointedAreaName();
+    const latDir = lat >= 0 ? 'N' : 'S';
+    const lonDir = lon >= 0 ? 'E' : 'W';
+    const coords = `${Math.abs(lat).toFixed(1)}°${latDir}, ${Math.abs(lon).toFixed(1)}°${lonDir}`;
+
+    const active = this.state.hasActiveSelection();
+    const bbox = this.state.regionBbox();
+    const start = this.state.dateStart();
+    const end = this.state.dateEnd();
+
+    if (!active || !bbox) {
+      return t.globeAltEmpty
+        .replace('{area}', area)
+        .replace('{coords}', coords);
+    }
+
+    const bboxText = `${bbox[0].toFixed(2)}°, ${bbox[1].toFixed(2)}°, ${bbox[2].toFixed(2)}°, ${bbox[3].toFixed(2)}°`;
+    const bStatus = this.data.backendStatus();
+    if (!this.data.isCustomDataset() && (bStatus === 'loading' || bStatus === 'downloading') && !this.data.backendCalendar()) {
+      return t.globeAltLoading
+        .replace('{area}', area)
+        .replace('{coords}', coords)
+        .replace('{bbox}', bboxText)
+        .replace('{from}', start)
+        .replace('{to}', end);
+    }
+
+    const s = this.summary();
+    const fmt = new Intl.NumberFormat(lang);
+    return t.globeAltActive
+      .replace('{area}', area)
+      .replace('{coords}', coords)
+      .replace('{bbox}', bboxText)
+      .replace('{fires}', fmt.format(s.harmonizedFires))
+      .replace('{modis}', fmt.format(s.rawModisFires))
+      .replace('{viirs}', fmt.format(s.rawViirsFires))
+      .replace('{from}', start || '—')
+      .replace('{to}', end || '—');
+  });
+
+  private computeRingAreaKm2(ring: PolygonRing): number {
+    if (ring.length < 3) return 0;
+    let sumLat = 0;
+    for (const pt of ring) sumLat += pt[1];
+    const meanLatRad = ((sumLat / ring.length) * Math.PI) / 180;
+    const cosLat = Math.cos(meanLatRad);
+    let areaDeg2 = 0;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      areaDeg2 += (ring[j][0] + ring[i][0]) * (ring[j][1] - ring[i][1]);
+    }
+    return Math.abs(areaDeg2 * 0.5) * (111.32 * cosLat) * 110.574;
+  }
+
   async downloadFilteredCsv(): Promise<void> {
-    const stamp = `${this.state.dateStart()}_to_${this.state.dateEnd()}`;
-    if (!this.data.isCustomDataset() && this.data.backendStatus() === 'live') {
+    const start = this.state.dateStart() || 'all';
+    const end = this.state.dateEnd() || 'all';
+    const stamp = `${start}_to_${end}`;
+    if (!this.data.isCustomDataset() && this.data.backendStatus() === 'live' && this.state.regionBbox()) {
       try {
         const url = this.data.getBackendHotspotsCsvUrl(
-          this.state.regionBbox(),
+          this.state.regionBboxes(),
           this.state.dateStart(),
           this.state.dateEnd()
         );
@@ -661,7 +790,7 @@ export class HotspotAnalyticsService {
       burningCalendar: this.burningCalendar(),
       filteredHotspotsCount: this.filteredHotspots().length
     };
-    const stamp = `${this.state.dateStart()}_to_${this.state.dateEnd()}`;
+    const stamp = `${this.state.dateStart() || 'all'}_to_${this.state.dateEnd() || 'all'}`;
     this.triggerDownload(
       JSON.stringify(payload, null, 2),
       `fire-analytics-report_${stamp}.json`,
@@ -718,7 +847,7 @@ export class HotspotAnalyticsService {
     const cal = this.burningCalendar();
     const yearly = this.yearlyComparison();
     const rampId = this.state.colorRamp();
-    const [w, south, e, n] = this.state.regionBbox();
+    const [w, south, e, n] = this.state.regionBbox() ?? [-180, -85, 180, 85];
 
     const esc = (str: string) =>
       str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');

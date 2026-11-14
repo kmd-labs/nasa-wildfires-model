@@ -19,7 +19,8 @@ ATTRIBUTION = ("We acknowledge the use of data and imagery from NASA's Fire Info
                "Information System (ESDIS). MODIS Collection 6.1 and VIIRS 375 m active fire products. "
                "Harmonized by KMD Labs.")
 CSV_COLUMNS = ["latitude", "longitude", "acq_date", "acq_time", "satellite", "instrument", "confidence", "version", "frp", "daynight", "type"]
-MAX_BBOX_DEG2 = 400.0  # about 2000 x 2000 km at the equator; larger requests are refused
+MAX_BBOX_DEG2 = 8000.0  # up to ~90 x 88 degrees; larger requests are refused
+BURNED_AREA_MAX_DEG2 = 400.0    # burned-area downloads: about 4 sinusoidal tiles x 310 months at most
 BURNED_AREA_LATENCY_DAYS = 75  # the newest burned-area month LP DAAC has normally published is about this old
 BURNED_AREA_RETRY_S = 600       # a burned-area job with failed tiles is retried after this many seconds
 
@@ -46,6 +47,31 @@ def parse_bbox(text: str) -> tuple[float, float, float, float]:
     if (e - w) * (n - s) > MAX_BBOX_DEG2:
         raise BadRequest(f"bbox is larger than {MAX_BBOX_DEG2:g} square degrees")
     return w, s, e, n
+
+
+def parse_bboxes(text: str) -> tuple[tuple[float, float, float, float], ...]:
+    parts = [p.strip() for p in text.split(";") if p.strip()]
+    if not parts:
+        raise BadRequest("bbox must be W,S,E,N in decimal degrees")
+    boxes = tuple(parse_bbox(p) for p in parts)
+    total_area = sum((e - w) * (n - s) for w, s, e, n in boxes)
+    if total_area > MAX_BBOX_DEG2:
+        raise BadRequest(f"total multipolygon bbox area is larger than {MAX_BBOX_DEG2:g} square degrees")
+    return boxes
+
+
+def envelope_bbox(boxes: tuple[tuple[float, float, float, float], ...]) -> tuple[float, float, float, float]:
+    return (
+        min(b[0] for b in boxes),
+        min(b[1] for b in boxes),
+        max(b[2] for b in boxes),
+        max(b[3] for b in boxes),
+    )
+
+
+def _overlapping(boxes: tuple[tuple[float, float, float, float], ...]) -> bool:
+    return any(a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]
+               for i, a in enumerate(boxes) for b in boxes[i + 1:])
 
 
 def parse_day(text: str, end: bool) -> pd.Timestamp:
@@ -82,7 +108,12 @@ class CalendarService:
         with self._lock:
             return self._jobs.get(region.key)
 
-    def ensure_data(self, bbox: tuple[float, float, float, float], wait: bool = False) -> Region:
+    def ensure_data(
+        self,
+        bbox: tuple[float, float, float, float],
+        wait: bool = False,
+        priority_window: tuple[dt.date, dt.date] | None = None,
+    ) -> Region:
         """Return a region with data for bbox, starting a background download when something is missing.
 
         Raises NotReady while the first download of a region is running. A region that already has
@@ -95,7 +126,7 @@ class CalendarService:
             return region
         job = self._job(region)
         if job is None or (job["finished"] and job["error"] is None and self._needs_sync(region)) or (job["finished"] and job["error"]):
-            job = self._start(region)
+            job = self._start(region, priority_window=priority_window)
         if wait:
             job["thread"].join()
         if job["error"] and not region.has_data:
@@ -108,12 +139,16 @@ class CalendarService:
         from .firms import today_utc
         return bool(region.plan(self.client.availability(), today_utc()))
 
-    def _start(self, region: Region) -> dict:
+    def _start(self, region: Region, priority_window: tuple[dt.date, dt.date] | None = None) -> dict:
         job = {"done": 0, "total": 0, "finished": False, "error": None, "failed": []}
 
         def work() -> None:
             try:
-                outcome = region.sync(self.client, progress=lambda done, total: job.update(done=done, total=total))
+                outcome = region.sync(
+                    self.client,
+                    progress=lambda done, total: job.update(done=done, total=total),
+                    priority_window=priority_window,
+                )
                 job["failed"] = outcome["failed"]
             except Exception as exc:  # the thread must always finish the job record
                 job["error"] = str(exc)
@@ -128,17 +163,31 @@ class CalendarService:
 
     # -- analytics -----------------------------------------------------------------------------
 
-    def _harmonized(self, region: Region, bbox: tuple[float, float, float, float]) -> dict:
-        """Everything that depends on the bbox but not on the selected dates. Cached per data version."""
-        key = (region.key, region.version, bbox)
+    def _harmonized(
+        self,
+        regions: list[Region],
+        bboxes: tuple[tuple[float, float, float, float], ...],
+    ) -> dict:
+        """Everything that depends on the bboxes but not on the selected dates. Cached per data version."""
+        reg_key = tuple((r.key, r.version) for r in regions)
+        key = (reg_key, bboxes)
         with self._lock:
             if key in self._results:
                 return self._results[key]
-        w, s, e, n = bbox
-        frame = region.frame()
-        df = frame[frame.latitude.between(s, n) & frame.longitude.between(w, e) & frame.qa_pass]
-        avail = region.availability()
-        res = hz.pick_h3_resolution(bbox)
+        if len(regions) == 1:
+            frame = regions[0].frame()
+        else:
+            frames = [r.frame() for r in regions]
+            frame = pd.concat(frames, ignore_index=True).drop_duplicates(
+                ["platform", "latitude", "longitude", "acq_date", "acq_time"]
+            )
+        mask = pd.Series(False, index=frame.index)
+        for w, s, e, n in bboxes:
+            mask |= frame.latitude.between(s, n) & frame.longitude.between(w, e)
+        df = frame[mask & frame.qa_pass]
+        avail = regions[0].availability()
+        env = envelope_bbox(bboxes)
+        res = hz.pick_h3_resolution(env)
         cube = hz.build_cube(df, avail, res)
         eff, regional, calibration = hz.fit_efficiency(cube)
         harmonized, sd = hz.harmonize(cube, eff, regional)
@@ -165,10 +214,13 @@ class CalendarService:
                 "sd": np.where(empty, np.nan, np.sqrt(np.nansum(h["sd"] ** 2, axis=0))),
                 "complete": cube.observed >= 0.999}
 
-    def _seam_tests(self, bbox: tuple[float, float, float, float], h: dict, tot: dict) -> dict | None:
-        """Seam test of the calendar against every burned-area product cached for the bbox (never downloads)."""
+    def _seam_tests(self, bboxes: tuple[tuple[float, float, float, float], ...], h: dict, tot: dict) -> dict | None:
+        """Seam test of the calendar against every burned-area product cached for the bboxes (never downloads).
+
+        Several bboxes are summed, so they must not overlap; overlapping ones get no seam test.
+        """
         months = h["cube"].months
-        if not len(months):
+        if not len(months) or _overlapping(bboxes):
             return None
         keep = tot["complete"]
         series = {"harmonized": np.where(keep, tot["total"], np.nan),
@@ -176,16 +228,47 @@ class CalendarService:
                   "rawModis": np.where(keep, tot["modis"], np.nan).astype(float)}
         out = {}
         for product in PRODUCTS:
-            frame = self.burned.monthly(product, bbox, str(months[0]), str(months[-1]))
-            if frame.complete.sum() >= 24:
-                out[product] = seam_test(months, series, frame.burnedKm2.to_numpy(float), witness_name=product)
+            frames = [self.burned.monthly(product, b, str(months[0]), str(months[-1])) for b in bboxes]
+            witness = np.sum([f.burnedKm2.to_numpy(float) for f in frames], axis=0)   # NaN unless every bbox has the month
+            if (~np.isnan(witness)).sum() >= 24:
+                out[product] = seam_test(months, series, witness, witness_name=product)
         return out or None
 
+    def _ensure_regions_for_bboxes(
+        self,
+        bboxes: tuple[tuple[float, float, float, float], ...],
+        wait: bool = False,
+        priority_window: tuple[dt.date, dt.date] | None = None,
+    ) -> list[Region]:
+        seen: dict[str, Region] = {}
+        total_done = 0
+        total_chunks = 0
+        not_ready = False
+        for b in bboxes:
+            try:
+                reg = self.ensure_data(b, wait=wait, priority_window=priority_window)
+                seen[reg.key] = reg
+            except NotReady as nr:
+                not_ready = True
+                total_done += int(nr.progress.get("done", 0))
+                total_chunks += int(nr.progress.get("total", 0))
+        if not_ready:
+            raise NotReady({"done": total_done, "total": total_chunks})
+        return list(seen.values())
+
     def calendar(self, bbox_text: str, date_from: str | None = None, date_to: str | None = None, wait: bool = False) -> dict:
-        """The API payload: full harmonized calendar of the bbox plus a summary of the selected period."""
-        bbox = parse_bbox(bbox_text)
-        region = self.ensure_data(bbox, wait=wait)
-        h = self._harmonized(region, bbox)
+        """The API payload: full harmonized calendar of the bbox(es) plus a summary of the selected period."""
+        bboxes = parse_bboxes(bbox_text)
+        bbox = envelope_bbox(bboxes)
+        prio_window = None
+        if date_from and date_to:
+            p_start = parse_day(date_from, end=False).date()
+            p_end = parse_day(date_to, end=True).date()
+            if p_start <= p_end:
+                prio_window = (p_start, p_end)
+        regions = self._ensure_regions_for_bboxes(bboxes, wait=wait, priority_window=prio_window)
+        region = regions[0]
+        h = self._harmonized(regions, bboxes)
         cube: hz.Cube = h["cube"]
         months = [str(m) for m in cube.months]
         tot = self._totals(h)
@@ -322,7 +405,7 @@ class CalendarService:
                 "cells": cells,
             },
             "validation": h["validation"],
-            "seamTest": self._seam_tests(bbox, h, tot),
+            "seamTest": self._seam_tests(bboxes, h, tot),
         }
 
     # -- burned area (independent witness for the seam test) ---------------------------------------
@@ -352,6 +435,8 @@ class CalendarService:
         Adds the seam test of the hot-spot calendar when FIRMS data of the bbox are already cached.
         """
         bbox = parse_bbox(bbox_text)
+        if (bbox[2] - bbox[0]) * (bbox[3] - bbox[1]) > BURNED_AREA_MAX_DEG2:
+            raise BadRequest(f"burned area is served for bboxes up to {BURNED_AREA_MAX_DEG2:g} square degrees")
         product = product.upper()
         if product not in PRODUCTS:
             raise BadRequest(f"product must be one of {', '.join(PRODUCTS)}")
@@ -385,8 +470,8 @@ class CalendarService:
         region = self.store.find(bbox)
         seam = None
         if region is not None and region.has_data:
-            h = self._harmonized(region, bbox)
-            seam = (self._seam_tests(bbox, h, self._totals(h)) or {}).get(product)
+            h = self._harmonized([region], (bbox,))
+            seam = (self._seam_tests((bbox,), h, self._totals(h)) or {}).get(product)
         km2 = frame.burnedKm2.to_numpy(float)
         years = frame.month.str.slice(0, 4).astype(int).to_numpy()
         return {
@@ -407,11 +492,17 @@ class CalendarService:
 
     def hotspots_csv(self, bbox_text: str, date_from: str | None = None, date_to: str | None = None, wait: bool = False) -> str:
         """CSV of every hot spot found in the search. `used_in_calendar` tells which rows passed the QA."""
-        bbox = parse_bbox(bbox_text)
-        region = self.ensure_data(bbox, wait=wait)
-        w, s, e, n = bbox
-        df = region.frame()
-        keep = df.latitude.between(s, n) & df.longitude.between(w, e)
+        bboxes = parse_bboxes(bbox_text)
+        regions = self._ensure_regions_for_bboxes(bboxes, wait=wait)
+        if len(regions) == 1:
+            df = regions[0].frame()
+        else:
+            df = pd.concat([r.frame() for r in regions], ignore_index=True).drop_duplicates(
+                ["platform", "latitude", "longitude", "acq_date", "acq_time"]
+            )
+        keep = pd.Series(False, index=df.index)
+        for w, s, e, n in bboxes:
+            keep |= df.latitude.between(s, n) & df.longitude.between(w, e)
         if date_from:
             keep &= df.date >= parse_day(date_from, end=False)
         if date_to:
@@ -419,8 +510,8 @@ class CalendarService:
         out = df.loc[keep, [c for c in CSV_COLUMNS if c in df]].copy()
         out["platform"] = df.platform[keep]
         out["used_in_calendar"] = df.qa_pass[keep]
-        if hasattr(hz, "extras"):  # v3: MODIS-equivalent weight (sums to the calendar) and small-fire flag
-            h = self._harmonized(region, bbox)
+        if hasattr(hz, "extras") and len(regions) == 1:  # v3: MODIS-equivalent weight (sums to the calendar) and small-fire flag
+            h = self._harmonized(regions, bboxes)
             out["weight"] = h["weights"].reindex(out.index).fillna(0.0).round(5)
             if "small" in df:
                 out["small_fire"] = df.small[keep]

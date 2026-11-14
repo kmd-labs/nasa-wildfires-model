@@ -1,6 +1,8 @@
 <canvas
   #canvasRef
   id="c"
+  role="img"
+  [attr.aria-label]="analytics.globeAltText()"
   [class.is-drawing-bbox]="state.isDrawingBbox()"
   (pointerdown)="onPointerDown($event)"
   (pointermove)="onPointerMove($event)"

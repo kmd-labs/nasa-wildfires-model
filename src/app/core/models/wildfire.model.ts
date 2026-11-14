@@ -3,6 +3,19 @@ export type WindScenarioId = 'actual' | 'atlanticSurge' | 'levanteReversal' | 'e
 export type CameraFocusId = 'iberia' | 'northAtlantic' | 'pacificEnso';
 export type SstDisplayMode = 'ortho' | 'anomaly' | 'sst';
 export type BoundingBox = [number, number, number, number]; // [westLon, southLat, eastLon, northLat]
+export type PolygonRing = [number, number][]; // [[lon, lat], ...]
+export type PolygonCoords = PolygonRing[]; // [outerRing, ...holeRings]
+export type MultiPolygonCoords = PolygonCoords[]; // GeoJSON MultiPolygon coordinates
+
+export interface PredefinedCountry {
+  code: string; // ISO-3 (e.g. 'ESP', 'PRT', 'FRA')
+  iso2?: string; // Optional ISO-2 for Intl.DisplayNames
+  name: string; // Default English name from Natural Earth
+  bboxes: BoundingBox[]; // Tight component bounding boxes
+  primaryBbox: BoundingBox; // Primary mainland/cluster bounding box
+  polygons: MultiPolygonCoords; // Exact country MultiPolygon rings
+  center: [number, number];
+}
 export type ColorRampId = 'okabeIto' | 'cividis' | 'viridis' | 'ylOrRd';
 export type HotspotSensor = 'MODIS' | 'VIIRS' | 'HARMONIZED';
 export type CalendarGranularity = 'daily' | 'monthly';
