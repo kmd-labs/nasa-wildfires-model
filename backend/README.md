@@ -10,6 +10,7 @@ python -m backend seed                      # wczytuje data/raw/firms jako gotow
 python -m backend serve --port 8000         # API pod http://127.0.0.1:8000, dokumentacja pod /docs
 python -m backend fetch --bbox=-125,32,-114,42     # pobiera z FIRMS pełną historię nowego obszaru (wymaga FIRMS_MAP_KEY)
 python -m backend calendar --bbox=-8.11,40.00,-7.62,40.43 --from 2025-08 --to 2025-08 --json out.json --csv out.csv
+python -m backend burned-area --bbox=-8.7,39.6,-7.0,41.0 --product MCD64A1   # powierzchnia spalona + test szwu (wymaga EARTHDATA_TOKEN)
 python -m pytest backend/tests -q
 ```
 
@@ -19,7 +20,8 @@ python -m pytest backend/tests -q
 |---|---|
 | `GET /api/calendar?bbox=W,S,E,N&from=YYYY-MM&to=YYYY-MM` | `200` kalendarz i podsumowanie wybranego okresu; `202` gdy obszar pobiera się pierwszy raz |
 | `GET /api/hotspots.csv?bbox=W,S,E,N&from=YYYY-MM-DD&to=YYYY-MM-DD` | CSV wszystkich hot spotów z wyszukiwania; kolumna `used_in_calendar` mówi, które przeszły kontrolę jakości |
-| `GET /api/health` | stan, lista regionów w cache |
+| `GET /api/burned-area?bbox=W,S,E,N&product=MCD64A1&from=YYYY-MM&to=YYYY-MM` | `200` miesięczna powierzchnia spalona (km²) z NASA LP DAAC i test szwu kalendarza; `202` przy pierwszym pobieraniu kafli |
+| `GET /api/health` | stan, lista regionów w cache, czy jest klucz FIRMS i token Earthdata |
 
 Odpowiedź `200` z `/api/calendar`:
 
@@ -31,6 +33,8 @@ Odpowiedź `200` z `/api/calendar`:
   (mediana, percentyl, miejsce, pięć najwyższych lat) oraz `cells`, czyli komórki H3 z wartościami pod mapę
 - `validation`: test poza próbą dla tego obszaru (`null`, gdy obszar ma za mało danych)
 - `metadata`: jednostka, `dataThrough`, `monthInProgress`, `refreshing`, kalibracja platform, atrybucja NASA FIRMS
+- `seamTest`: test szwu względem powierzchni spalonej (`{MCD64A1: …, VNP64A1: …}`), tylko gdy kafle tego obszaru są już
+  w cache; `null` w przeciwnym razie. Kalendarz nigdy nie czeka na pobieranie powierzchni spalonej
 
 Po stronie aplikacji wystarczy odpytywać ten sam adres, dopóki przychodzi `202`:
 
@@ -70,6 +74,18 @@ warto pobrać wcześniej poleceniem `fetch`, a Iberię wczytać poleceniem `seed
 | `FIRMS_WORKERS` | `4` | liczba równoległych zapytań |
 | `FIRMS_REFRESH_HOURS` | `6` | po ilu godzinach odświeżać dane bieżące |
 | `CORS_ORIGINS` | `http://localhost:4200` | adresy aplikacji, po przecinku |
+| `EARTHDATA_TOKEN` | brak | token NASA Earthdata (Bearer) do pobierania MCD64A1 / VNP64A1 z LP DAAC |
+| `BURNED_AREA_CACHE_DIR` | `data/cache/burned_area` | cache spalonych pikseli (tylko piksele spalone, plik HDF jest usuwany) |
+| `BURNED_AREA_WORKERS` | `4` | liczba równoległych pobrań kafli |
+
+### Powierzchnia spalona (świadek dla testu szwu)
+
+`burned_area.py` szuka w NASA CMR kafli MCD64A1 v061 (MODIS, od 2000-11) albo VNP64A1 v002 (VIIRS S-NPP, od
+2012-03) dla BBOX i miesięcy, pobiera każdy kafel 10° × 10° (HDF4, ok. 1,5 MB) raz, z nagłówkiem
+`Authorization: Bearer $EARTHDATA_TOKEN`, i zapisuje tylko spalone piksele (wiersz, kolumna, dzień spalenia).
+Każdy BBOX w obrębie pobranych kafli liczy się potem bez sieci: piksel 463 m (21,5 ha) wlicza się, gdy jego środek
+leży w BBOX. Pełna historia jednego kafla to ok. 310 plików i kilka minut. Produkty publikowane są z opóźnieniem
+około 2–3 miesięcy.
 
 ## Harmonizacja
 
@@ -97,3 +113,14 @@ dowolnym hostingu), a aplikacja musi znać jego adres. Cache powinien leżeć na
 ## Harmonization version
 
 `HARMONIZATION=v1|v2|v3` picks the module (default `v1`). v3 counts exactly like v2 and adds the small-fire layer, a weight per hot spot (`weight` column in the CSV), median stats and calibrated intervals; see [`docs/harmonization.md`](../docs/harmonization.md).
+
+### Seam test
+
+`harmonization3.seam_test()` checks whether a series steps, relative to burned area, when a satellite joins
+(Aqua 2002-07, S-NPP 2012-01, NOAA-20 2018-04, NOAA-21 2023-03). Burned area is mapped from surface reflectance by
+one sensor family, so it does not change when VIIRS joins the hot-spot record. The record is cut into 12-month
+blocks starting at the seam month and fitted as
+`log(hot spots) = a + beta * log(burned area) + sum_k gamma_k * after_k`, all seams at once. `beta` (about 0.5 on
+Iberia) absorbs real changes in fire activity; `gamma` of a seam is the step it left, with `t = gamma / se`.
+Verdicts: `noSeam`, `seamUp`, `seamDown`, `insufficient` (fewer than 2 blocks on a side or 5 degrees of freedom).
+Results for Portugal are in [`docs/harmonization.md`](../docs/harmonization.md).

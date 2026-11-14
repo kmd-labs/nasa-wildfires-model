@@ -69,8 +69,65 @@ Wspólny protokół dla wszystkich wersji: blokowy 4-fold po latach 2012–2025,
 Wnioski:
 - **v2 jest najlepiej zwalidowanym silnikiem liczb**, więc v3 liczy dokładnie jak v2 i dokłada tylko funkcje, które liczb nie zmieniają.
 - **Usuwanie duplikatów MODIS i stała jednostka** są w kodzie jako opcje eksperymentalne (`DEDUPE_MODIS`, `ANCHOR_UNIT`, `anchor=True`), wyłączone, bo na danych odłożonych nie poprawiły wyników.
-- **Po 2023 wszystkie wersje zawyżają surowy MODIS o 12–27%** na Północy i w Centrum: VIIRS przewiduje więcej, niż MODIS widzi. To zgodne z dryfem orbit MODIS, ale żaden wariant jeszcze tego wiarygodnie nie koryguje.
+- **Po 2023 wszystkie wersje zawyżają surowy MODIS o 12–27%** na Północy i w Centrum: VIIRS przewiduje więcej, niż MODIS widzi. Test szwu względem powierzchni spalonej (niżej) nie pokazuje spadku MODIS w 2023 większego niż ok. 22%, więc dryf tej wielkości mieści się w szumie i sprawa pozostaje otwarta.
 - **Małe regiony są trudniejsze:** w Lizbonie (ok. 1 300 hotspotów MODIS w 14 lat) błąd miesięczny przekracza 24%.
+
+## Test szwu: niezależny świadek (powierzchnia spalona)
+
+Walidacja powyżej porównuje VIIRS z MODIS, czyli dwa źródła hotspotów. Test szwu sprawdza serię wobec świadka spoza hotspotów: **powierzchni spalonej** NASA, mapowanej z odbicia powierzchni przez jedną rodzinę sensorów, więc niezmienionej w chwili, gdy do rekordu hotspotów dochodzi nowy satelita.
+
+| Świadek | Sensor | Od | Piksel |
+|---|---|---|---|
+| MCD64A1 v061 | MODIS Terra + Aqua | 2000-11 | 463 m (21,5 ha) |
+| VNP64A1 v002 | VIIRS S-NPP | 2012-03 | 463 m |
+
+Dane: [`backend/burned_area.py`](../backend/burned_area.py) pobiera kafle z NASA LP DAAC dla dowolnego BBOX (token Earthdata), test: `seam_test()` w [`harmonization3.py`](../backend/harmonization3.py).
+
+**Metoda.** Rekord dzielimy na bloki 12-miesięczne zaczynające się w miesiącu szwu i dopasowujemy jedną regresję dla wszystkich szwów naraz:
+
+`log(hotspoty w bloku) = a + β · log(powierzchnia spalona w bloku) + Σ γ_k · po_szwie_k`
+
+- **β ≈ 0,5** w Portugalii: hotspoty rosną jak pierwiastek z powierzchni spalonej, bo w roku megapożarów jeden hotspot przypada na dużo więcej km². Prosty iloraz „hotspoty ÷ km²” tego nie uwzględnia i dawał fałszywe alarmy, dlatego go odrzuciliśmy.
+- **γ** to skok, który zostawił szew. Podajemy go w procentach z 95% przedziałem.
+- **t = γ / se**: |t| ≥ 2 oznacza szew. Werdykt wymaga co najmniej 2 bloków po każdej stronie, więc dla Aqua (2002-07, tylko 1 rok wcześniej) wynik jest orientacyjny.
+
+### Wyniki: Portugalia (4 regiony razem)
+
+Skok serii względem świadka, w nawiasie t:
+
+| Szew | Świadek | Suma naiwna | Zharmonizowana | Surowy MODIS |
+|---|---|---|---|---|
+| Aqua 2002-07* | MCD64A1 | +93% (2,6) | −12% (−0,5) | +93% (2,7) |
+| **S-NPP 2012-01** | MCD64A1 | **+208% (13,2)** | −20% (−2,5) | −19% (−2,2) |
+| NOAA-20 2018-04 | MCD64A1 | +28% (1,6) | −22% (−1,8) | −21% (−1,7) |
+| NOAA-20 2018-04 | VNP64A1 | +38% (2,7) | −16% (−1,4) | −15% (−1,4) |
+| NOAA-21 2023-03 | MCD64A1 | +68% (3,6) | +4% (0,3) | +2% (0,2) |
+| NOAA-21 2023-03 | VNP64A1 | +62% (4,7) | 0% (0,0) | −3% (−0,2) |
+
+\* Tylko 1 blok przed szwem: orientacyjnie. Suma naiwna i MODIS podwajają się, bo dochodzi drugi MODIS (Aqua); seria zharmonizowana nie.
+
+### Wyniki: szew S-NPP w regionach (MCD64A1)
+
+| Region | Suma naiwna | Zharmonizowana | Surowy MODIS |
+|---|---|---|---|
+| Norte | +212% (8,7) | −15% (−1,2) | −13% (−1,1) |
+| Centro | +240% (9,1) | −8% (−0,6) | −8% (−0,6) |
+| Lisboa e Vale do Tejo | +184% (5,7) | −27% (−1,7) | −29% (−1,9) |
+| Alentejo e Algarve | +195% (5,0) | −22% (−1,2) | −21% (−1,1) |
+
+Wnioski:
+- **Suma naiwna ma szew S-NPP w każdym regionie** (+184% do +240%, t od 5 do 13). We wszystkich 20 testach regionalnych (4 regiony × szwy S-NPP, NOAA-20, NOAA-21 × świadkowie, tam gdzie da się policzyć) test oflagował ją 9 razy.
+- **Seria zharmonizowana: 1 na 20** (Lisboa, NOAA-20 względem VNP64A1, −37%, t −2,1). Tyle fałszywych alarmów daje sam próg |t| ≥ 2 (na danych syntetycznych bez skoku ok. 7,5%).
+- **Harmonizacja nie dokłada szwu ponad to, co jest w samym MODIS.** Różnica skoku serii zharmonizowanej i surowego MODIS ma medianę 3 pkt proc. i mieści się w ±7 pkt proc. w 18 z 20 testów (wyjątek: Lisboa, NOAA-20, −10 pkt proc.).
+- **Spadek o ok. 20% na szwie S-NPP dla całej Portugalii widać też w surowym MODIS**, który w 2012 się nie zmienił. To więc zmiana relacji hotspotów do powierzchni spalonej (charakter pożarów po 2012), a nie efekt harmonizacji.
+- **2023 (NOAA-21 i dryf MODIS):** surowy MODIS względem MCD64A1 +2% (95%: −22…+34%), względem VNP64A1 −3% (−22…+23%). Burned area nie potwierdza spadku czułości MODIS w 2023; dryf 12–27% z walidacji jest jednak poniżej progu wykrywalności tego testu.
+
+Odtworzenie (pobiera ok. 960 kafli, kilkanaście minut):
+
+```bash
+python -m backend burned-area --bbox=-9.6,36.8,-6.0,42.2 --product MCD64A1
+python -m backend burned-area --bbox=-9.6,36.8,-6.0,42.2 --product VNP64A1
+```
 
 ## Jak włączyć
 
@@ -80,10 +137,13 @@ HARMONIZATION=v3 python -m backend serve      # v1 (domyślne) | v2 | v3
 
 Przy `v3` odpowiedź `/api/calendar` ma dodatkowo serie `smallFiresPerViirsSatellite`, `otherYearsMedian`, `pctOfMedian`, `withinNormal`, a `/api/hotspots.csv` kolumny `weight` i `small_fire`. Bez zmiennej backend działa jak dotąd.
 
+Niezależnie od wersji `/api/calendar` zwraca `seamTest`, gdy powierzchnia spalona tego obszaru jest już w cache. `/api/burned-area?bbox=…&product=MCD64A1` pobiera ją w tle (`202`, potem `200`) i oddaje miesięczne km² wraz z testem szwu.
+
 ## Ograniczenia
 
 - Progi małych ognisk (8,8 / 7,5 MW) dopasowano dla całej Iberii (2012–2018). Dla innego regionu przelicza je `fit_small_thresholds()`.
 - Hotspot to piksel, a nie pożar. Brak detekcji nie oznacza braku ognia (chmury, dym, pora przelotu).
 - Seria po wycofaniu MODIS (2026–2027) opiera się na wydajnościach z ostatnich lat wspólnych, w których MODIS już dryfował.
+- Test szwu wykrywa skoki od ok. 20–30% w całej Portugalii i od ok. 40–60% w pojedynczym regionie. Mniejsze skoki giną w zmienności relacji hotspotów do powierzchni spalonej.
 
-Dane: NASA FIRMS, MODIS C6.1 (MCD14ML) i VIIRS 375 m (VNP14IMGML, VJ114IMGML, VJ214IMGML), domena publiczna.
+Dane: NASA FIRMS, MODIS C6.1 (MCD14ML) i VIIRS 375 m (VNP14IMGML, VJ114IMGML, VJ214IMGML); powierzchnia spalona MCD64A1 v061 i VNP64A1 v002 z NASA LP DAAC; domena publiczna.

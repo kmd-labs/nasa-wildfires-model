@@ -3,13 +3,16 @@ from __future__ import annotations
 
 import datetime as dt
 import threading
+import time
 
 import h3
 import numpy as np
 import pandas as pd
 
 from .harmonization_select import hz
+from .burned_area import PIXEL_KM2, PRODUCTS, BurnedAreaClient, BurnedAreaError, tiles_for_bbox
 from .firms import FirmsClient, FirmsError, Region, RegionStore
+from .harmonization3 import seam_test
 
 ATTRIBUTION = ("We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management "
                "System (FIRMS) (https://www.earthdata.nasa.gov/firms), part of NASA's Earth Science Data and "
@@ -17,6 +20,8 @@ ATTRIBUTION = ("We acknowledge the use of data and imagery from NASA's Fire Info
                "Harmonized by KMD Labs.")
 CSV_COLUMNS = ["latitude", "longitude", "acq_date", "acq_time", "satellite", "instrument", "confidence", "version", "frp", "daynight", "type"]
 MAX_BBOX_DEG2 = 400.0  # about 2000 x 2000 km at the equator; larger requests are refused
+BURNED_AREA_LATENCY_DAYS = 75  # the newest burned-area month LP DAAC has normally published is about this old
+BURNED_AREA_RETRY_S = 600       # a burned-area job with failed tiles is retried after this many seconds
 
 
 class NotReady(Exception):
@@ -61,10 +66,13 @@ def _clean(values, digits: int = 2) -> list:
 class CalendarService:
     """Glue between the FIRMS cache and the harmonization: download if needed, harmonize, summarize."""
 
-    def __init__(self, store: RegionStore | None = None, client: FirmsClient | None = None):
+    def __init__(self, store: RegionStore | None = None, client: FirmsClient | None = None,
+                 burned: BurnedAreaClient | None = None):
         self.store = store or RegionStore()
         self.client = client or FirmsClient()
+        self.burned = burned or BurnedAreaClient()
         self._jobs: dict[str, dict] = {}
+        self._burned_jobs: dict[tuple, dict] = {}
         self._results: dict[tuple, dict] = {}
         self._lock = threading.Lock()
 
@@ -145,6 +153,34 @@ class CalendarService:
             self._results[key] = out
         return out
 
+    @staticmethod
+    def _totals(h: dict) -> dict:
+        """Monthly totals of the bbox: raw MODIS / VIIRS per cell and summed, harmonized value and sd."""
+        cube = h["cube"]
+        modis_cell = cube.counts[hz.PLATFORMS.index("TERRA")] + cube.counts[hz.PLATFORMS.index("AQUA")]
+        viirs_cell = cube.counts[[hz.PLATFORMS.index(p) for p in hz.VIIRS]].sum(axis=0)
+        empty = np.isnan(h["harmonized"]).all(axis=0) if len(cube.cells) else (cube.exposure.sum(axis=0) == 0)
+        return {"modis_cell": modis_cell, "viirs_cell": viirs_cell, "modis": modis_cell.sum(axis=0), "viirs": viirs_cell.sum(axis=0),
+                "total": np.where(empty, np.nan, np.nansum(h["harmonized"], axis=0)),
+                "sd": np.where(empty, np.nan, np.sqrt(np.nansum(h["sd"] ** 2, axis=0))),
+                "complete": cube.observed >= 0.999}
+
+    def _seam_tests(self, bbox: tuple[float, float, float, float], h: dict, tot: dict) -> dict | None:
+        """Seam test of the calendar against every burned-area product cached for the bbox (never downloads)."""
+        months = h["cube"].months
+        if not len(months):
+            return None
+        keep = tot["complete"]
+        series = {"harmonized": np.where(keep, tot["total"], np.nan),
+                  "naiveSum": np.where(keep, tot["modis"] + tot["viirs"], np.nan).astype(float),
+                  "rawModis": np.where(keep, tot["modis"], np.nan).astype(float)}
+        out = {}
+        for product in PRODUCTS:
+            frame = self.burned.monthly(product, bbox, str(months[0]), str(months[-1]))
+            if frame.complete.sum() >= 24:
+                out[product] = seam_test(months, series, frame.burnedKm2.to_numpy(float), witness_name=product)
+        return out or None
+
     def calendar(self, bbox_text: str, date_from: str | None = None, date_to: str | None = None, wait: bool = False) -> dict:
         """The API payload: full harmonized calendar of the bbox plus a summary of the selected period."""
         bbox = parse_bbox(bbox_text)
@@ -152,13 +188,9 @@ class CalendarService:
         h = self._harmonized(region, bbox)
         cube: hz.Cube = h["cube"]
         months = [str(m) for m in cube.months]
-        modis_cell = cube.counts[hz.PLATFORMS.index("TERRA")] + cube.counts[hz.PLATFORMS.index("AQUA")]
-        viirs_cell = cube.counts[[hz.PLATFORMS.index(p) for p in hz.VIIRS]].sum(axis=0)
-        modis, viirs = modis_cell.sum(axis=0), viirs_cell.sum(axis=0)
-        empty = np.isnan(h["harmonized"]).all(axis=0) if len(cube.cells) else (cube.exposure.sum(axis=0) == 0)
-        total = np.where(empty, np.nan, np.nansum(h["harmonized"], axis=0))
-        sd = np.where(empty, np.nan, np.sqrt(np.nansum(h["sd"] ** 2, axis=0)))
-        complete = cube.observed >= 0.999
+        tot = self._totals(h)
+        modis_cell, viirs_cell, modis, viirs = tot["modis_cell"], tot["viirs_cell"], tot["modis"], tot["viirs"]
+        total, sd, complete = tot["total"], tot["sd"], tot["complete"]
         z, pct, clim_mean, clim_std = hz.calendar_stats(total, cube.cal_month, complete)
         lo90, hi90 = np.maximum(total - 1.645 * sd, 0), total + 1.645 * sd
         extra_series = {}
@@ -290,6 +322,87 @@ class CalendarService:
                 "cells": cells,
             },
             "validation": h["validation"],
+            "seamTest": self._seam_tests(bbox, h, tot),
+        }
+
+    # -- burned area (independent witness for the seam test) ---------------------------------------
+
+    def _start_burned(self, key: tuple, product: str, bbox: tuple, first: str, last: str) -> dict:
+        job = {"done": 0, "total": 0, "finished": False, "error": None, "failed": [], "finishedAt": None}
+
+        def work() -> None:
+            try:
+                outcome = self.burned.fetch(product, bbox, first, last, progress=lambda done, total: job.update(done=done, total=total))
+                job["failed"] = outcome["failed"]
+            except Exception as exc:  # the thread must always finish the job record
+                job["error"] = str(exc)
+            finally:
+                job["finished"], job["finishedAt"] = True, time.time()
+
+        job["thread"] = threading.Thread(target=work, name=f"burned-area-{product}", daemon=True)
+        with self._lock:
+            self._burned_jobs[key] = job
+        job["thread"].start()
+        return job
+
+    def burned_area(self, bbox_text: str, product: str = "MCD64A1", date_from: str | None = None, date_to: str | None = None,
+                    wait: bool = False) -> dict:
+        """Monthly burned area of the bbox, downloaded from LP DAAC in the background on first use.
+
+        Adds the seam test of the hot-spot calendar when FIRMS data of the bbox are already cached.
+        """
+        bbox = parse_bbox(bbox_text)
+        product = product.upper()
+        if product not in PRODUCTS:
+            raise BadRequest(f"product must be one of {', '.join(PRODUCTS)}")
+        start = pd.Period(PRODUCTS[product]["first"], "M")
+        newest = pd.Timestamp(dt.date.today() - dt.timedelta(days=BURNED_AREA_LATENCY_DAYS)).to_period("M")
+        first = max(parse_day(date_from, end=False).to_period("M"), start) if date_from else start
+        last = min(parse_day(date_to, end=True).to_period("M"), newest) if date_to else newest
+        if first > last:
+            raise BadRequest("from must not be after to; burned area is published about 2-3 months after the month")
+        first, last = str(first), str(last)
+        frame = self.burned.monthly(product, bbox, first, last)
+        key = (product, bbox, first, last)
+        with self._lock:
+            job = self._burned_jobs.get(key)
+        if not frame.complete.all():
+            if not self.burned.online:
+                if not frame.complete.any():
+                    raise BadRequest("EARTHDATA_TOKEN is not set and there is no cached burned area for this area")
+            else:
+                retry = bool(job and job["finished"] and (job["error"] or job["failed"])
+                             and time.time() - job["finishedAt"] > BURNED_AREA_RETRY_S)
+                if job is None or retry:
+                    job = self._start_burned(key, product, bbox, first, last)
+                if wait:
+                    job["thread"].join()
+                frame = self.burned.monthly(product, bbox, first, last)
+                if job["error"] and not frame.complete.any():
+                    raise BurnedAreaError(job["error"])
+                if not frame.complete.any():
+                    raise NotReady({"done": job["done"], "total": job["total"]})
+        region = self.store.find(bbox)
+        seam = None
+        if region is not None and region.has_data:
+            h = self._harmonized(region, bbox)
+            seam = (self._seam_tests(bbox, h, self._totals(h)) or {}).get(product)
+        km2 = frame.burnedKm2.to_numpy(float)
+        years = frame.month.str.slice(0, 4).astype(int).to_numpy()
+        return {
+            "metadata": {
+                "product": product, "sensor": PRODUCTS[product]["sensor"], "bbox": list(bbox), "months": [first, last],
+                "tiles": sorted(f"h{th:02d}v{tv:02d}" for th, tv in tiles_for_bbox(bbox)), "pixelKm2": round(PIXEL_KM2, 4),
+                "monthsComplete": int(frame.complete.sum()), "refreshing": bool(job and not job["finished"]),
+                "failedGranules": len(job["failed"]) if job else 0,
+                "unit": "km2 of burned 463 m pixels whose centre lies in the bbox",
+                "license": "NASA LP DAAC, US Government public domain", "citation": PRODUCTS[product]["citation"],
+            },
+            "months": frame.month.tolist(),
+            "series": {"burnedKm2": _clean(km2, 2)},
+            "yearly": [{"year": int(y), "burnedKm2": round(float(np.nansum(km2[years == y])), 1),
+                        "monthsWithData": int((~np.isnan(km2[years == y])).sum())} for y in np.unique(years)],
+            "seamTest": seam,
         }
 
     def hotspots_csv(self, bbox_text: str, date_from: str | None = None, date_to: str | None = None, wait: bool = False) -> str:

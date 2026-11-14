@@ -9,6 +9,9 @@ GET /api/calendar?bbox=W,S,E,N&from=YYYY-MM&to=YYYY-MM
          the first time; ask again with the same URL
 GET /api/hotspots.csv?bbox=W,S,E,N&from=YYYY-MM-DD&to=YYYY-MM-DD
     200  CSV of the hot spots found in the search, 202 as above
+GET /api/burned-area?bbox=W,S,E,N&product=MCD64A1|VNP64A1&from=YYYY-MM&to=YYYY-MM
+    200  monthly burned area (NASA LP DAAC) and the seam test of the calendar against it
+    202  while the tiles are downloaded for the first time (needs EARTHDATA_TOKEN)
 
 `CORS_ORIGINS` (comma-separated, default http://localhost:4200) lists the origins of the web app.
 """
@@ -27,6 +30,7 @@ from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 
+from .burned_area import BurnedAreaError
 from .firms import FirmsError
 from .service import BadRequest, CalendarService, NotReady
 
@@ -47,13 +51,13 @@ def _guard(call):
         return JSONResponse({"status": "downloading", "progress": exc.progress}, status_code=202, headers={"Retry-After": "5"})
     except BadRequest as exc:
         return JSONResponse({"error": str(exc)}, status_code=400)
-    except FirmsError as exc:
+    except (FirmsError, BurnedAreaError) as exc:
         return JSONResponse({"error": str(exc)}, status_code=502)
 
 
 @app.get("/api/health")
 def health() -> dict:
-    return {"status": "ok", "firmsKeyConfigured": service.client.online,
+    return {"status": "ok", "firmsKeyConfigured": service.client.online, "earthdataTokenConfigured": service.burned.online,
             "cachedRegions": [{"bbox": list(r.bbox), "rows": r.manifest.get("rows", 0), "dataThrough": r.manifest.get("dataThrough")}
                               for r in service.store.regions()]}
 
@@ -67,3 +71,9 @@ def calendar(bbox: str = BBOX, date_from: str | None = FROM, date_to: str | None
 def hotspots_csv(bbox: str = BBOX, date_from: str | None = FROM, date_to: str | None = TO):
     return _guard(lambda: Response(service.hotspots_csv(bbox, date_from, date_to), media_type="text/csv",
                                    headers={"Content-Disposition": 'attachment; filename="hotspots.csv"'}))
+
+
+@app.get("/api/burned-area")
+def burned_area(bbox: str = BBOX, product: str = Query("MCD64A1", description="MCD64A1 (MODIS) or VNP64A1 (VIIRS)"),
+                date_from: str | None = FROM, date_to: str | None = TO):
+    return _guard(lambda: service.burned_area(bbox, product, date_from, date_to))

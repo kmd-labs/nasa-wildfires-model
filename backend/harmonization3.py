@@ -26,6 +26,8 @@ What v3 adds to v2
      flag when the 90 % interval contains that median.
   5. `validate` also reports, year by year, how far the threshold layer is from MODIS, so the limits of
      the simple picture stay visible.
+  6. `seam_test`: checks against an independent witness (burned area, MCD64A1 / VNP64A1 from
+     `burned_area.py`) that the series does not step when a satellite joins.
 
 Experimental, off by default
   * MODIS duplicates (`DEDUPE_MODIS`, `modis_duplicates`): detections of one MODIS overpass closer than half
@@ -482,6 +484,104 @@ def median_stats(values: np.ndarray, cal_month: np.ndarray, complete: np.ndarray
             if lo is not None and hi is not None and not np.isnan(lo[i]) and not np.isnan(hi[i]):
                 within[i] = float(lo[i] <= med <= hi[i])
     return {"median": month_median, "otherYearsMedian": other_med, "pctOfMedian": pct, "withinNormal": within}
+
+
+# ----------------------------------------------------------------------------------------------
+# Seam test against an independent witness (burned area)
+# ----------------------------------------------------------------------------------------------
+
+# Months when a satellite joined the record: the seams a harmonized series must not show.
+SEAMS = {p: f"{pd.Timestamp(d):%Y-%m}" for p, d in DEFAULT_FIRST_DAY.items() if p != "TERRA"}
+SEAM_Z = 2.0                # |t| of a step at or above this is a seam
+SEAM_MIN_DOF = 5            # residual degrees of freedom needed for a verdict
+SEAM_MIN_BLOCKS_PER_SIDE = 2  # 12-month blocks needed on each side of the seam for a verdict
+
+
+def _pct(log_ratio: float) -> float | None:
+    return None if math.isnan(log_ratio) else round(100 * math.expm1(log_ratio), 1)
+
+
+def _seam_fit(values: np.ndarray, witness: np.ndarray, seam_pos: list[int], t: int) -> dict:
+    """OLS on 12-month blocks aligned at month t: log(series) = a + beta log(witness) + sum_k gamma_k after_k."""
+    rows = []
+    for a in range(t % 12, len(values) - 11, 12):
+        b = a + 12
+        h, w = values[a:b], witness[a:b]
+        if np.isnan(h).any() or np.isnan(w).any() or h.sum() <= 0 or w.sum() <= 0:
+            continue
+        rows.append([math.log(h.sum()), 1.0, math.log(w.sum())] + [max(0, b - max(a, s)) / 12 for s in seam_pos])
+    nan = {"gamma": math.nan, "se": math.nan, "beta": math.nan, "sd": math.nan, "n": len(rows), "before": 0, "after": 0, "dof": 0}
+    if not rows:
+        return nan
+    data = np.array(rows)
+    y, X = data[:, 0], data[:, 1:]
+    tested = 2 + seam_pos.index(t)
+    nan.update(before=int((X[:, tested] == 0).sum()), after=int((X[:, tested] == 1).sum()))
+    cols = [0, 1] + [c for c in range(2, X.shape[1]) if X[:, c].std() > 0]     # seams outside this record drop out
+    if tested not in cols:
+        return nan
+    X = X[:, cols]
+    dof = len(y) - X.shape[1]
+    if dof < 1 or np.linalg.matrix_rank(X) < X.shape[1]:
+        return nan
+    coef, *_ = np.linalg.lstsq(X, y, rcond=None)
+    resid = y - X @ coef
+    s2 = float(resid @ resid) / dof
+    se = np.sqrt(np.maximum(np.diag(s2 * np.linalg.inv(X.T @ X)), 0))
+    k = cols.index(tested)
+    return {**nan, "gamma": float(coef[k]), "se": float(se[k]), "beta": float(coef[1]), "sd": math.sqrt(s2), "dof": dof}
+
+
+def seam_test(months, series: dict[str, np.ndarray], witness: np.ndarray, seams: dict[str, str] | None = None,
+              witness_name: str = "witness") -> dict:
+    """Does a series step, relative to an independent witness, when a satellite joins?
+
+    The witness is burned area: mapped from surface reflectance by one sensor family, so it does not change
+    when VIIRS joins the hot-spot record. For each seam the record is cut into 12-month blocks starting at the
+    seam's calendar month and fitted by least squares:
+
+        log(hot spots in block) = a + beta * log(burned area in block) + sum over seams k of gamma_k * after_k
+
+    after_k is the share of the block's months on or after seam k (0 or 1 for the tested seam, a fraction for
+    others). beta (about 0.5 on Iberia: a megafire year burns far more area per hot spot) absorbs real changes
+    in fire activity, so gamma of the tested seam is the step the satellite change left in the series, and
+    its t = gamma / se says whether that step stands out from the year-to-year noise of the hot-spot /
+    burned-area relationship. All seams are fitted together, so one seam does not leak into another.
+
+    months   monthly periods (PeriodIndex or "YYYY-MM" strings) shared by `series` and `witness`
+    series   name -> monthly values; NaN for months that are missing or incomplete
+    witness  monthly witness values (for example burned km2), NaN when missing
+
+    Returns {"witness", "method", "tThreshold", "rows": [...]} with one row per seam and series: seam, month,
+    series, stepPct, ci95Pct [low, high] (gamma +- 2 se), t, blocks, blocksBefore, blocksAfter, elasticity
+    (beta), residualSdPct, minDetectablePct (smallest step this record can tell from noise) and verdict:
+    "noSeam", "seamUp", "seamDown" or "insufficient" (too few blocks on a side or too few degrees of freedom).
+    """
+    idx = pd.PeriodIndex(months, freq="M")
+    seams = SEAMS if seams is None else seams
+    pos = {name: (pd.Period(m, "M") - idx[0]).n for name, m in seams.items()}
+    seam_pos = list(pos.values())
+    witness = np.asarray(witness, float)
+    rows = []
+    for name, t in sorted(pos.items(), key=lambda kv: kv[1]):
+        if not 0 < t < len(idx):
+            continue
+        for label, values in series.items():
+            fit = _seam_fit(np.asarray(values, float), witness, seam_pos, t)
+            g, se = fit["gamma"], fit["se"]
+            tstat = math.nan if math.isnan(g) else (g / se if se > 1e-12 else 0.0)
+            enough = (fit["dof"] >= SEAM_MIN_DOF and min(fit["before"], fit["after"]) >= SEAM_MIN_BLOCKS_PER_SIDE
+                      and not math.isnan(tstat))
+            verdict = "insufficient" if not enough else (
+                "noSeam" if abs(tstat) < SEAM_Z else ("seamUp" if tstat > 0 else "seamDown"))
+            rows.append({"seam": name, "month": str(idx[t]), "series": label, "stepPct": _pct(g),
+                         "ci95Pct": None if math.isnan(g) else [_pct(g - 2 * se), _pct(g + 2 * se)],
+                         "t": None if math.isnan(tstat) else round(tstat, 2), "blocks": fit["n"],
+                         "blocksBefore": fit["before"], "blocksAfter": fit["after"],
+                         "elasticity": None if math.isnan(fit["beta"]) else round(fit["beta"], 3),
+                         "residualSdPct": _pct(fit["sd"]), "minDetectablePct": _pct(SEAM_Z * se), "verdict": verdict})
+    return {"witness": witness_name, "method": "log-log regression on 12-month blocks with a step per seam",
+            "tThreshold": SEAM_Z, "rows": rows}
 
 
 # ----------------------------------------------------------------------------------------------
