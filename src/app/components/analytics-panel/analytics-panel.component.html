@@ -3,14 +3,15 @@
 @let cal = analytics.burningCalendar();
 @let dims = calendarSvgDims();
 @let yearly = analytics.yearlyComparison();
-@let bbox = state.regionBbox();
 
 @if (state.isAnalyticsMinimized()) {
   <div class="analytics-pill glass-panel">
     <button type="button" class="analytics-pill__btn" (click)="state.isAnalyticsMinimized.set(false)">
       <lucide-icon [img]="chartIcon" [size]="14"></lucide-icon>
       <span>{{ t.analyticsShowPanel }}</span>
-      <span class="analytics-pill__badge">{{ summary.harmonizedFires | number }}</span>
+      @if (state.hasActiveSelection()) {
+        <span class="analytics-pill__badge">{{ summary.harmonizedFires | number }}</span>
+      }
     </button>
   </div>
 } @else {
@@ -23,32 +24,30 @@
     <header class="analytics-panel__header">
       <div class="analytics-panel__title-block">
         <div class="analytics-panel__title-row">
-          <lucide-icon [img]="flameIcon" [size]="15" class="analytics-panel__accent-icon"></lucide-icon>
           <h2 class="analytics-panel__title">{{ t.analyticsTitle }}</h2>
         </div>
-        <div class="analytics-panel__subtitle">
-          <span class="mono-tag">[{{ bbox[0] | number:'1.2-2' }}°, {{ bbox[1] | number:'1.2-2' }}°, {{ bbox[2] | number:'1.2-2' }}°, {{ bbox[3] | number:'1.2-2' }}°]</span>
-          <span>·</span>
-          <span class="mono-tag">{{ state.dateStart() }} → {{ state.dateEnd() }}</span>
-          @if (!data.isCustomDataset()) {
-            @let bStatus = data.backendStatus();
-            @if (bStatus === 'live' && data.backendCalendar(); as bCal) {
-              <span class="backend-pill backend-pill--live">{{ t.backendLiveLabel }} · {{ bCal.metadata.dataThrough }}</span>
-            } @else if (bStatus === 'downloading') {
-              @let prog = data.backendProgress();
-              <span class="backend-pill backend-pill--sync">
-                {{ t.backendDownloadingLabel }}
-                @if (prog && prog.total > 0) {
-                  ({{ prog.done }}/{{ prog.total }} {{ t.backendChunksLabel }})
-                }
-              </span>
-            } @else if (bStatus === 'error' && data.backendError(); as bErr) {
-              <span class="backend-pill backend-pill--err" [title]="bErr">{{ bErr }}</span>
-            } @else if (bStatus === 'offline') {
-              <span class="backend-pill">{{ t.backendOfflineLabel }}</span>
-            }
+        @if (state.hasActiveSelection() && !data.isCustomDataset()) {
+          @let bStatus = data.backendStatus();
+          @if (bStatus !== 'idle') {
+            <div class="analytics-panel__subtitle">
+              @if (bStatus === 'live' && data.backendCalendar(); as bCal) {
+                <span class="backend-pill backend-pill--live">{{ t.backendLiveLabel }} · {{ bCal.metadata.dataThrough }}</span>
+              } @else if (bStatus === 'downloading') {
+                @let prog = data.backendProgress();
+                <span class="backend-pill backend-pill--sync">
+                  {{ t.backendDownloadingLabel }}
+                  @if (prog && prog.total > 0) {
+                    ({{ prog.done }}/{{ prog.total }} {{ t.backendChunksLabel }})
+                  }
+                </span>
+              } @else if (bStatus === 'error' && data.backendError(); as bErr) {
+                <span class="backend-pill backend-pill--err" [title]="bErr">{{ bErr }}</span>
+              } @else if (bStatus === 'offline') {
+                <span class="backend-pill">{{ t.backendOfflineLabel }}</span>
+              }
+            </div>
           }
-        </div>
+        }
       </div>
 
       <div class="analytics-panel__header-actions">
@@ -56,6 +55,7 @@
           type="button"
           class="icon-action"
           [title]="showForm() ? t.analyticsCollapse : t.coordsTitle"
+          [attr.aria-expanded]="showForm()"
           (click)="showForm.set(!showForm())">
           <lucide-icon [img]="slidersIcon" [size]="14"></lucide-icon>
         </button>
@@ -76,62 +76,46 @@
       </div>
     </header>
 
-    <!-- Unified Region Bounding Box & Date Range Form (inside left container) -->
+    <!-- Single Bounding Box & Date Range Controls -->
     @if (showForm()) {
       <section class="region-form" [attr.aria-label]="t.coordsTitle">
         <div class="region-form__top">
-          <div class="region-form__select">
-            <app-dropdown
-              variant="ghost"
-              [fullWidth]="true"
-              [options]="aoiOptions()"
-              [value]="state.selectedAoiId()"
-              [ariaLabel]="t.wildfireSelectLabel"
-              (valueChange)="state.selectAoi($event)">
-            </app-dropdown>
-          </div>
-
           <button
             type="button"
             class="draw-bbox-btn"
             [class.draw-bbox-btn--active]="state.isDrawingBbox()"
-            (click)="state.toggleDrawBbox()">
+            (click)="state.toggleDrawBbox('replace')">
             <lucide-icon [img]="boxSelectIcon" [size]="13"></lucide-icon>
             <span>{{ t.drawBboxBtn }}</span>
           </button>
 
-          <button
-            type="button"
-            class="icon-action"
-            [title]="t.focusBbox"
-            (click)="state.focusOnBbox()">
-            <lucide-icon [img]="compassIcon" [size]="14"></lucide-icon>
-          </button>
+          @if (state.regionBbox(); as bbox) {
+            <span class="region-form__bbox-pill">
+              {{ bbox[0] | number:'1.2-2' }}, {{ bbox[1] | number:'1.2-2' }} → {{ bbox[2] | number:'1.2-2' }}, {{ bbox[3] | number:'1.2-2' }}
+            </span>
+          }
+
+          <span class="region-form__spacer"></span>
+
+          @if (state.hasBoundingBox() || state.dateStart() || state.dateEnd()) {
+            <button
+              type="button"
+              class="region-form__clear"
+              [title]="t.resetRegion"
+              (click)="state.resetRegionAndDates()">
+              <lucide-icon [img]="resetIcon" [size]="11"></lucide-icon>
+              <span>{{ t.clearSelectionBtn }}</span>
+            </button>
+          }
 
           <button
             type="button"
             class="icon-action"
             [title]="t.coordsBtn"
+            [attr.aria-expanded]="showCoordsInputs()"
             (click)="showCoordsInputs.set(!showCoordsInputs())">
             <lucide-icon [img]="showCoordsInputs() ? chevronUpIcon : chevronDownIcon" [size]="14"></lucide-icon>
           </button>
-        </div>
-
-        <div class="region-form__dates">
-          <label class="inline-date">
-            <span>{{ t.dateStartLabel }}</span>
-            <input type="date" [value]="state.dateStart()" (change)="state.setDateRange($any($event.target).value, state.dateEnd())" />
-          </label>
-          <label class="inline-date">
-            <span>{{ t.dateEndLabel }}</span>
-            <input type="date" [value]="state.dateEnd()" (change)="state.setDateRange(state.dateStart(), $any($event.target).value)" />
-          </label>
-          <div class="date-chips">
-            <button type="button" class="preset-chip" (click)="applyDatePreset('2000-01-01', '2026-12-31')">{{ t.presetFullArchive }}</button>
-            <button type="button" class="preset-chip" (click)="applyDatePreset('2022-01-01', '2026-12-31')">{{ t.presetRecent5Yr }}</button>
-            <button type="button" class="preset-chip" (click)="applyDatePreset('2022-06-01', '2022-09-30')">{{ t.preset2022Season }}</button>
-            <button type="button" class="preset-chip" (click)="applyDatePreset('2017-06-01', '2017-10-31')">{{ t.preset2017Season }}</button>
-          </div>
         </div>
 
         @if (showCoordsInputs()) {
@@ -139,459 +123,482 @@
             <div class="coords-fields">
               <label class="coord-field">
                 <span>{{ t.coordWest }}</span>
-                <input type="number" step="0.05" min="-180" max="180" [value]="draftW()" (input)="draftW.set($any($event.target).valueAsNumber)" />
+                <input
+                  type="number"
+                  step="0.1"
+                  min="-180"
+                  max="180"
+                  placeholder="-10.0"
+                  [value]="draftW()"
+                  (input)="draftW.set($any($event.target).value)"
+                  (keydown.enter)="applyDraftCoords()" />
               </label>
               <label class="coord-field">
                 <span>{{ t.coordSouth }}</span>
-                <input type="number" step="0.05" min="-85" max="85" [value]="draftS()" (input)="draftS.set($any($event.target).valueAsNumber)" />
+                <input
+                  type="number"
+                  step="0.1"
+                  min="-85"
+                  max="85"
+                  placeholder="36.0"
+                  [value]="draftS()"
+                  (input)="draftS.set($any($event.target).value)"
+                  (keydown.enter)="applyDraftCoords()" />
               </label>
               <label class="coord-field">
                 <span>{{ t.coordEast }}</span>
-                <input type="number" step="0.05" min="-180" max="180" [value]="draftE()" (input)="draftE.set($any($event.target).valueAsNumber)" />
+                <input
+                  type="number"
+                  step="0.1"
+                  min="-180"
+                  max="180"
+                  placeholder="3.5"
+                  [value]="draftE()"
+                  (input)="draftE.set($any($event.target).value)"
+                  (keydown.enter)="applyDraftCoords()" />
               </label>
               <label class="coord-field">
                 <span>{{ t.coordNorth }}</span>
-                <input type="number" step="0.05" min="-85" max="85" [value]="draftN()" (input)="draftN.set($any($event.target).valueAsNumber)" />
+                <input
+                  type="number"
+                  step="0.1"
+                  min="-85"
+                  max="85"
+                  placeholder="44.0"
+                  [value]="draftN()"
+                  (input)="draftN.set($any($event.target).value)"
+                  (keydown.enter)="applyDraftCoords()" />
               </label>
             </div>
+
+            @if (coordError()) {
+              <p class="coord-error">{{ t.applyCoordsError }}</p>
+            }
+
             <div class="coords-actions">
               <app-button variant="preset" size="sm" (btnClick)="applyDraftCoords()">{{ t.applyCoords }}</app-button>
-              <app-button variant="ghost" size="sm" (btnClick)="state.resetRegionAndDates()">{{ t.resetRegion }}</app-button>
             </div>
           </div>
         }
+
+        <div class="region-form__dates">
+          <label class="inline-date">
+            <span>{{ t.dateStartLabel }}</span>
+            <input
+              type="date"
+              min="2000-01-01"
+              max="2030-12-31"
+              [value]="state.dateStart()"
+              (change)="state.setDateStart($any($event.target).value)" />
+          </label>
+          <label class="inline-date">
+            <span>{{ t.dateEndLabel }}</span>
+            <input
+              type="date"
+              min="2000-01-01"
+              max="2030-12-31"
+              [value]="state.dateEnd()"
+              (change)="state.setDateEnd($any($event.target).value)" />
+          </label>
+        </div>
       </section>
     }
 
-    <!-- Navigation Tabs -->
-    <nav class="analytics-tabs" role="tablist">
+    <!-- Separate Collapsible Layers Section (1 column, starts expanded) -->
+    <section class="layers-section" [attr.aria-label]="t.layersTitle">
       <button
         type="button"
-        role="tab"
-        class="analytics-tabs__btn"
-        [class.analytics-tabs__btn--active]="activeTab() === 'calendar'"
-        (click)="activeTab.set('calendar')">
-        <lucide-icon [img]="calendarIcon" [size]="13"></lucide-icon>
-        <span>{{ t.tabOverviewCalendar }}</span>
+        class="layers-section__header"
+        [attr.aria-expanded]="showLayersSection()"
+        (click)="showLayersSection.set(!showLayersSection())">
+        <span class="layers-section__title">
+          <lucide-icon [img]="layersIcon" [size]="13" class="layers-section__icon"></lucide-icon>
+          <span>{{ t.layersTitle }}</span>
+          <span class="layers-section__zoom">Zoom z{{ state.activeTileZoom() }}</span>
+        </span>
+        <lucide-icon [img]="showLayersSection() ? chevronUpIcon : chevronDownIcon" [size]="14"></lucide-icon>
       </button>
-      <button
-        type="button"
-        role="tab"
-        class="analytics-tabs__btn"
-        [class.analytics-tabs__btn--active]="activeTab() === 'history'"
-        (click)="activeTab.set('history')">
-        <lucide-icon [img]="chartIcon" [size]="13"></lucide-icon>
-        <span>{{ t.tabHistoricalAnomalies }}</span>
-      </button>
-      <button
-        type="button"
-        role="tab"
-        class="analytics-tabs__btn"
-        [class.analytics-tabs__btn--active]="activeTab() === 'export'"
-        (click)="activeTab.set('export')">
-        <lucide-icon [img]="uploadIcon" [size]="13"></lucide-icon>
-        <span>{{ t.tabInputExport }}</span>
-      </button>
-    </nav>
 
-    <!-- Scrollable Body -->
-    <div class="analytics-panel__body">
-      <!-- KPI Strip (Always visible in Calendar & History tabs) -->
-      @if (activeTab() !== 'export') {
-        <div class="kpi-grid">
-          <div class="kpi-card">
-            <span class="kpi-card__label">{{ t.kpiHarmonizedFires }}</span>
-            <strong class="kpi-card__val">{{ summary.harmonizedFires | number }}</strong>
-            <span class="kpi-card__sub">MODIS {{ summary.rawModisFires | number }} · VIIRS {{ summary.rawViirsFires | number }}</span>
+      @if (showLayersSection()) {
+        <div class="layers-section__body">
+          <div class="layers-section__items">
+            @for (item of layerItems(); track item.id) {
+              <label class="layers-section__item">
+                <input
+                  type="checkbox"
+                  [checked]="item.checked"
+                  (change)="item.setChecked($any($event.target).checked)" />
+                <span class="layers-section__swatch" [style.background]="item.swatch"></span>
+                <span class="layers-section__label">{{ item.label }}</span>
+              </label>
+            }
           </div>
-
-          <div class="kpi-card">
-            <span class="kpi-card__label">{{ t.kpiMultiYearAnomaly }}</span>
-            <strong
-              class="kpi-card__val"
-              [class.kpi-card__val--hot]="summary.anomalyZScore >= 0.5"
-              [class.kpi-card__val--cool]="summary.anomalyZScore <= -0.5">
-              {{ summary.anomalyZScore >= 0 ? '+' : '' }}{{ summary.anomalyZScore }}σ
-            </strong>
-            <span class="kpi-card__sub">
-              {{ summary.anomalyPct >= 0 ? '+' : '' }}{{ summary.anomalyPct }}% {{ t.kpiVsBaseline }}
-            </span>
-          </div>
-
-          <div class="kpi-card">
-            <span class="kpi-card__label">{{ t.kpiTotalFrp }}</span>
-            <strong class="kpi-card__val">{{ summary.totalFrpMw | number }} MW</strong>
-            <span class="kpi-card__sub">{{ t.kpiMeanFrp }}: {{ summary.meanFrpMw }} MW</span>
-          </div>
-
-          <div class="kpi-card">
-            <span class="kpi-card__label">{{ t.kpiPeakDate }}</span>
-            <strong class="kpi-card__val">{{ summary.peakDate ?? '—' }}</strong>
-            <span class="kpi-card__sub">{{ summary.activeFireDays }} {{ t.kpiActiveDays }} · {{ summary.areaKm2 | number }} km²</span>
+          <div class="layers-section__actions">
+            <button type="button" class="layers-section__reset" (click)="state.resetDefaultLayers()">
+              <lucide-icon [img]="resetIcon" [size]="11"></lucide-icon>
+              <span>{{ t.layersResetBtn }}</span>
+            </button>
           </div>
         </div>
       }
+    </section>
 
-      <!-- TAB 1: BURNING CALENDAR -->
-      @if (activeTab() === 'calendar') {
-        <section class="viz-card">
-          <div class="viz-card__head">
-            <div>
-              <h3 class="viz-card__title">{{ t.burningCalendarTitle }}</h3>
-              <p class="viz-card__meta">{{ summary.totalRecords | number }} {{ t.recordsCountLabel }}</p>
+    <!-- Collapsible & Expandable Analysis Section -->
+    <section class="analysis-section" [attr.aria-label]="t.analysisSectionTitle">
+      <button
+        type="button"
+        class="analysis-section__header"
+        [attr.aria-expanded]="showAnalysisSection()"
+        (click)="showAnalysisSection.set(!showAnalysisSection())">
+        <span class="analysis-section__title">
+          <lucide-icon [img]="chartIcon" [size]="13" class="analysis-section__icon"></lucide-icon>
+          <span>{{ t.analysisSectionTitle }}</span>
+          @if (state.hasActiveSelection()) {
+            <span class="analysis-section__count">{{ summary.harmonizedFires | number }}</span>
+          }
+        </span>
+        <lucide-icon [img]="showAnalysisSection() ? chevronUpIcon : chevronDownIcon" [size]="14"></lucide-icon>
+      </button>
+    </section>
+
+    @if (showAnalysisSection()) {
+      @if (state.hasActiveSelection() && !data.isCustomDataset() && (data.backendStatus() === 'downloading' || (data.backendStatus() === 'error' && data.backendError()))) {
+        <div
+          class="backend-banner"
+          [class.backend-banner--sync]="data.backendStatus() === 'downloading'"
+          [class.backend-banner--err]="data.backendStatus() === 'error'">
+          @if (data.backendStatus() === 'downloading') {
+            @let prog = data.backendProgress();
+            <span>
+              {{ t.backendDownloadingLabel }}
+              @if (prog && prog.total > 0) {
+                ({{ prog.done | number }}/{{ prog.total | number }} {{ t.backendChunksLabel }})
+              }
+            </span>
+          } @else {
+            <span>{{ data.backendError() }}</span>
+          }
+        </div>
+      }
+
+      @if (!state.hasActiveSelection()) {
+        <!-- Empty State until user defines both Bounding Box and Time Range -->
+        <div class="analytics-empty-state">
+          <div class="analytics-empty-state__card">
+            <div class="analytics-empty-state__icon-wrap">
+              <lucide-icon [img]="compassIcon" [size]="22"></lucide-icon>
             </div>
-            <div class="viz-card__actions">
-              <div class="segmented">
-                <button
-                  type="button"
-                  class="segmented__btn"
-                  [class.segmented__btn--active]="cal.mode === 'monthly'"
-                  (click)="state.calendarGranularity.set('monthly')">
-                  {{ t.calendarMonthly }}
-                </button>
-                <button
-                  type="button"
-                  class="segmented__btn"
-                  [class.segmented__btn--active]="cal.mode === 'daily'"
-                  (click)="state.calendarGranularity.set('daily')">
-                  {{ t.calendarDaily }}
-                </button>
+            <h3 class="analytics-empty-state__title">{{ t.emptyAnalysisTitle }}</h3>
+            <p class="analytics-empty-state__desc">{{ t.emptyAnalysisDesc }}</p>
+
+            <div class="analytics-empty-state__steps">
+              <div class="empty-step" [class.empty-step--done]="state.hasBoundingBox()">
+                <lucide-icon [img]="state.hasBoundingBox() ? checkCircleIcon : circleDashedIcon" [size]="15"></lucide-icon>
+                <span class="empty-step__label">{{ t.emptyStepBbox }}</span>
+                <span class="empty-step__status">
+                  {{ state.hasBoundingBox() ? t.emptyStatusReady : t.emptyStatusPending }}
+                </span>
+              </div>
+
+              <div class="empty-step" [class.empty-step--done]="state.hasDateRange()">
+                <lucide-icon [img]="state.hasDateRange() ? checkCircleIcon : circleDashedIcon" [size]="15"></lucide-icon>
+                <span class="empty-step__label">{{ t.emptyStepDates }}</span>
+                <span class="empty-step__status">
+                  {{ state.hasDateRange() ? t.emptyStatusReady : t.emptyStatusPending }}
+                </span>
               </div>
             </div>
+
+            @if (!state.hasBoundingBox()) {
+              <app-button variant="preset" size="sm" (btnClick)="state.toggleDrawBbox('replace')">
+                <lucide-icon [img]="boxSelectIcon" [size]="13"></lucide-icon>
+                <span>{{ t.drawBboxBtn }}</span>
+              </app-button>
+            }
+          </div>
+        </div>
+      } @else {
+        <!-- Scrollable Merged Analytics Body -->
+        <div class="analytics-panel__body">
+          <!-- KPI Strip -->
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <span class="kpi-card__label">{{ t.kpiHarmonizedFires }}</span>
+              <strong class="kpi-card__val">{{ summary.harmonizedFires | number }}</strong>
+              <span class="kpi-card__sub">MODIS {{ summary.rawModisFires | number }} · VIIRS {{ summary.rawViirsFires | number }}</span>
+            </div>
+
+            <div class="kpi-card">
+              <span class="kpi-card__label">{{ t.kpiMultiYearAnomaly }}</span>
+              <strong
+                class="kpi-card__val"
+                [class.kpi-card__val--hot]="summary.anomalyZScore >= 0.5"
+                [class.kpi-card__val--cool]="summary.anomalyZScore <= -0.5">
+                {{ summary.anomalyZScore >= 0 ? '+' : '' }}{{ summary.anomalyZScore }}σ
+              </strong>
+              <span class="kpi-card__sub">
+                {{ summary.anomalyPct >= 0 ? '+' : '' }}{{ summary.anomalyPct }}% {{ t.kpiVsBaseline }}
+              </span>
+            </div>
+
+            <div class="kpi-card">
+              <span class="kpi-card__label">{{ t.kpiTotalFrp }}</span>
+              <strong class="kpi-card__val">{{ summary.totalFrpMw | number }} MW</strong>
+              <span class="kpi-card__sub">{{ t.kpiMeanFrp }}: {{ summary.meanFrpMw }} MW</span>
+            </div>
+
+            <div class="kpi-card">
+              <span class="kpi-card__label">{{ t.kpiPeakDate }}</span>
+              <strong class="kpi-card__val">{{ summary.peakDate ?? '—' }}</strong>
+              <span class="kpi-card__sub">{{ summary.activeFireDays }} {{ t.kpiActiveDays }} · {{ summary.areaKm2 | number }} km²</span>
+            </div>
           </div>
 
-          <!-- Accessible Color Ramp Selector & Legend -->
-          <div class="ramp-bar">
-            <div class="ramp-bar__select">
-              <lucide-icon [img]="paletteIcon" [size]="13"></lucide-icon>
-              <span class="ramp-bar__label">{{ t.colorRampLabel }}:</span>
-              <app-dropdown
-                variant="ghost"
-                [options]="colorRampOptions()"
-                [value]="state.colorRamp()"
-                [ariaLabel]="t.colorRampLabel"
-                (valueChange)="state.colorRamp.set($event)">
-              </app-dropdown>
+          <!-- Burning Calendar -->
+          <section class="viz-card">
+            <div class="viz-card__head">
+              <div>
+                <h3 class="viz-card__title">{{ t.burningCalendarTitle }}</h3>
+                <p class="viz-card__meta">{{ summary.totalRecords | number }} {{ t.recordsCountLabel }}</p>
+              </div>
+              <div class="viz-card__actions">
+                <div class="segmented">
+                  <button
+                    type="button"
+                    class="segmented__btn"
+                    [class.segmented__btn--active]="cal.mode === 'monthly'"
+                    (click)="state.calendarGranularity.set('monthly')">
+                    {{ t.calendarMonthly }}
+                  </button>
+                  <button
+                    type="button"
+                    class="segmented__btn"
+                    [class.segmented__btn--active]="cal.mode === 'daily'"
+                    (click)="state.calendarGranularity.set('daily')">
+                    {{ t.calendarDaily }}
+                  </button>
+                </div>
+              </div>
             </div>
-            <div class="ramp-bar__legend">
-              <span>{{ t.calendarLow }} (0)</span>
-              <span class="ramp-bar__swatch" [style.background]="activeRampGradient()"></span>
-              <span>{{ t.calendarHigh }} ({{ cal.maxCount | number }})</span>
-            </div>
-          </div>
 
-          @if (cal.cells.length > 0) {
+            <!-- Accessible Color Ramp Selector & Legend -->
+            <div class="ramp-bar">
+              <div class="ramp-bar__select">
+                <lucide-icon [img]="paletteIcon" [size]="13"></lucide-icon>
+                <span class="ramp-bar__label">{{ t.colorRampLabel }}:</span>
+                <app-dropdown
+                  variant="ghost"
+                  [options]="colorRampOptions()"
+                  [value]="state.colorRamp()"
+                  [ariaLabel]="t.colorRampLabel"
+                  (valueChange)="state.colorRamp.set($event)">
+                </app-dropdown>
+              </div>
+              <div class="ramp-bar__legend">
+                <span>{{ t.calendarLow }} (0)</span>
+                <span class="ramp-bar__swatch" [style.background]="activeRampGradient()"></span>
+                <span>{{ t.calendarHigh }} ({{ cal.maxCount | number }})</span>
+              </div>
+            </div>
+
+            @if (cal.cells.length > 0) {
+              <div class="svg-wrap">
+                <svg
+                  class="calendar-svg"
+                  [attr.viewBox]="'0 0 ' + dims.width + ' ' + dims.height"
+                  role="img"
+                  [attr.aria-label]="t.burningCalendarTitle">
+                  @for (colLbl of cal.colLabels; track $index) {
+                    @if (cal.colLabels.length <= 12 || $index % 3 === 0) {
+                      <text
+                        [attr.x]="dims.leftPad + $index * dims.cellW + dims.cellW * 0.5"
+                        y="11"
+                        class="svg-axis-label"
+                        text-anchor="middle">
+                        {{ colLbl }}
+                      </text>
+                    }
+                  }
+
+                  @for (rowLbl of cal.rowLabels; track $index) {
+                    @if (cal.rowLabels.length <= 14 || $index % 3 === 0 || $index === cal.rowLabels.length - 1) {
+                      <text
+                        [attr.x]="dims.leftPad - 6"
+                        [attr.y]="dims.topPad + $index * dims.cellH + dims.cellH * 0.72"
+                        class="svg-axis-label"
+                        text-anchor="end">
+                        {{ rowLbl }}
+                      </text>
+                    }
+                  }
+
+                  @for (cell of cal.cells; track cell.key) {
+                    <rect
+                      [attr.x]="dims.leftPad + cell.col * dims.cellW"
+                      [attr.y]="dims.topPad + cell.row * dims.cellH"
+                      [attr.width]="Math.max(3, dims.cellW - 2)"
+                      [attr.height]="Math.max(3, dims.cellH - 2)"
+                      rx="2.5"
+                      [attr.fill]="cellFill(cell)"
+                      [attr.opacity]="cellOpacity(cell)"
+                      class="cal-cell"
+                      (mouseenter)="hoveredCell.set(cell)"
+                      (mouseleave)="hoveredCell.set(null)" />
+                  }
+                </svg>
+              </div>
+            } @else {
+              <p class="empty-msg">{{ t.calendarNoData }}</p>
+            }
+
+            <!-- Interactive Hover Readout -->
+            <div class="hover-readout">
+              @let hc = hoveredCell();
+              @if (hc) {
+                <span class="hover-readout__title">{{ hc.label }}</span>
+                <span class="mono-tag">{{ t.kpiHarmonizedFires }}: <b>{{ hc.harmonizedCount | number }}</b></span>
+                <span class="mono-tag">MODIS: {{ hc.rawModisCount }} · VIIRS: {{ hc.rawViirsCount }}</span>
+                <span class="mono-tag">FRP: {{ hc.frpMw | number }} MW</span>
+                <span class="mono-tag">Avg: {{ hc.multiYearAvg }} ({{ hc.anomalyZScore >= 0 ? '+' : '' }}{{ hc.anomalyZScore }}σ)</span>
+              } @else {
+                <span class="hover-readout__hint">{{ t.drawBboxShiftHint }}</span>
+              }
+            </div>
+          </section>
+
+          <!-- Historical Comparisons & Anomalies -->
+          <section class="viz-card">
+            <div class="viz-card__head">
+              <div>
+                <h3 class="viz-card__title">{{ t.historicalFiresTitle }}</h3>
+                <p class="viz-card__meta">{{ t.historicalFiresSubtitle }}</p>
+              </div>
+            </div>
+
+            <div class="chart-legend">
+              <span class="legend-item"><i class="swatch swatch--harm"></i>{{ t.legendHarmonized }}</span>
+              <span class="legend-item"><i class="swatch swatch--modis"></i>{{ t.legendRawModis }}</span>
+              <span class="legend-item"><i class="swatch swatch--avg"></i>{{ t.legendMultiYearAvg }}</span>
+            </div>
+
             <div class="svg-wrap">
-              <svg
-                class="calendar-svg"
-                [attr.viewBox]="'0 0 ' + dims.width + ' ' + dims.height"
-                role="img"
-                [attr.aria-label]="t.burningCalendarTitle">
-                @for (colLbl of cal.colLabels; track $index) {
-                  @if (cal.colLabels.length <= 12 || $index % 3 === 0) {
-                    <text
-                      [attr.x]="dims.leftPad + $index * dims.cellW + dims.cellW * 0.5"
-                      y="11"
-                      class="svg-axis-label"
-                      text-anchor="middle">
-                      {{ colLbl }}
-                    </text>
-                  }
-                }
+              <svg class="chart-svg" viewBox="0 0 520 185" role="img" [attr.aria-label]="t.historicalFiresTitle">
+                @let maxY = historyMaxVal();
+                @let avgY = yearly.length > 0 ? 156 - (yearly[0].multiYearAvgCount / maxY) * 138 : 156;
+                @let slotW = 472 / Math.max(1, yearly.length);
 
-                @for (rowLbl of cal.rowLabels; track $index) {
-                  @if (cal.rowLabels.length <= 14 || $index % 3 === 0 || $index === cal.rowLabels.length - 1) {
-                    <text
-                      [attr.x]="dims.leftPad - 6"
-                      [attr.y]="dims.topPad + $index * dims.cellH + dims.cellH * 0.72"
-                      class="svg-axis-label"
-                      text-anchor="end">
-                      {{ rowLbl }}
-                    </text>
-                  }
-                }
+                <line x1="38" y1="18" x2="510" y2="18" class="svg-grid" />
+                <line x1="38" y1="87" x2="510" y2="87" class="svg-grid" />
+                <line x1="38" y1="156" x2="510" y2="156" class="svg-axis" />
+                <text x="34" y="22" class="svg-axis-label" text-anchor="end">{{ maxY | number }}</text>
+                <text x="34" y="90" class="svg-axis-label" text-anchor="end">{{ (maxY / 2) | number:'1.0-0' }}</text>
+                <text x="34" y="159" class="svg-axis-label" text-anchor="end">0</text>
 
-                @for (cell of cal.cells; track cell.key) {
+                @for (pt of yearly; track pt.year; let i = $index) {
+                  @let bx = 42 + i * slotW;
+                  @let barW = Math.max(4, slotW - 3);
+                  @let hHarm = (pt.harmonizedCount / maxY) * 138;
+                  @let hModis = (pt.rawModisCount / maxY) * 138;
+
+                  @if (pt.year === 2012) {
+                    <line [attr.x1]="bx + barW / 2" y1="12" [attr.x2]="bx + barW / 2" y2="156" class="svg-marker" />
+                    <text [attr.x]="bx + barW / 2" y="10" class="svg-marker-text" text-anchor="middle">VIIRS 2012</text>
+                  }
+
                   <rect
-                    [attr.x]="dims.leftPad + cell.col * dims.cellW"
-                    [attr.y]="dims.topPad + cell.row * dims.cellH"
-                    [attr.width]="Math.max(3, dims.cellW - 2)"
-                    [attr.height]="Math.max(3, dims.cellH - 2)"
-                    rx="2.5"
-                    [attr.fill]="cellFill(cell)"
-                    [attr.opacity]="cellOpacity(cell)"
-                    class="cal-cell"
-                    (mouseenter)="hoveredCell.set(cell)"
-                    (mouseleave)="hoveredCell.set(null)" />
+                    [attr.x]="bx"
+                    [attr.y]="156 - hHarm"
+                    [attr.width]="barW"
+                    [attr.height]="Math.max(1, hHarm)"
+                    rx="2"
+                    [attr.fill]="pt.inSelectedRange ? '#d37400' : '#94a3b8'"
+                    [attr.opacity]="pt.inSelectedRange ? 0.92 : 0.42"
+                    class="chart-bar"
+                    (mouseenter)="hoveredYear.set(pt)"
+                    (mouseleave)="hoveredYear.set(null)" />
+                  <rect
+                    [attr.x]="bx + barW * 0.22"
+                    [attr.y]="156 - hModis"
+                    [attr.width]="barW * 0.56"
+                    [attr.height]="Math.max(0.5, hModis)"
+                    rx="1"
+                    fill="#0f172a"
+                    opacity="0.32"
+                    pointer-events="none" />
+
+                  @if (i % Math.max(1, Math.floor(yearly.length / 7)) === 0) {
+                    <text [attr.x]="bx + barW / 2" y="172" class="svg-axis-label" text-anchor="middle">{{ pt.year }}</text>
+                  }
+                }
+
+                <line x1="38" [attr.y1]="avgY" x2="510" [attr.y2]="avgY" class="svg-avg-line" />
+              </svg>
+            </div>
+          </section>
+
+          <section class="viz-card">
+            <div class="viz-card__head">
+              <div>
+                <h3 class="viz-card__title">{{ t.anomalyChartTitle }}</h3>
+                <p class="viz-card__meta">{{ t.anomalyChartSubtitle }}</p>
+              </div>
+            </div>
+
+            <div class="chart-legend">
+              <span class="legend-item"><i class="swatch" [style.background]="ramps.anomalyPositiveHex"></i>{{ t.anomalyAboveAvg }}</span>
+              <span class="legend-item"><i class="swatch" [style.background]="ramps.anomalyNegativeHex"></i>{{ t.anomalyBelowAvg }}</span>
+            </div>
+
+            <div class="svg-wrap">
+              <svg class="chart-svg" viewBox="0 0 520 160" role="img" [attr.aria-label]="t.anomalyChartTitle">
+                @let maxZ = anomalyMaxAbsZ();
+                @let zeroY = 74;
+                @let anomSlotW = 472 / Math.max(1, yearly.length);
+
+                <line x1="38" [attr.y1]="zeroY" x2="510" [attr.y2]="zeroY" class="svg-axis" />
+                <text x="34" y="20" class="svg-axis-label" text-anchor="end">+{{ maxZ | number:'1.1-1' }}σ</text>
+                <text x="34" [attr.y]="zeroY + 4" class="svg-axis-label" text-anchor="end">0σ</text>
+                <text x="34" y="136" class="svg-axis-label" text-anchor="end">-{{ maxZ | number:'1.1-1' }}σ</text>
+
+                @for (pt of yearly; track pt.year; let i = $index) {
+                  @let bx = 42 + i * anomSlotW;
+                  @let barW = Math.max(4, anomSlotW - 3);
+                  @let mag = (Math.abs(pt.anomalyZScore) / maxZ) * 56;
+                  @let by = pt.anomalyZScore >= 0 ? zeroY - mag : zeroY;
+
+                  <rect
+                    [attr.x]="bx"
+                    [attr.y]="by"
+                    [attr.width]="barW"
+                    [attr.height]="Math.max(1.5, mag)"
+                    rx="2"
+                    [attr.fill]="pt.anomalyZScore >= 0 ? ramps.anomalyPositiveHex : ramps.anomalyNegativeHex"
+                    [attr.opacity]="pt.inSelectedRange ? 0.92 : 0.42"
+                    class="chart-bar"
+                    (mouseenter)="hoveredYear.set(pt)"
+                    (mouseleave)="hoveredYear.set(null)" />
+
+                  @if (i % Math.max(1, Math.floor(yearly.length / 7)) === 0) {
+                    <text [attr.x]="bx + barW / 2" y="152" class="svg-axis-label" text-anchor="middle">{{ pt.year }}</text>
+                  }
                 }
               </svg>
             </div>
-          } @else {
-            <p class="empty-msg">{{ t.calendarNoData }}</p>
-          }
 
-          <!-- Interactive Hover Readout -->
-          <div class="hover-readout">
-            @let hc = hoveredCell();
-            @if (hc) {
-              <span class="hover-readout__title">{{ hc.label }}</span>
-              <span class="mono-tag">{{ t.kpiHarmonizedFires }}: <b>{{ hc.harmonizedCount | number }}</b></span>
-              <span class="mono-tag">MODIS: {{ hc.rawModisCount }} · VIIRS: {{ hc.rawViirsCount }}</span>
-              <span class="mono-tag">FRP: {{ hc.frpMw | number }} MW</span>
-              <span class="mono-tag">Avg: {{ hc.multiYearAvg }} ({{ hc.anomalyZScore >= 0 ? '+' : '' }}{{ hc.anomalyZScore }}σ)</span>
-            } @else {
-              <span class="hover-readout__hint">{{ t.drawBboxShiftHint }}</span>
-            }
-          </div>
-        </section>
-      }
-
-      <!-- TAB 2: HISTORICAL COMPARISONS & ANOMALIES -->
-      @if (activeTab() === 'history') {
-        <section class="viz-card">
-          <div class="viz-card__head">
-            <div>
-              <h3 class="viz-card__title">{{ t.historicalFiresTitle }}</h3>
-              <p class="viz-card__meta">{{ t.historicalFiresSubtitle }}</p>
-            </div>
-          </div>
-
-          <div class="chart-legend">
-            <span class="legend-item"><i class="swatch swatch--harm"></i>{{ t.legendHarmonized }}</span>
-            <span class="legend-item"><i class="swatch swatch--modis"></i>{{ t.legendRawModis }}</span>
-            <span class="legend-item"><i class="swatch swatch--avg"></i>{{ t.legendMultiYearAvg }}</span>
-          </div>
-
-          <div class="svg-wrap">
-            <svg class="chart-svg" viewBox="0 0 520 185" role="img" [attr.aria-label]="t.historicalFiresTitle">
-              @let maxY = historyMaxVal();
-              @let avgY = yearly.length > 0 ? 156 - (yearly[0].multiYearAvgCount / maxY) * 138 : 156;
-              @let slotW = 472 / Math.max(1, yearly.length);
-
-              <line x1="38" y1="18" x2="510" y2="18" class="svg-grid" />
-              <line x1="38" y1="87" x2="510" y2="87" class="svg-grid" />
-              <line x1="38" y1="156" x2="510" y2="156" class="svg-axis" />
-              <text x="34" y="22" class="svg-axis-label" text-anchor="end">{{ maxY | number }}</text>
-              <text x="34" y="90" class="svg-axis-label" text-anchor="end">{{ (maxY / 2) | number:'1.0-0' }}</text>
-              <text x="34" y="159" class="svg-axis-label" text-anchor="end">0</text>
-
-              @for (pt of yearly; track pt.year; let i = $index) {
-                @let bx = 42 + i * slotW;
-                @let barW = Math.max(4, slotW - 3);
-                @let hHarm = (pt.harmonizedCount / maxY) * 138;
-                @let hModis = (pt.rawModisCount / maxY) * 138;
-
-                @if (pt.year === 2012) {
-                  <line [attr.x1]="bx + barW / 2" y1="12" [attr.x2]="bx + barW / 2" y2="156" class="svg-marker" />
-                  <text [attr.x]="bx + barW / 2" y="10" class="svg-marker-text" text-anchor="middle">VIIRS 2012</text>
-                }
-
-                <rect
-                  [attr.x]="bx"
-                  [attr.y]="156 - hHarm"
-                  [attr.width]="barW"
-                  [attr.height]="Math.max(1, hHarm)"
-                  rx="2"
-                  [attr.fill]="pt.inSelectedRange ? '#d37400' : '#94a3b8'"
-                  [attr.opacity]="pt.inSelectedRange ? 0.92 : 0.42"
-                  class="chart-bar"
-                  (mouseenter)="hoveredYear.set(pt)"
-                  (mouseleave)="hoveredYear.set(null)" />
-                <rect
-                  [attr.x]="bx + barW * 0.22"
-                  [attr.y]="156 - hModis"
-                  [attr.width]="barW * 0.56"
-                  [attr.height]="Math.max(0.5, hModis)"
-                  rx="1"
-                  fill="#0f172a"
-                  opacity="0.32"
-                  pointer-events="none" />
-
-                @if (i % Math.max(1, Math.floor(yearly.length / 7)) === 0) {
-                  <text [attr.x]="bx + barW / 2" y="172" class="svg-axis-label" text-anchor="middle">{{ pt.year }}</text>
-                }
-              }
-
-              <line x1="38" [attr.y1]="avgY" x2="510" [attr.y2]="avgY" class="svg-avg-line" />
-            </svg>
-          </div>
-        </section>
-
-        <section class="viz-card">
-          <div class="viz-card__head">
-            <div>
-              <h3 class="viz-card__title">{{ t.anomalyChartTitle }}</h3>
-              <p class="viz-card__meta">{{ t.anomalyChartSubtitle }}</p>
-            </div>
-          </div>
-
-          <div class="chart-legend">
-            <span class="legend-item"><i class="swatch" [style.background]="ramps.anomalyPositiveHex"></i>{{ t.anomalyAboveAvg }}</span>
-            <span class="legend-item"><i class="swatch" [style.background]="ramps.anomalyNegativeHex"></i>{{ t.anomalyBelowAvg }}</span>
-          </div>
-
-          <div class="svg-wrap">
-            <svg class="chart-svg" viewBox="0 0 520 160" role="img" [attr.aria-label]="t.anomalyChartTitle">
-              @let maxZ = anomalyMaxAbsZ();
-              @let zeroY = 74;
-              @let anomSlotW = 472 / Math.max(1, yearly.length);
-
-              <line x1="38" [attr.y1]="zeroY" x2="510" [attr.y2]="zeroY" class="svg-axis" />
-              <text x="34" y="20" class="svg-axis-label" text-anchor="end">+{{ maxZ | number:'1.1-1' }}σ</text>
-              <text x="34" [attr.y]="zeroY + 4" class="svg-axis-label" text-anchor="end">0σ</text>
-              <text x="34" y="136" class="svg-axis-label" text-anchor="end">-{{ maxZ | number:'1.1-1' }}σ</text>
-
-              @for (pt of yearly; track pt.year; let i = $index) {
-                @let bx = 42 + i * anomSlotW;
-                @let barW = Math.max(4, anomSlotW - 3);
-                @let mag = (Math.abs(pt.anomalyZScore) / maxZ) * 56;
-                @let by = pt.anomalyZScore >= 0 ? zeroY - mag : zeroY;
-
-                <rect
-                  [attr.x]="bx"
-                  [attr.y]="by"
-                  [attr.width]="barW"
-                  [attr.height]="Math.max(1.5, mag)"
-                  rx="2"
-                  [attr.fill]="pt.anomalyZScore >= 0 ? ramps.anomalyPositiveHex : ramps.anomalyNegativeHex"
-                  [attr.opacity]="pt.inSelectedRange ? 0.92 : 0.42"
-                  class="chart-bar"
-                  (mouseenter)="hoveredYear.set(pt)"
-                  (mouseleave)="hoveredYear.set(null)" />
-
-                @if (i % Math.max(1, Math.floor(yearly.length / 7)) === 0) {
-                  <text [attr.x]="bx + barW / 2" y="152" class="svg-axis-label" text-anchor="middle">{{ pt.year }}</text>
-                }
-              }
-            </svg>
-          </div>
-
-          <div class="hover-readout">
-            @let hy = hoveredYear();
-            @if (hy) {
-              <span class="hover-readout__title">{{ hy.year }}</span>
-              <span class="mono-tag">{{ t.legendHarmonized }}: <b>{{ hy.harmonizedCount | number }}</b></span>
-              <span class="mono-tag">MODIS: {{ hy.rawModisCount | number }} · VIIRS: {{ hy.rawViirsCount | number }}</span>
-              <span class="mono-tag">{{ hy.anomalyZScore >= 0 ? '+' : '' }}{{ hy.anomalyZScore }}σ ({{ hy.anomalyPct >= 0 ? '+' : '' }}{{ hy.anomalyPct }}%)</span>
-            } @else {
-              <span class="hover-readout__hint">{{ t.legendMultiYearAvg }}: {{ yearly[0]?.multiYearAvgCount ?? 0 }} / yr</span>
-            }
-          </div>
-        </section>
-      }
-
-      <!-- TAB 3: HARMONIZED DATA INPUT & DOWNLOADS -->
-      @if (activeTab() === 'export') {
-        <section class="viz-card">
-          <div class="viz-card__head">
-            <div>
-              <h3 class="viz-card__title">{{ t.inputDataTitle }}</h3>
-              <p class="viz-card__meta">{{ t.inputDataDesc }}</p>
-            </div>
-          </div>
-
-          <div class="dataset-status">
-            <span class="dataset-status__label">{{ t.activeDatasetLabel }}:</span>
-            <span class="dataset-status__name">
-              @if (data.isCustomDataset()) {
-                {{ data.hotspotDatasetName() }}
-              } @else if (analytics.hasLiveBackend() && data.backendCalendar(); as bCal) {
-                {{ t.backendLiveLabel }} (H3-{{ bCal.metadata.h3Resolution }} · {{ bCal.metadata.dataThrough }})
+            <div class="hover-readout">
+              @let hy = hoveredYear();
+              @if (hy) {
+                <span class="hover-readout__title">{{ hy.year }}</span>
+                <span class="mono-tag">{{ t.legendHarmonized }}: <b>{{ hy.harmonizedCount | number }}</b></span>
+                <span class="mono-tag">MODIS: {{ hy.rawModisCount | number }} · VIIRS: {{ hy.rawViirsCount | number }}</span>
+                <span class="mono-tag">{{ hy.anomalyZScore >= 0 ? '+' : '' }}{{ hy.anomalyZScore }}σ ({{ hy.anomalyPct >= 0 ? '+' : '' }}{{ hy.anomalyPct }}%)</span>
               } @else {
-                {{ t.defaultDatasetName }}
-              }
-            </span>
-            <span class="mono-tag">({{ summary.totalRecords | number }})</span>
-          </div>
-
-          <div
-            class="dropzone"
-            [class.dropzone--over]="isDragOver()"
-            (dragover)="onDragOver($event)"
-            (dragleave)="onDragLeave()"
-            (drop)="onDrop($event)">
-            <input
-              #fileInputRef
-              type="file"
-              accept=".csv,.json,text/csv,application/json"
-              class="sr-only"
-              (change)="onFileSelected($event)" />
-            <div class="dropzone__actions">
-              <app-button variant="preset" (btnClick)="triggerFilePicker()">
-                <lucide-icon [img]="uploadIcon" [size]="14"></lucide-icon>
-                <span>{{ t.uploadFileBtn }}</span>
-              </app-button>
-              <app-button variant="ghost" (btnClick)="analytics.downloadSampleCsv()">
-                <lucide-icon [img]="downloadIcon" [size]="14"></lucide-icon>
-                <span>{{ t.downloadTemplateBtn }}</span>
-              </app-button>
-              @if (data.isCustomDataset()) {
-                <app-button variant="ghost" (btnClick)="resetDataset()">
-                  <lucide-icon [img]="resetIcon" [size]="14"></lucide-icon>
-                  <span>{{ t.resetDatasetBtn }}</span>
-                </app-button>
+                <span class="hover-readout__hint">{{ t.legendMultiYearAvg }}: {{ yearly[0]?.multiYearAvgCount ?? 0 }} / yr</span>
               }
             </div>
-          </div>
-
-          @if (importSuccessCount() !== null) {
-            <p class="status-msg status-msg--ok">{{ t.importSuccessMsg }} ({{ importSuccessCount() | number }})</p>
-          }
-          @if (data.importError()) {
-            <p class="status-msg status-msg--err">
-              {{ data.importError() === 'empty' ? t.importErrorEmpty : data.importError() === 'noValidRows' ? t.importErrorNoRows : t.importErrorParse }}
-            </p>
-          }
-        </section>
-
-        <section class="viz-card">
-          <div class="viz-card__head">
-            <div>
-              <h3 class="viz-card__title">{{ t.downloadTitle }}</h3>
-              <p class="viz-card__meta">{{ summary.totalRecords | number }} {{ t.recordsCountLabel }} · {{ t.regionBboxLabel }} [{{ bbox[0] }}, {{ bbox[1] }}, {{ bbox[2] }}, {{ bbox[3] }}]</p>
-            </div>
-          </div>
-
-          <div class="export-grid">
-            <app-button variant="default" (btnClick)="analytics.downloadFilteredCsv()">
-              <lucide-icon [img]="csvIcon" [size]="14"></lucide-icon>
-              <span>{{ t.downloadCsvBtn }}</span>
-            </app-button>
-            <app-button variant="default" (btnClick)="analytics.downloadAnalyticsJson()">
-              <lucide-icon [img]="jsonIcon" [size]="14"></lucide-icon>
-              <span>{{ t.downloadJsonBtn }}</span>
-            </app-button>
-            <app-button variant="default" (btnClick)="analytics.downloadSvgReport()">
-              <lucide-icon [img]="imageIcon" [size]="14"></lucide-icon>
-              <span>{{ t.downloadSvgBtn }}</span>
-            </app-button>
-            <app-button variant="preset" (btnClick)="analytics.downloadPngReport()">
-              <lucide-icon [img]="downloadIcon" [size]="14"></lucide-icon>
-              <span>{{ t.downloadPngBtn }}</span>
-            </app-button>
-          </div>
-        </section>
+          </section>
+        </div>
       }
-    </div>
-
-    <!-- Persistent Quick Download Footer -->
-    <footer class="analytics-panel__footer">
-      <button type="button" class="quick-export-btn" (click)="analytics.downloadFilteredCsv()">
-        <lucide-icon [img]="csvIcon" [size]="13"></lucide-icon>
-        <span>CSV</span>
-      </button>
-      <button type="button" class="quick-export-btn" (click)="analytics.downloadAnalyticsJson()">
-        <lucide-icon [img]="jsonIcon" [size]="13"></lucide-icon>
-        <span>JSON</span>
-      </button>
-      <button type="button" class="quick-export-btn" (click)="analytics.downloadSvgReport()">
-        <lucide-icon [img]="imageIcon" [size]="13"></lucide-icon>
-        <span>SVG</span>
-      </button>
-      <button type="button" class="quick-export-btn quick-export-btn--accent" (click)="analytics.downloadPngReport()">
-        <lucide-icon [img]="downloadIcon" [size]="13"></lucide-icon>
-        <span>PNG</span>
-      </button>
-    </footer>
+    }
   </aside>
 }

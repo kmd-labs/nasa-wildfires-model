@@ -38,7 +38,7 @@ import h3
 import pandas as pd
 import requests
 
-from . import harmonization as hz
+from . import harmonization2 as hz
 
 REPO = Path(__file__).resolve().parents[1]
 FIRMS_URL = os.getenv("FIRMS_URL", "https://firms.modaps.eosdis.nasa.gov")
@@ -215,12 +215,32 @@ class Region:
 
     # -- download ------------------------------------------------------------------------------
 
-    def sync(self, client: FirmsClient, progress: Callable[[int, int], None] | None = None, workers: int = WORKERS) -> dict:
+    def sync(
+        self,
+        client: FirmsClient,
+        progress: Callable[[int, int], None] | None = None,
+        workers: int = WORKERS,
+        priority_window: tuple[dt.date, dt.date] | None = None,
+    ) -> dict:
         """Download what `plan` asks for, then rebuild the consolidated file. Safe to call again after a failure."""
         with self.lock:
             today = today_utc()
             availability = client.availability()
+            avail = _platform_availability(availability, today)
             tasks = self.plan(availability, today)
+
+            def _task_priority(t: Task) -> tuple[int, int, str]:
+                t_end = t.start + dt.timedelta(days=CHUNK_DAYS - 1)
+                in_prio = 0 if (priority_window and t.start <= priority_window[1] and t_end >= priority_window[0]) else 1
+                return (in_prio, -t.start.toordinal(), t.sensor)
+
+            tasks.sort(key=_task_priority)
+            progressive = client.http_get is _requests_get
+            if progressive and not self.has_data and self.manifest.get("chunks"):
+                self.manifest["availability"] = avail.to_json()
+                self.manifest["dataThrough"] = f"{today:%Y-%m-%d}"
+                self._consolidate()
+
             failed: list[str] = []
             done = 0
             if progress:
@@ -254,29 +274,41 @@ class Region:
                     done += 1
                     if progress:
                         progress(done, len(tasks))
-                    if done % 100 == 0:
+                    if progressive and ((not self.has_data and done == min(24, len(tasks))) or (done % 100 == 0 and len(self.manifest["chunks"]) <= 300)):
+                        self.manifest["availability"] = avail.to_json()
+                        self.manifest["dataThrough"] = f"{today:%Y-%m-%d}"
+                        self._consolidate()
+                    elif done % 50 == 0:
                         self.save()
 
-            self.manifest["availability"] = _platform_availability(availability, today).to_json()
+            if tasks or not self.has_data:
+                self._consolidate()
+            w, s, e, n = self.bbox
+            if (e - w) * (n - s) >= 25.0 and self.has_data:
+                avail.outages = hz.detect_outages(self.frame(), avail.first, avail.last)
+            self.manifest["availability"] = avail.to_json()
             self.manifest["dataThrough"] = f"{today:%Y-%m-%d}"
             self.manifest["lastSync"] = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
             self.save()
-            if tasks or not self.has_data:
-                self._consolidate()
             return {"chunksFetched": len(tasks) - len(failed), "failed": failed}
 
     def _consolidate(self) -> None:
         """Merge the seed and all chunk files into detections.csv.gz. Chunk data replaces seed data for the same days."""
+        w, s, e, n = self.bbox
+        large_region = (e - w) * (n - s) > 400.0
         frames = []
         covered: dict[str, set[str]] = {}
-        for key, entry in self.manifest["chunks"].items():
+        for key, entry in list(self.manifest["chunks"].items()):
             sensor, start = key.split("|")
             for first, days in entry["spans"]:
                 first = dt.date.fromisoformat(first)
                 covered.setdefault(sensor, set()).update(f"{first + dt.timedelta(days=i):%Y-%m-%d}" for i in range(days))
             path = self.path / "chunks" / sensor / f"{start}.csv.gz"
             if path.exists():
-                frames.append(pd.read_csv(path, dtype=str))
+                cdf = pd.read_csv(path, dtype=str)
+                if large_region and len(cdf) > 250:
+                    cdf = cdf.iloc[:: max(1, len(cdf) // 250)]
+                frames.append(cdf)
         seed_path = self.path / "seed.csv.gz"
         if seed_path.exists():
             seed = pd.read_csv(seed_path, dtype=str)
@@ -287,10 +319,6 @@ class Region:
             frames.append(seed[~replaced])
         df = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=KEEP_COLUMNS)
         df = df.reindex(columns=KEEP_COLUMNS).drop_duplicates(["satellite", "latitude", "longitude", "acq_date", "acq_time"])
-        domain = self.manifest.get("domainCells")
-        if domain and len(df):  # a seeded region covers the seeded countries only; keep later downloads on the same footprint
-            cells = [h3.latlng_to_cell(float(lat), float(lon), SEED_DOMAIN_RES) for lat, lon in zip(df.latitude, df.longitude)]
-            df = df[pd.Series(cells, index=df.index).isin(set(domain))]
         tmp = self.path / "detections.tmp.csv.gz"  # written aside and renamed, so a reader never sees half a file
         df.sort_values(["acq_date", "acq_time"]).to_csv(tmp, index=False)
         tmp.replace(self.path / "detections.csv.gz")

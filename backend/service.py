@@ -8,7 +8,7 @@ import h3
 import numpy as np
 import pandas as pd
 
-from . import harmonization as hz
+from . import harmonization2 as hz
 from .firms import FirmsClient, FirmsError, Region, RegionStore
 
 ATTRIBUTION = ("We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management "
@@ -16,7 +16,7 @@ ATTRIBUTION = ("We acknowledge the use of data and imagery from NASA's Fire Info
                "Information System (ESDIS). MODIS Collection 6.1 and VIIRS 375 m active fire products. "
                "Harmonized by KMD Labs.")
 CSV_COLUMNS = ["latitude", "longitude", "acq_date", "acq_time", "satellite", "instrument", "confidence", "version", "frp", "daynight", "type"]
-MAX_BBOX_DEG2 = 400.0  # about 2000 x 2000 km at the equator; larger requests are refused
+MAX_BBOX_DEG2 = 8000.0  # up to ~90 x 88 degrees; larger requests are refused
 
 
 class NotReady(Exception):
@@ -41,6 +41,26 @@ def parse_bbox(text: str) -> tuple[float, float, float, float]:
     if (e - w) * (n - s) > MAX_BBOX_DEG2:
         raise BadRequest(f"bbox is larger than {MAX_BBOX_DEG2:g} square degrees")
     return w, s, e, n
+
+
+def parse_bboxes(text: str) -> tuple[tuple[float, float, float, float], ...]:
+    parts = [p.strip() for p in text.split(";") if p.strip()]
+    if not parts:
+        raise BadRequest("bbox must be W,S,E,N in decimal degrees")
+    boxes = tuple(parse_bbox(p) for p in parts)
+    total_area = sum((e - w) * (n - s) for w, s, e, n in boxes)
+    if total_area > MAX_BBOX_DEG2:
+        raise BadRequest(f"total multipolygon bbox area is larger than {MAX_BBOX_DEG2:g} square degrees")
+    return boxes
+
+
+def envelope_bbox(boxes: tuple[tuple[float, float, float, float], ...]) -> tuple[float, float, float, float]:
+    return (
+        min(b[0] for b in boxes),
+        min(b[1] for b in boxes),
+        max(b[2] for b in boxes),
+        max(b[3] for b in boxes),
+    )
 
 
 def parse_day(text: str, end: bool) -> pd.Timestamp:
@@ -74,7 +94,12 @@ class CalendarService:
         with self._lock:
             return self._jobs.get(region.key)
 
-    def ensure_data(self, bbox: tuple[float, float, float, float], wait: bool = False) -> Region:
+    def ensure_data(
+        self,
+        bbox: tuple[float, float, float, float],
+        wait: bool = False,
+        priority_window: tuple[dt.date, dt.date] | None = None,
+    ) -> Region:
         """Return a region with data for bbox, starting a background download when something is missing.
 
         Raises NotReady while the first download of a region is running. A region that already has
@@ -87,7 +112,7 @@ class CalendarService:
             return region
         job = self._job(region)
         if job is None or (job["finished"] and job["error"] is None and self._needs_sync(region)) or (job["finished"] and job["error"]):
-            job = self._start(region)
+            job = self._start(region, priority_window=priority_window)
         if wait:
             job["thread"].join()
         if job["error"] and not region.has_data:
@@ -100,12 +125,16 @@ class CalendarService:
         from .firms import today_utc
         return bool(region.plan(self.client.availability(), today_utc()))
 
-    def _start(self, region: Region) -> dict:
+    def _start(self, region: Region, priority_window: tuple[dt.date, dt.date] | None = None) -> dict:
         job = {"done": 0, "total": 0, "finished": False, "error": None, "failed": []}
 
         def work() -> None:
             try:
-                outcome = region.sync(self.client, progress=lambda done, total: job.update(done=done, total=total))
+                outcome = region.sync(
+                    self.client,
+                    progress=lambda done, total: job.update(done=done, total=total),
+                    priority_window=priority_window,
+                )
                 job["failed"] = outcome["failed"]
             except Exception as exc:  # the thread must always finish the job record
                 job["error"] = str(exc)
@@ -120,21 +149,36 @@ class CalendarService:
 
     # -- analytics -----------------------------------------------------------------------------
 
-    def _harmonized(self, region: Region, bbox: tuple[float, float, float, float]) -> dict:
-        """Everything that depends on the bbox but not on the selected dates. Cached per data version."""
-        key = (region.key, region.version, bbox)
+    def _harmonized(
+        self,
+        regions: list[Region],
+        bboxes: tuple[tuple[float, float, float, float], ...],
+    ) -> dict:
+        """Everything that depends on the bboxes but not on the selected dates. Cached per data version."""
+        reg_key = tuple((r.key, r.version) for r in regions)
+        key = (reg_key, bboxes)
         with self._lock:
             if key in self._results:
                 return self._results[key]
-        w, s, e, n = bbox
-        frame = region.frame()
-        df = frame[frame.latitude.between(s, n) & frame.longitude.between(w, e) & frame.qa_pass]
-        avail = region.availability()
-        res = hz.pick_h3_resolution(bbox)
+        if len(regions) == 1:
+            frame = regions[0].frame()
+        else:
+            frames = [r.frame() for r in regions]
+            frame = pd.concat(frames, ignore_index=True).drop_duplicates(
+                ["platform", "latitude", "longitude", "acq_date", "acq_time"]
+            )
+        mask = pd.Series(False, index=frame.index)
+        for w, s, e, n in bboxes:
+            mask |= frame.latitude.between(s, n) & frame.longitude.between(w, e)
+        df = frame[mask & frame.qa_pass]
+        avail = regions[0].availability()
+        env = envelope_bbox(bboxes)
+        res = hz.pick_h3_resolution(env)
         cube = hz.build_cube(df, avail, res)
         eff, regional, calibration = hz.fit_efficiency(cube)
-        harmonized, sd = hz.harmonize(cube, eff, regional)
-        out = {"cube": cube, "harmonized": harmonized, "sd": sd, "calibration": calibration, "h3Resolution": res,
+        harmonized_res = hz.harmonize_full(cube, eff)
+        out = {"cube": cube, "res": harmonized_res, "harmonized": harmonized_res.values, "sd": harmonized_res.sd,
+               "calibration": calibration, "h3Resolution": res,
                "validation": hz.validate(cube) if len(cube.cells) else None, "availability": avail,
                "df": df[["date", "acq_date", "frp", "platform"]].copy()}
         with self._lock:
@@ -143,19 +187,51 @@ class CalendarService:
             self._results[key] = out
         return out
 
+    def _ensure_regions_for_bboxes(
+        self,
+        bboxes: tuple[tuple[float, float, float, float], ...],
+        wait: bool = False,
+        priority_window: tuple[dt.date, dt.date] | None = None,
+    ) -> list[Region]:
+        seen: dict[str, Region] = {}
+        total_done = 0
+        total_chunks = 0
+        not_ready = False
+        for b in bboxes:
+            try:
+                reg = self.ensure_data(b, wait=wait, priority_window=priority_window)
+                seen[reg.key] = reg
+            except NotReady as nr:
+                not_ready = True
+                total_done += int(nr.progress.get("done", 0))
+                total_chunks += int(nr.progress.get("total", 0))
+        if not_ready:
+            raise NotReady({"done": total_done, "total": total_chunks})
+        return list(seen.values())
+
     def calendar(self, bbox_text: str, date_from: str | None = None, date_to: str | None = None, wait: bool = False) -> dict:
-        """The API payload: full harmonized calendar of the bbox plus a summary of the selected period."""
-        bbox = parse_bbox(bbox_text)
-        region = self.ensure_data(bbox, wait=wait)
-        h = self._harmonized(region, bbox)
+        """The API payload: full harmonized calendar of the bbox(es) plus a summary of the selected period."""
+        bboxes = parse_bboxes(bbox_text)
+        bbox = envelope_bbox(bboxes)
+        prio_window = None
+        if date_from and date_to:
+            p_start = parse_day(date_from, end=False).date()
+            p_end = parse_day(date_to, end=True).date()
+            if p_start <= p_end:
+                prio_window = (p_start, p_end)
+        regions = self._ensure_regions_for_bboxes(bboxes, wait=wait, priority_window=prio_window)
+        region = regions[0]
+        h = self._harmonized(regions, bboxes)
         cube: hz.Cube = h["cube"]
         months = [str(m) for m in cube.months]
         modis_cell = cube.counts[hz.PLATFORMS.index("TERRA")] + cube.counts[hz.PLATFORMS.index("AQUA")]
         viirs_cell = cube.counts[[hz.PLATFORMS.index(p) for p in hz.VIIRS]].sum(axis=0)
         modis, viirs = modis_cell.sum(axis=0), viirs_cell.sum(axis=0)
         empty = np.isnan(h["harmonized"]).all(axis=0) if len(cube.cells) else (cube.exposure.sum(axis=0) == 0)
-        total = np.where(empty, np.nan, np.nansum(h["harmonized"], axis=0))
-        sd = np.where(empty, np.nan, np.sqrt(np.nansum(h["sd"] ** 2, axis=0)))
+        total, lo90, hi90 = hz.total_interval(cube, h["res"])
+        total = np.where(empty, np.nan, total)
+        lo90 = np.where(empty, np.nan, lo90)
+        hi90 = np.where(empty, np.nan, hi90)
         complete = cube.observed >= 0.999
         z, pct, clim_mean, clim_std = hz.calendar_stats(total, cube.cal_month, complete)
         years = sorted(set(cube.years.tolist()))
@@ -245,7 +321,7 @@ class CalendarService:
             "series": {
                 "rawModis": _clean(modis, 0), "rawViirs": _clean(viirs, 0), "naiveSum": _clean(modis + viirs, 0),
                 "harmonized": _clean(total, 1),
-                "harmonizedLo90": _clean(np.maximum(total - 1.645 * sd, 0), 1), "harmonizedHi90": _clean(total + 1.645 * sd, 1),
+                "harmonizedLo90": _clean(lo90, 1), "harmonizedHi90": _clean(hi90, 1),
                 "anomalyZ": _clean(z), "percentile": _clean(pct, 1),
             },
             "calendar": {  # year x month matrix of harmonized hot spots, ready for the heat map
@@ -282,11 +358,17 @@ class CalendarService:
 
     def hotspots_csv(self, bbox_text: str, date_from: str | None = None, date_to: str | None = None, wait: bool = False) -> str:
         """CSV of every hot spot found in the search. `used_in_calendar` tells which rows passed the QA."""
-        bbox = parse_bbox(bbox_text)
-        region = self.ensure_data(bbox, wait=wait)
-        w, s, e, n = bbox
-        df = region.frame()
-        keep = df.latitude.between(s, n) & df.longitude.between(w, e)
+        bboxes = parse_bboxes(bbox_text)
+        regions = self._ensure_regions_for_bboxes(bboxes, wait=wait)
+        if len(regions) == 1:
+            df = regions[0].frame()
+        else:
+            df = pd.concat([r.frame() for r in regions], ignore_index=True).drop_duplicates(
+                ["platform", "latitude", "longitude", "acq_date", "acq_time"]
+            )
+        keep = pd.Series(False, index=df.index)
+        for w, s, e, n in bboxes:
+            keep |= df.latitude.between(s, n) & df.longitude.between(w, e)
         if date_from:
             keep &= df.date >= parse_day(date_from, end=False)
         if date_to:

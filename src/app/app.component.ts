@@ -3,19 +3,11 @@ import { CommonModule } from '@angular/common';
 import {
   LucideAngularModule,
   Globe,
-  Flame,
-  Wind,
-  ShieldAlert,
   BookOpen,
   Database,
-  Play,
-  Pause,
-  Compass,
-  Layers,
-  Route,
+  Upload,
   BoxSelect,
-  X,
-  BarChart3
+  X
 } from 'lucide-angular';
 import {
   BrandComponent,
@@ -27,7 +19,6 @@ import {
   SplashComponent,
   SplashService,
   AboutService,
-  TimelineSliderComponent,
   TooltipComponent,
   BreakpointService,
   SeoService
@@ -37,12 +28,11 @@ import { Lang } from './core/i18n/i18n.types';
 import { WildfireStateService } from './core/services/wildfire-state.service';
 import { WildfireDataService } from './core/services/wildfire-data.service';
 import { HotspotAnalyticsService } from './core/services/hotspot-analytics.service';
-import { WildfireViewMode, WindScenarioId } from './core/models/wildfire.model';
 import { GlobeComponent } from './components/globe/globe.component';
 import { GlossaryComponent } from './components/glossary/glossary.component';
 import { SourcesPopupComponent } from './components/sources-popup/sources-popup.component';
+import { DataPopupComponent } from './components/data-popup/data-popup.component';
 import { AnalyticsPanelComponent } from './components/analytics-panel/analytics-panel.component';
-import { LayersComponent } from './components/layers/layers.component';
 
 @Component({
   selector: 'app-root',
@@ -55,11 +45,9 @@ import { LayersComponent } from './components/layers/layers.component';
     DropdownComponent,
     PopupComponent,
     SplashComponent,
-    TimelineSliderComponent,
     TooltipComponent,
     GlobeComponent,
-    AnalyticsPanelComponent,
-    LayersComponent
+    AnalyticsPanelComponent
   ],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
@@ -78,14 +66,9 @@ export class AppComponent {
   readonly globeIcon = Globe;
   readonly bookOpenIcon = BookOpen;
   readonly databaseIcon = Database;
-  readonly playIcon = Play;
-  readonly pauseIcon = Pause;
-  readonly compassIcon = Compass;
-  readonly layersIcon = Layers;
-  readonly routeIcon = Route;
+  readonly uploadIcon = Upload;
   readonly boxSelectIcon = BoxSelect;
   readonly closeIcon = X;
-  readonly chartIcon = BarChart3;
 
   constructor() {
     this.seo.update({
@@ -104,74 +87,7 @@ export class AppComponent {
     }))
   );
 
-  readonly viewOptions = computed<DropdownOption<WildfireViewMode>[]>(() => {
-    const t = this.i18n.t();
-    return [
-      { value: 'analytics', label: t.viewAnalytics, icon: BarChart3 },
-      { value: 'inertia', label: t.viewInertia, icon: Flame },
-      { value: 'spread', label: t.viewSpread, icon: Wind },
-      { value: 'evacuation', label: t.viewEvacuation, icon: ShieldAlert }
-    ];
-  });
-
-  readonly scenarioOptions = computed<DropdownOption<WindScenarioId>[]>(() => {
-    const t = this.i18n.t();
-    return [
-      { value: 'actual', label: t.scenarioActual },
-      { value: 'atlanticSurge', label: t.scenarioAtlanticSurge },
-      { value: 'levanteReversal', label: t.scenarioLevanteReversal },
-      { value: 'elNinoDroughtBoost', label: t.scenarioElNinoDrought }
-    ];
-  });
-
-  readonly aoiOptions = computed<DropdownOption<string>[]>(() => {
-    const t = this.i18n.t();
-    const list: DropdownOption<string>[] = [
-      { value: 'iberia_all', label: t.regionIberiaAll, badge: 'ALL' }
-    ];
-    if (this.state.selectedAoiId() === 'custom') {
-      list.push({ value: 'custom', label: t.regionCustomBbox, badge: 'BOX' });
-    }
-    for (const a of this.data.aois()) {
-      list.push({
-        value: a.aoiId,
-        label: a.name,
-        badge: String(a.year)
-      });
-    }
-    return list;
-  });
-
-  readonly currentViewIcon = computed(
-    () => this.viewOptions().find(o => o.value === this.state.viewMode())?.icon ?? BarChart3
-  );
-
   readonly isPopupOpen = computed(() => this.popup.config() !== null);
-
-  readonly sliderMax = computed(() =>
-    this.state.viewMode() === 'inertia'
-      ? Math.max(1, this.state.aoiTimeline().length - 1)
-      : 11
-  );
-  readonly sliderValue = computed(() =>
-    this.state.viewMode() === 'inertia'
-      ? Math.round(this.state.timelineIndex())
-      : Math.round(this.state.frameIndex())
-  );
-
-  onSliderChange(val: number) {
-    this.state.playing.set(false);
-    if (this.state.viewMode() === 'inertia') {
-      this.state.timelineIndex.set(val);
-    } else {
-      this.state.frameIndex.set(val);
-    }
-  }
-
-  openAnalyticsView() {
-    this.state.isAnalyticsMinimized.set(false);
-    this.state.setViewMode('analytics');
-  }
 
   openGlossary() {
     this.popup.open({
@@ -188,6 +104,16 @@ export class AppComponent {
       id: 'sources',
       title: computed(() => this.i18n.t().sourcesTitle),
       component: SourcesPopupComponent,
+      size: 'lg',
+      actions: [{ label: computed(() => this.i18n.t().close), variant: 'default' }]
+    });
+  }
+
+  openDataPopup() {
+    this.popup.open({
+      id: 'data-io',
+      title: computed(() => this.i18n.t().tabInputExport),
+      component: DataPopupComponent,
       size: 'lg',
       actions: [{ label: computed(() => this.i18n.t().close), variant: 'default' }]
     });

@@ -11,7 +11,7 @@
     "source=agy-config,target=/home/node/.gemini,type=volume",
     "source=${localWorkspaceFolderBasename}-bashhistory,target=/commandhistory,type=volume"
   ],
-  "forwardPorts": [4200, 9876],
+  "forwardPorts": [4200, 8000, 9876],
   "remoteUser": "node",
   "customizations": {
     "vscode": {
