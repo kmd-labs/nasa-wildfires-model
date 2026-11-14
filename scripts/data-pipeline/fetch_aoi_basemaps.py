@@ -571,8 +571,7 @@ def main() -> int:
         out_dir = args.out / aoi.id
         out_dir.mkdir(parents=True, exist_ok=True)
         manifest_path = out_dir / "manifest.json"
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {}
-        manifest.update({"aoi_id": aoi.id, "bbox_wsen": [aoi.w, aoi.s, aoi.e, aoi.n], "source_csv": args.aoi_csv.name})
+        base = {"aoi_id": aoi.id, "bbox_wsen": [aoi.w, aoi.s, aoi.e, aoi.n], "source_csv": args.aoi_csv.name}
         write_aoi_geojson(aoi, out_dir)
 
         steps = []
@@ -598,13 +597,18 @@ def main() -> int:
         for key, fn in steps:
             try:
                 info = fn()
-                info["fetched_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
-                if key == "osm" and "osm" in manifest:
-                    info["layers"] = {**manifest["osm"].get("layers", {}), **info["layers"]}
-                manifest[key] = info
             except Exception as exc:  # noqa: BLE001 – jedna porażka nie zatrzymuje reszty
                 log(f"  ✗ {key}: {exc}")
                 failures.append(f"{aoi.id}:{key}")
+                continue
+            info["fetched_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+            # Manifest czytamy z dysku tuż przed zapisem, żeby równoległe procesy
+            # (np. osobno OSM i rastry) nie nadpisywały sobie wpisów.
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {}
+            manifest.update(base)
+            if key == "osm" and "osm" in manifest:
+                info["layers"] = {**manifest["osm"].get("layers", {}), **info["layers"]}
+            manifest[key] = info
             write_json(manifest_path, manifest)
 
     log("\nGotowe." if not failures else f"\nZakończono z błędami: {', '.join(failures)}")
