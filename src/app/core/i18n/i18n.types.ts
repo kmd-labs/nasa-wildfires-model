@@ -1,4 +1,4 @@
-export type Lang = 'en' | 'pl' | 'es';
+export type Lang = 'en' | 'pl';
 
 export interface DataSourceItem {
   name: string;
@@ -9,7 +9,7 @@ export interface DataSourceItem {
 
 /**
  * Every user-facing text of the application in one language.
- * Add new translation keys here first so TypeScript enforces parity across en.ts, pl.ts, and es.ts.
+ * Add new translation keys here first so TypeScript enforces parity across en.ts and pl.ts.
  */
 export interface Dict {
   htmlLang: string;
@@ -108,10 +108,27 @@ export interface Dict {
   // Region BBox, Draw Mode & Date Range Controls
   regionIberiaAll: string;
   regionCustomBbox: string;
+  regionMultiPolygon: string;
   regionBboxLabel: string;
   drawBboxBtn: string;
+  addBboxBtn: string;
   drawBboxActiveHint: string;
   drawBboxShiftHint: string;
+  searchAreasPlaceholder: string;
+  searchNoResults: string;
+  groupPredefinedAreas: string;
+  groupFireEvents: string;
+  groupCountries: string;
+  regionMediterranean: string;
+  regionWesternEurope: string;
+  regionCentralEurope: string;
+  regionNorthAfrica: string;
+  regionScandinavia: string;
+  addAreaToMultiTooltip: string;
+  polygonsCountLabel: string;
+  wktLabel: string;
+  applyWktBtn: string;
+  removeBoxLabel: string;
   coordsBtn: string;
   coordsTitle: string;
   coordWest: string;
@@ -124,10 +141,6 @@ export interface Dict {
   dateRangeLabel: string;
   dateStartLabel: string;
   dateEndLabel: string;
-  presetFullArchive: string;
-  presetRecent5Yr: string;
-  preset2022Season: string;
-  preset2017Season: string;
 
   // Accessible Color Ramps
   colorRampLabel: string;
@@ -140,6 +153,19 @@ export interface Dict {
   // Analytics & Burning Calendar Dashboard
   analyticsBtn: string;
   analyticsTitle: string;
+  analysisSectionTitle: string;
+  emptyAnalysisTitle: string;
+  emptyAnalysisDesc: string;
+  emptyStepBbox: string;
+  emptyStepDates: string;
+  emptyStatusReady: string;
+  emptyStatusPending: string;
+  clearSelectionBtn: string;
+  applyCoordsError: string;
+  globeAltEmpty: string;
+  globeAltLoading: string;
+  globeAltActive: string;
+  globeAreaUnknown: string;
   analyticsExpand: string;
   analyticsCollapse: string;
   analyticsMinimize: string;
@@ -213,4 +239,5 @@ export interface Dict {
   layerBorders: string;
   layerRoads: string;
   layerGraticule: string;
+  osmAttribution: string;
 }

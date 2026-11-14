@@ -67,11 +67,20 @@ from .harmonization import (  # noqa: F401 – re-exported so this module is a d
     SATELLITE_TO_PLATFORM,
     STATIC_MIN_DETECTIONS,
     VIIRS,
-    pick_h3_resolution,
 )
 from .harmonization import normalize as _normalize_v1
 
 import h3
+
+
+def pick_h3_resolution(bbox: tuple[float, float, float, float]) -> int:
+    """Finest H3 resolution from 2 to 7 that keeps the bounding box under MAX_CELLS cells."""
+    w, s, e, n = bbox
+    area_km2 = (e - w) * 111.32 * math.cos(math.radians((s + n) / 2)) * (n - s) * 110.57
+    for res in (7, 6, 5, 4, 3):
+        if area_km2 / h3.average_hexagon_area(res, unit="km^2") <= MAX_CELLS:
+            return res
+    return 2
 
 STRATA = ("D", "N")
 ERA_BREAKS = (2020, 2023)      # eras: [..2019], [2020..2022], [2023..]

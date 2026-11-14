@@ -1,39 +1,74 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import {
-  AoiTimelineStep,
   BoundingBox,
   CalendarGranularity,
   CameraFocusId,
   ColorRampId,
-  SstDisplayMode,
-  WildfireViewMode,
-  WindScenarioId
+  MultiPolygonCoords,
+  PolygonCoords,
+  PolygonRing,
+  WildfireViewMode
 } from '../models/wildfire.model';
 import { WildfireDataService } from './wildfire-data.service';
 
-export const IBERIA_DEFAULT_BBOX: BoundingBox = [-9.6, 36.0, 3.4, 43.8];
-export const DEFAULT_DATE_START = '2016-01-01';
-export const DEFAULT_DATE_END = '2026-12-31';
+const COLOR_RAMP_STORAGE_KEY = 'nasa-wildfires-model.colorRamp';
+const BBOX_STORAGE_KEY = 'nasa-wildfires-model.bbox';
+const DATE_START_STORAGE_KEY = 'nasa-wildfires-model.dateStart';
+const DATE_END_STORAGE_KEY = 'nasa-wildfires-model.dateEnd';
+const UI_STORAGE_KEY = 'nasa-wildfires-model.ui';
 
-const SCENARIO_MULTIPLIERS: Record<WindScenarioId, number> = {
-  actual: 1.0,
-  atlanticSurge: 1.48,
-  levanteReversal: 1.24,
-  elNinoDroughtBoost: 1.65
-};
+const VALID_COLOR_RAMPS = new Set<ColorRampId>(['okabeIto', 'cividis', 'viridis', 'ylOrRd']);
+const VALID_CALENDAR_MODES = new Set<CalendarGranularity>(['daily', 'monthly']);
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-const SCENARIO_WIND_OFFSET_DEG: Record<WindScenarioId, number> = {
-  actual: 0,
-  atlanticSurge: 42,
-  levanteReversal: -145,
-  elNinoDroughtBoost: 18
-};
+export function bboxToPolygonCoords(bbox: BoundingBox): PolygonCoords {
+  const [w, s, e, n] = bbox;
+  return [[[w, s], [e, s], [e, n], [w, n], [w, s]]];
+}
 
-const SCENARIO_SPEED_MULT: Record<WindScenarioId, number> = {
-  actual: 1.0,
-  atlanticSurge: 1.75,
-  levanteReversal: 1.35,
-  elNinoDroughtBoost: 1.2
+function isPointInRing(lon: number, lat: number, ring: PolygonRing): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = ring[i][0];
+    const yi = ring[i][1];
+    const xj = ring[j][0];
+    const yj = ring[j][1];
+    const intersect = yi > lat !== yj > lat && lon < ((xj - xi) * (lat - yi)) / (yj - yi + 1e-12) + xi;
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+export function isPointInPolygonCoords(lon: number, lat: number, poly: PolygonCoords): boolean {
+  if (poly.length === 0 || !isPointInRing(lon, lat, poly[0])) return false;
+  for (let h = 1; h < poly.length; h++) {
+    if (isPointInRing(lon, lat, poly[h])) return false;
+  }
+  return true;
+}
+
+interface StoredUiSettings {
+  analyticsMinimized: boolean;
+  analyticsExpanded: boolean;
+  showRegionForm: boolean;
+  showCoordsInputs: boolean;
+  showLayersSection: boolean;
+  showAnalysisSection: boolean;
+  showHotspotsOnGlobe: boolean;
+  showRegionBbox: boolean;
+  calendarGranularity: CalendarGranularity;
+}
+
+const DEFAULT_UI_SETTINGS: StoredUiSettings = {
+  analyticsMinimized: false,
+  analyticsExpanded: false,
+  showRegionForm: true,
+  showCoordsInputs: true,
+  showLayersSection: true,
+  showAnalysisSection: true,
+  showHotspotsOnGlobe: true,
+  showRegionBbox: true,
+  calendarGranularity: 'daily'
 };
 
 @Injectable({
@@ -42,202 +77,217 @@ const SCENARIO_SPEED_MULT: Record<WindScenarioId, number> = {
 export class WildfireStateService {
   private readonly data = inject(WildfireDataService);
 
+  private readonly initialDates = this.resolveInitialDateRange();
+  private readonly initialUi = this.resolveInitialUiSettings();
+
   readonly viewMode = signal<WildfireViewMode>('analytics');
   readonly cameraFocus = signal<CameraFocusId>('iberia');
-  readonly sstMode = signal<SstDisplayMode>('ortho');
+  readonly cameraTargetLonLat = signal<[number, number]>([0, 22]);
 
-  readonly selectedAoiId = signal<string>('iberia_all');
-  readonly regionBbox = signal<BoundingBox>([...IBERIA_DEFAULT_BBOX]);
-  readonly dateStart = signal<string>(DEFAULT_DATE_START);
-  readonly dateEnd = signal<string>(DEFAULT_DATE_END);
+  /** Single bounding box [west, south, east, north] in EPSG:4326, or null before user defines one. */
+  readonly regionBbox = signal<BoundingBox | null>(this.resolveInitialBbox());
+
+  readonly regionBboxes = computed<BoundingBox[]>(() => {
+    const b = this.regionBbox();
+    return b ? [b] : [];
+  });
+
+  readonly regionMultiPolygon = computed<MultiPolygonCoords>(() => {
+    const b = this.regionBbox();
+    return b ? [bboxToPolygonCoords(b)] : [];
+  });
+
+  readonly dateStart = signal<string>(this.initialDates.start);
+  readonly dateEnd = signal<string>(this.initialDates.end);
+
+  readonly hasBoundingBox = computed<boolean>(() => this.regionBbox() !== null);
+  readonly hasDateRange = computed<boolean>(() => {
+    const s = this.dateStart();
+    const e = this.dateEnd();
+    return Boolean(s && e && ISO_DATE_RE.test(s) && ISO_DATE_RE.test(e) && s <= e);
+  });
+  readonly hasActiveSelection = computed<boolean>(
+    () => (this.hasBoundingBox() && this.hasDateRange()) || this.data.isCustomDataset()
+  );
 
   readonly isDrawingBbox = signal<boolean>(false);
+  readonly drawBoxMode = signal<'replace' | 'add'>('replace');
   readonly liveDrawBbox = signal<BoundingBox | null>(null);
   readonly flyToBboxTrigger = signal<number>(0);
-  readonly isAnalyticsMinimized = signal<boolean>(false);
+
+  readonly isAnalyticsMinimized = signal<boolean>(this.initialUi.analyticsMinimized);
+  readonly isAnalyticsExpanded = signal<boolean>(this.initialUi.analyticsExpanded);
+  readonly showRegionForm = signal<boolean>(this.initialUi.showRegionForm);
+  readonly showCoordsInputs = signal<boolean>(this.initialUi.showCoordsInputs);
+  readonly showLayersSection = signal<boolean>(this.initialUi.showLayersSection);
+  readonly showAnalysisSection = signal<boolean>(this.initialUi.showAnalysisSection);
   readonly autoRestoreAfterDraw = signal<boolean>(false);
 
-  readonly colorRamp = signal<ColorRampId>('okabeIto');
-  readonly showHotspotsOnGlobe = signal<boolean>(true);
-  readonly showRegionBbox = signal<boolean>(true);
-  readonly showLandOrtho = signal<boolean>(true);
-  readonly showOsmTiles = signal<boolean>(false);
-  readonly showForests = signal<boolean>(true);
-  readonly activeTileZoom = signal<number>(5);
-  readonly showUrbanAreas = signal<boolean>(true);
-  readonly showBorders = signal<boolean>(true);
-  readonly showRoads = signal<boolean>(true);
-  readonly showGraticule = signal<boolean>(true);
-  readonly calendarGranularity = signal<CalendarGranularity>('monthly');
-
-  readonly isLayersOpen = signal<boolean>(false);
-
-  readonly timelineIndex = signal<number>(25);
-
-  readonly harmonizedMode = signal<boolean>(true);
-  readonly windScenario = signal<WindScenarioId>('actual');
-
-  readonly showWindStreamlines = signal<boolean>(false);
-  readonly showEscapeRoads = signal<boolean>(false);
-
-  readonly frameIndex = signal<number>(5); // 0..11 for hourly spread/evacuation frames
-  readonly playing = signal<boolean>(false);
+  readonly colorRamp = signal<ColorRampId>(this.resolveInitialColorRamp());
+  readonly showHotspotsOnGlobe = signal<boolean>(this.initialUi.showHotspotsOnGlobe);
+  readonly showRegionBbox = signal<boolean>(this.initialUi.showRegionBbox);
+  readonly activeTileZoom = signal<number>(3);
+  readonly calendarGranularity = signal<CalendarGranularity>(this.initialUi.calendarGranularity);
   readonly mapLoaded = signal<boolean>(false);
 
-  readonly selectedAoi = computed(() => {
-    const id = this.selectedAoiId();
-    const list = this.data.aois();
-    if (id === 'iberia_all' || id === 'custom') {
-      return list[0];
-    }
-    return list.find(a => a.aoiId === id) ?? list[0];
-  });
-
   readonly bboxCenter = computed<[number, number]>(() => {
-    const [w, s, e, n] = this.regionBbox();
-    return [(w + e) / 2, (s + n) / 2];
+    const b = this.regionBbox();
+    if (!b) return this.cameraTargetLonLat();
+    return [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2];
   });
 
-  /**
-   * Builds a weekly timeline from 6 months before wildfire start up to the end of the wildfire,
-   * enriched with El Niño (ONI) and Gulf Stream SST anomaly data.
-   */
-  readonly aoiTimeline = computed<AoiTimelineStep[]>(() => {
-    const aoi = this.selectedAoi();
-    if (!aoi) return [];
-
-    // Trigger dependency on data.isLoaded so ONI/meta maps are populated
-    this.data.isLoaded();
-
-    const startMs = Date.parse(`${aoi.startDate}T00:00:00Z`);
-    const endMs = Date.parse(`${aoi.endDate}T00:00:00Z`);
-    const preStart = new Date(startMs);
-    preStart.setUTCMonth(preStart.getUTCMonth() - 6);
-    const preStartMs = preStart.getTime();
-
-    const weekMs = 7 * 24 * 3600 * 1000;
-    const steps: AoiTimelineStep[] = [];
-    let idx = 0;
-
-    for (let t = preStartMs; t <= endMs; t += weekMs) {
-      const d = new Date(t);
-      const iso = d.toISOString().slice(0, 10);
-      const ym = iso.slice(0, 7);
-      const monthsRel = Number(((t - startMs) / (30.4375 * 24 * 3600 * 1000)).toFixed(1));
-      const sstMonth = d.getUTCMonth() + d.getUTCDate() / 31;
-
-      steps.push({
-        index: idx++,
-        date: iso,
-        yearMonth: ym,
-        phase: t < startMs ? 'preFire' : 'activeFire',
-        monthsRelative: monthsRel,
-        elNinoOni: this.data.getEnsoOni(ym),
-        gulfStreamSstAnomalyC: this.data.getGulfStreamAnomaly(ym),
-        sstMonth
-      });
-    }
-
-    // Ensure the exact wildfire end date is the final step
-    const last = steps[steps.length - 1];
-    if (!last || last.date !== aoi.endDate) {
-      const d = new Date(endMs);
-      const ym = aoi.endDate.slice(0, 7);
-      steps.push({
-        index: idx,
-        date: aoi.endDate,
-        yearMonth: ym,
-        phase: 'activeFire',
-        monthsRelative: Number(((endMs - startMs) / (30.4375 * 24 * 3600 * 1000)).toFixed(1)),
-        elNinoOni: this.data.getEnsoOni(ym),
-        gulfStreamSstAnomalyC: this.data.getGulfStreamAnomaly(ym),
-        sstMonth: d.getUTCMonth() + d.getUTCDate() / 31
-      });
-    }
-
-    return steps;
-  });
-
-  readonly currentTimelineStep = computed<AoiTimelineStep | null>(() => {
-    const steps = this.aoiTimeline();
-    if (steps.length === 0) return null;
-    const idx = Math.max(0, Math.min(steps.length - 1, Math.round(this.timelineIndex())));
-    return steps[idx];
-  });
-
-  /** Maps the active slider position onto 0..11.99 for the global SST/Anomaly texture */
-  readonly sstMonth = computed(() => {
-    if (this.viewMode() === 'inertia') {
-      return this.currentTimelineStep()?.sstMonth ?? 7.5;
-    }
-    return 6.5 + (this.frameIndex() / 11) * 1.5;
-  });
-
-  readonly currentSpreadFrame = computed(() => {
-    const frames = this.data.spreadFrames()?.frames;
-    if (!frames || frames.length === 0) return null;
-    const idx = Math.max(0, Math.min(frames.length - 1, Math.round(this.frameIndex())));
-    return frames[idx];
-  });
-
-  readonly effectiveWindDirDeg = computed(() => {
-    const base = this.currentSpreadFrame()?.synopticSummary.windDirDeg ?? 245;
-    const offset = SCENARIO_WIND_OFFSET_DEG[this.windScenario()];
-    return ((base + offset) % 360 + 360) % 360;
-  });
-
-  readonly effectiveWindSpeedKmh = computed(() => {
-    const base = this.currentSpreadFrame()?.synopticSummary.windSpeedKmh ?? 38;
-    return Number((base * SCENARIO_SPEED_MULT[this.windScenario()]).toFixed(1));
-  });
-
-  readonly burningCellCount = computed(() => {
-    const frame = this.currentSpreadFrame();
-    if (!frame) return 0;
-    const scenario = this.windScenario();
-    return frame.cells.filter(c => c.scenarios[scenario] >= 0.45).length;
-  });
-
-  readonly affectedPopulation = computed(() => {
-    const zones = this.data.evacuation()?.zones ?? [];
-    const basePop = zones.reduce((sum, z) => sum + z.populationBase, 0);
-    const frameProgress = 0.45 + (this.frameIndex() / 11) * 0.55;
-    const mult = SCENARIO_MULTIPLIERS[this.windScenario()];
-    return Math.round(basePop * frameProgress * mult);
-  });
-
-  selectAoi(aoiId: string) {
-    this.selectedAoiId.set(aoiId);
-    this.isDrawingBbox.set(false);
-    this.cameraFocus.set('iberia');
-
-    if (aoiId === 'iberia_all') {
-      this.regionBbox.set([...IBERIA_DEFAULT_BBOX]);
-      this.dateStart.set('2000-01-01');
-      this.dateEnd.set('2026-12-31');
-      this.flyToBboxTrigger.update(n => n + 1);
-      return;
-    }
-
-    if (aoiId === 'custom') {
-      this.flyToBboxTrigger.update(n => n + 1);
-      return;
-    }
-
-    const aoi = this.data.aois().find(a => a.aoiId === aoiId);
-    if (aoi) {
-      this.regionBbox.set([...aoi.bbox]);
-      this.dateStart.set(aoi.startDate);
-      this.dateEnd.set(aoi.endDate);
-      this.flyToBboxTrigger.update(n => n + 1);
-    }
-
-    const steps = this.aoiTimeline();
-    const ignitionIdx = steps.findIndex(s => s.phase === 'activeFire');
-    this.timelineIndex.set(ignitionIdx >= 0 ? ignitionIdx : Math.max(0, steps.length - 1));
+  constructor() {
+    effect(() => {
+      const ramp = this.colorRamp();
+      const bbox = this.regionBbox();
+      const start = this.dateStart();
+      const end = this.dateEnd();
+      const ui: StoredUiSettings = {
+        analyticsMinimized: this.isAnalyticsMinimized(),
+        analyticsExpanded: this.isAnalyticsExpanded(),
+        showRegionForm: this.showRegionForm(),
+        showCoordsInputs: this.showCoordsInputs(),
+        showLayersSection: this.showLayersSection(),
+        showAnalysisSection: this.showAnalysisSection(),
+        showHotspotsOnGlobe: this.showHotspotsOnGlobe(),
+        showRegionBbox: this.showRegionBbox(),
+        calendarGranularity: this.calendarGranularity()
+      };
+      try {
+        localStorage.setItem(COLOR_RAMP_STORAGE_KEY, ramp);
+        if (bbox) {
+          localStorage.setItem(BBOX_STORAGE_KEY, JSON.stringify(bbox));
+        } else {
+          localStorage.removeItem(BBOX_STORAGE_KEY);
+        }
+        if (start) {
+          localStorage.setItem(DATE_START_STORAGE_KEY, start);
+        } else {
+          localStorage.removeItem(DATE_START_STORAGE_KEY);
+        }
+        if (end) {
+          localStorage.setItem(DATE_END_STORAGE_KEY, end);
+        } else {
+          localStorage.removeItem(DATE_END_STORAGE_KEY);
+        }
+        localStorage.setItem(UI_STORAGE_KEY, JSON.stringify(ui));
+      } catch {
+        // localStorage unavailable
+      }
+    });
   }
 
-  setCustomBbox(bbox: BoundingBox, flyTo = false) {
+  private resolveInitialUiSettings(): StoredUiSettings {
+    try {
+      const raw = localStorage.getItem(UI_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<StoredUiSettings> | null;
+        if (parsed && typeof parsed === 'object') {
+          return {
+            analyticsMinimized:
+              typeof parsed.analyticsMinimized === 'boolean'
+                ? parsed.analyticsMinimized
+                : DEFAULT_UI_SETTINGS.analyticsMinimized,
+            analyticsExpanded:
+              typeof parsed.analyticsExpanded === 'boolean'
+                ? parsed.analyticsExpanded
+                : DEFAULT_UI_SETTINGS.analyticsExpanded,
+            showRegionForm:
+              typeof parsed.showRegionForm === 'boolean'
+                ? parsed.showRegionForm
+                : DEFAULT_UI_SETTINGS.showRegionForm,
+            showCoordsInputs:
+              typeof parsed.showCoordsInputs === 'boolean'
+                ? parsed.showCoordsInputs
+                : DEFAULT_UI_SETTINGS.showCoordsInputs,
+            showLayersSection:
+              typeof parsed.showLayersSection === 'boolean'
+                ? parsed.showLayersSection
+                : DEFAULT_UI_SETTINGS.showLayersSection,
+            showAnalysisSection:
+              typeof parsed.showAnalysisSection === 'boolean'
+                ? parsed.showAnalysisSection
+                : DEFAULT_UI_SETTINGS.showAnalysisSection,
+            showHotspotsOnGlobe:
+              typeof parsed.showHotspotsOnGlobe === 'boolean'
+                ? parsed.showHotspotsOnGlobe
+                : DEFAULT_UI_SETTINGS.showHotspotsOnGlobe,
+            showRegionBbox:
+              typeof parsed.showRegionBbox === 'boolean'
+                ? parsed.showRegionBbox
+                : DEFAULT_UI_SETTINGS.showRegionBbox,
+            calendarGranularity:
+              parsed.calendarGranularity && VALID_CALENDAR_MODES.has(parsed.calendarGranularity)
+                ? parsed.calendarGranularity
+                : DEFAULT_UI_SETTINGS.calendarGranularity
+          };
+        }
+      }
+    } catch {
+      // localStorage unavailable or malformed
+    }
+    return { ...DEFAULT_UI_SETTINGS };
+  }
+
+  private resolveInitialColorRamp(): ColorRampId {
+    try {
+      const stored = localStorage.getItem(COLOR_RAMP_STORAGE_KEY) as ColorRampId | null;
+      if (stored && VALID_COLOR_RAMPS.has(stored)) {
+        return stored;
+      }
+    } catch {
+      // localStorage unavailable
+    }
+    return 'okabeIto';
+  }
+
+  private resolveInitialBbox(): BoundingBox | null {
+    try {
+      const raw = localStorage.getItem(BBOX_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (
+          Array.isArray(parsed) &&
+          parsed.length === 4 &&
+          parsed.every(v => typeof v === 'number' && Number.isFinite(v))
+        ) {
+          const [w, s, e, n] = parsed as BoundingBox;
+          if (w >= -180 && e <= 180 && w < e && s >= -85 && n <= 85 && s < n) {
+            return [w, s, e, n];
+          }
+        }
+      }
+    } catch {
+      // localStorage unavailable or malformed
+    }
+    return null;
+  }
+
+  private resolveInitialDateRange(): { start: string; end: string } {
+    try {
+      const rawStart = localStorage.getItem(DATE_START_STORAGE_KEY) ?? '';
+      const rawEnd = localStorage.getItem(DATE_END_STORAGE_KEY) ?? '';
+      const startOk = ISO_DATE_RE.test(rawStart) && !Number.isNaN(Date.parse(`${rawStart}T00:00:00Z`));
+      const endOk = ISO_DATE_RE.test(rawEnd) && !Number.isNaN(Date.parse(`${rawEnd}T00:00:00Z`));
+      const start = startOk ? rawStart : '';
+      const end = endOk ? rawEnd : '';
+      if (start && end && start > end) {
+        return { start: end, end: start };
+      }
+      return { start, end };
+    } catch {
+      // localStorage unavailable
+    }
+    return { start: '', end: '' };
+  }
+
+  isPointInRegion(lon: number, lat: number): boolean {
+    const b = this.regionBbox();
+    if (!b) return false;
+    return lon >= b[0] && lon <= b[2] && lat >= b[1] && lat <= b[3];
+  }
+
+  sanitizeBbox(bbox: BoundingBox): BoundingBox {
     let [w, s, e, n] = bbox.map(v => Number(v.toFixed(2))) as BoundingBox;
     w = Math.max(-180, Math.min(180, w));
     e = Math.max(-180, Math.min(180, e));
@@ -253,15 +303,50 @@ export class WildfireStateService {
       s = Math.max(-85, Number((s - 0.05).toFixed(2)));
       n = Math.min(85, Number((n + 0.05).toFixed(2)));
     }
-    this.regionBbox.set([w, s, e, n]);
-    this.selectedAoiId.set('custom');
+    return [w, s, e, n];
+  }
+
+  setCustomBbox(bbox: BoundingBox, flyTo = false) {
+    this.regionBbox.set(this.sanitizeBbox(bbox));
     if (flyTo) {
       this.flyToBboxTrigger.update(v => v + 1);
     }
   }
 
+  setDateStart(start: string) {
+    if (!start) {
+      this.dateStart.set('');
+      return;
+    }
+    const end = this.dateEnd();
+    if (end && start > end) {
+      this.dateStart.set(end);
+      this.dateEnd.set(start);
+    } else {
+      this.dateStart.set(start);
+    }
+  }
+
+  setDateEnd(end: string) {
+    if (!end) {
+      this.dateEnd.set('');
+      return;
+    }
+    const start = this.dateStart();
+    if (start && end < start) {
+      this.dateStart.set(end);
+      this.dateEnd.set(start);
+    } else {
+      this.dateEnd.set(end);
+    }
+  }
+
   setDateRange(start: string, end: string) {
-    if (!start || !end) return;
+    if (!start || !end) {
+      this.dateStart.set(start || '');
+      this.dateEnd.set(end || '');
+      return;
+    }
     if (start <= end) {
       this.dateStart.set(start);
       this.dateEnd.set(end);
@@ -271,15 +356,16 @@ export class WildfireStateService {
     }
   }
 
-  toggleDrawBbox() {
+  toggleDrawBbox(mode: 'replace' | 'add' = 'replace') {
     if (this.isDrawingBbox()) {
       this.cancelDrawBoundingBox();
     } else {
-      this.startDrawBoundingBox();
+      this.startDrawBoundingBox(mode);
     }
   }
 
-  startDrawBoundingBox() {
+  startDrawBoundingBox(mode: 'replace' | 'add' = 'replace') {
+    this.drawBoxMode.set(mode);
     const wasOpen = this.viewMode() === 'analytics' && !this.isAnalyticsMinimized();
     this.autoRestoreAfterDraw.set(wasOpen);
     if (wasOpen) {
@@ -307,56 +393,20 @@ export class WildfireStateService {
     }
   }
 
-  focusOnBbox() {
-    this.cameraFocus.set('iberia');
-    this.flyToBboxTrigger.update(v => v + 1);
+  requestFlyToBbox() {
+    if (this.regionBbox()) {
+      this.flyToBboxTrigger.update(v => v + 1);
+    }
   }
 
   resetRegionAndDates() {
-    this.selectAoi('iberia_all');
-  }
-
-  setViewMode(mode: WildfireViewMode) {
-    this.viewMode.set(mode);
-    this.showWindStreamlines.set(mode === 'spread');
-    this.showEscapeRoads.set(mode === 'evacuation');
-    if (mode === 'inertia' && this.sstMode() === 'ortho') {
-      this.sstMode.set('sst');
-    } else if (mode === 'analytics') {
-      this.sstMode.set('ortho');
-    }
-    if (mode === 'spread' || mode === 'evacuation') {
-      this.cameraFocus.set('iberia');
-    }
-  }
-
-  cycleSurfaceMode() {
-    const cur = this.sstMode();
-    if (cur === 'ortho') this.sstMode.set('sst');
-    else if (cur === 'sst') this.sstMode.set('anomaly');
-    else this.sstMode.set('ortho');
-  }
-
-  toggleLayersPanel() {
-    this.isLayersOpen.update(open => !open);
+    this.regionBbox.set(null);
+    this.dateStart.set('');
+    this.dateEnd.set('');
   }
 
   resetDefaultLayers() {
-    const view = this.viewMode();
     this.showHotspotsOnGlobe.set(true);
     this.showRegionBbox.set(true);
-    this.showLandOrtho.set(true);
-    this.showOsmTiles.set(false);
-    this.showForests.set(true);
-    this.showUrbanAreas.set(true);
-    this.showBorders.set(true);
-    this.showRoads.set(true);
-    this.showGraticule.set(true);
-    this.showWindStreamlines.set(view === 'spread');
-    this.showEscapeRoads.set(view === 'evacuation');
-  }
-
-  togglePlay() {
-    this.playing.update(p => !p);
   }
 }

@@ -1,0 +1,121 @@
+@use "variables" as *;
+
+.data-popup {
+  display: flex;
+  flex-direction: column;
+  gap: spacing("md");
+  max-width: 640px;
+  color: color("text-bright");
+  text-align: left;
+
+  &__card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 14px;
+    border: 1px solid color("line");
+    border-radius: radius("card");
+    background: rgba(255, 255, 255, 0.65);
+  }
+
+  &__head {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: font-size("xs");
+    font-weight: font-weight("bold");
+    color: color("text-bright");
+  }
+
+  &__meta {
+    margin: 0;
+    font-size: font-size("xxs");
+    color: color("text-dim");
+    line-height: 1.4;
+  }
+}
+
+.dataset-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: radius("sm");
+  background: color("btn-bg");
+  font-size: font-size("xs");
+
+  &__label {
+    color: color("text-dim");
+  }
+
+  &__name {
+    font-weight: font-weight("semibold");
+    color: color("text-bright");
+  }
+}
+
+.mono-tag {
+  font-family: var(--font-family-mono);
+  font-size: font-size("xxs");
+  color: color("text-dim");
+}
+
+.dropzone {
+  padding: 14px;
+  border-radius: radius("sm");
+  border: 1.5px dashed color("line-strong");
+  background: rgba(255, 255, 255, 0.45);
+  transition: border-color transition("fast"), background transition("fast");
+
+  &--over {
+    border-color: color("accent");
+    background: color("accent-glow-soft");
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.status-msg {
+  margin: 0;
+  font-size: font-size("xs");
+  font-weight: font-weight("medium");
+
+  &--ok {
+    color: color("success");
+  }
+
+  &--err {
+    color: color("danger");
+  }
+}
+
+.export-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+
+  @include respond-to("mobile") {
+    grid-template-columns: 1fr;
+  }
+}

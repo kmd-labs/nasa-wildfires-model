@@ -1,0 +1,95 @@
+@let t = i18n.t();
+@let summary = analytics.summary();
+
+<div class="data-popup">
+  <section class="data-popup__card">
+    <div class="data-popup__head">
+      <h3 class="data-popup__title">{{ t.inputDataTitle }}</h3>
+      <p class="data-popup__meta">{{ t.inputDataDesc }}</p>
+    </div>
+
+    <div class="dataset-status">
+      <span class="dataset-status__label">{{ t.activeDatasetLabel }}:</span>
+      <span class="dataset-status__name">
+        @if (data.isCustomDataset()) {
+          {{ data.hotspotDatasetName() }}
+        } @else if (analytics.hasLiveBackend() && data.backendCalendar(); as bCal) {
+          {{ t.backendLiveLabel }} (H3-{{ bCal.metadata.h3Resolution }} · {{ bCal.metadata.dataThrough }})
+        } @else {
+          {{ t.defaultDatasetName }}
+        }
+      </span>
+      <span class="mono-tag">({{ summary.totalRecords | number }})</span>
+    </div>
+
+    <div
+      class="dropzone"
+      [class.dropzone--over]="isDragOver()"
+      (dragover)="onDragOver($event)"
+      (dragleave)="onDragLeave()"
+      (drop)="onDrop($event)">
+      <input
+        #fileInputRef
+        type="file"
+        accept=".csv,.json,text/csv,application/json"
+        class="sr-only"
+        (change)="onFileSelected($event)" />
+      <div class="dropzone__actions">
+        <app-button variant="preset" (btnClick)="triggerFilePicker()">
+          <lucide-icon [img]="uploadIcon" [size]="14"></lucide-icon>
+          <span>{{ t.uploadFileBtn }}</span>
+        </app-button>
+        <app-button variant="ghost" (btnClick)="analytics.downloadSampleCsv()">
+          <lucide-icon [img]="downloadIcon" [size]="14"></lucide-icon>
+          <span>{{ t.downloadTemplateBtn }}</span>
+        </app-button>
+        @if (data.isCustomDataset()) {
+          <app-button variant="ghost" (btnClick)="resetDataset()">
+            <lucide-icon [img]="resetIcon" [size]="14"></lucide-icon>
+            <span>{{ t.resetDatasetBtn }}</span>
+          </app-button>
+        }
+      </div>
+    </div>
+
+    @if (importSuccessCount() !== null) {
+      <p class="status-msg status-msg--ok">{{ t.importSuccessMsg }} ({{ importSuccessCount() | number }})</p>
+    }
+    @if (data.importError()) {
+      <p class="status-msg status-msg--err">
+        {{ data.importError() === 'empty' ? t.importErrorEmpty : data.importError() === 'noValidRows' ? t.importErrorNoRows : t.importErrorParse }}
+      </p>
+    }
+  </section>
+
+  <section class="data-popup__card">
+    <div class="data-popup__head">
+      <h3 class="data-popup__title">{{ t.downloadTitle }}</h3>
+      <p class="data-popup__meta">
+        {{ summary.totalRecords | number }} {{ t.recordsCountLabel }}
+        @if (state.regionBbox(); as bbox) {
+          · {{ t.regionBboxLabel }} [{{ bbox[0] }}, {{ bbox[1] }}, {{ bbox[2] }}, {{ bbox[3] }}]
+        }
+      </p>
+    </div>
+
+    <div class="export-grid">
+      <app-button variant="default" (btnClick)="analytics.downloadFilteredCsv()">
+        <lucide-icon [img]="csvIcon" [size]="14"></lucide-icon>
+        <span>{{ t.downloadCsvBtn }}</span>
+      </app-button>
+      <app-button variant="default" (btnClick)="analytics.downloadAnalyticsJson()">
+        <lucide-icon [img]="jsonIcon" [size]="14"></lucide-icon>
+        <span>{{ t.downloadJsonBtn }}</span>
+      </app-button>
+      <app-button variant="default" (btnClick)="analytics.downloadSvgReport()">
+        <lucide-icon [img]="imageIcon" [size]="14"></lucide-icon>
+        <span>{{ t.downloadSvgBtn }}</span>
+      </app-button>
+      <app-button variant="preset" (btnClick)="analytics.downloadPngReport()">
+        <lucide-icon [img]="downloadIcon" [size]="14"></lucide-icon>
+        <span>{{ t.downloadPngBtn }}</span>
+      </app-button>
+    </div>
+  </section>
+</div>
