@@ -89,13 +89,12 @@
     width: 33px !important;
   }
 
-  /* Match top-left language dropdown and top-right switcher height (28px inner -> 36px pill) to action buttons */
+  /* Match top-left settings gear button height and square shape (28px inner -> 36px pill) to action buttons */
   .header__settings .btn {
+    width: 28px !important;
     height: 28px !important;
     min-height: 28px !important;
-    padding: 0 8px !important;
-    font-size: font-size("xxs") !important;
-    gap: 4px !important;
+    padding: 0 !important;
   }
 
   .header__view .switcher--sm .switcher__option {

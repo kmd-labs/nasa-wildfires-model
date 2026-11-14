@@ -19,15 +19,16 @@
         (btnClick)="brandHovered.set(false); about.open({ lang: i18n.lang() })">
       </app-brand>
 
-      <div class="header__settings glass-panel" role="group" [attr.aria-label]="t.changeLanguage">
-        <app-dropdown
+      <div class="header__settings glass-panel">
+        <app-button
           variant="ghost"
-          [icon]="isMobileView() ? null : globeIcon"
-          [options]="langOptions()"
-          [value]="i18n.lang()"
-          [ariaLabel]="t.changeLanguage"
-          (valueChange)="i18n.setLang($event)">
-        </app-dropdown>
+          [size]="isMobileView() ? 'sm' : 'md'"
+          [iconOnly]="true"
+          [ariaLabel]="t.settingsAria"
+          [titleText]="t.settingsTitle"
+          (btnClick)="openSettings()">
+          <lucide-icon [img]="settingsIcon" [size]="15"></lucide-icon>
+        </app-button>
       </div>
     </div>
 

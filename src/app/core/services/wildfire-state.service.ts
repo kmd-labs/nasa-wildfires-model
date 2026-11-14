@@ -7,6 +7,7 @@ import {
   CameraFocusId,
   ChartGranularity,
   ColorRampId,
+  DatasetSelectionMode,
   MapRenderMode,
   MultiPolygonCoords,
   PolygonCoords,
@@ -221,28 +222,39 @@ export class WildfireStateService {
     () => this.hasUnacceptedDraft() || this.hasPendingDateChanges()
   );
 
+  readonly effectiveDateStart = computed<string>(() =>
+    this.hasValidDraftDates() ? this.draftDateStart() : this.dateStart()
+  );
+
+  readonly effectiveDateEnd = computed<string>(() =>
+    this.hasValidDraftDates() ? this.draftDateEnd() : this.dateEnd()
+  );
+
   readonly isViirsAvailable = computed<boolean>(() => {
-    const e = this.dateEnd();
+    const e = this.effectiveDateEnd();
     return !e || e >= VIIRS_FIRST_DATE;
   });
 
-  readonly preferredDataset = signal<ActiveFireDataset>('VIIRS');
+  readonly requiresBothSensors = computed<boolean>(() => {
+    const s = this.effectiveDateStart();
+    const e = this.effectiveDateEnd();
+    return Boolean(s && e && s < VIIRS_FIRST_DATE && e >= VIIRS_FIRST_DATE);
+  });
 
-  readonly activeDataset = computed<ActiveFireDataset>(() =>
-    this.isViirsAvailable() ? this.preferredDataset() : 'MODIS'
-  );
+  readonly preferredDataset = signal<DatasetSelectionMode>('VIIRS');
+
+  readonly activeDataset = computed<DatasetSelectionMode>(() => {
+    if (!this.isViirsAvailable()) return 'MODIS';
+    if (this.requiresBothSensors()) return 'BOTH';
+    return this.preferredDataset();
+  });
 
   /**
-   * True when the best-quality preference ('VIIRS') is active over a range spanning the
-   * 2012-01-20 VIIRS launch, so MODIS 1 km is used pre-2012 and VIIRS 375 m from 2012 onward.
+   * True when both VIIRS and MODIS contribute to the current view—either because the user
+   * chose 'BOTH' or because the selected range spans the 2012-01-20 VIIRS launch.
    */
   readonly isMixedSensorRange = computed<boolean>(() => {
-    const s = this.dateStart();
-    const e = this.dateEnd();
-    return (
-      this.activeDataset() === 'VIIRS' &&
-      Boolean(s && e && s < VIIRS_FIRST_DATE && e >= VIIRS_FIRST_DATE)
-    );
+    return this.requiresBothSensors() || this.activeDataset() === 'BOTH';
   });
 
   readonly hasBoundingBox = computed<boolean>(() => this.regionBbox() !== null);
@@ -259,6 +271,8 @@ export class WildfireStateService {
   readonly drawBoxMode = signal<'replace' | 'add'>('replace');
   readonly liveDrawBbox = signal<BoundingBox | null>(null);
   readonly flyToBboxTrigger = signal<number>(0);
+  readonly userCamera2d = signal<{ lon: number; lat: number; zoom: number } | null>(null);
+  readonly userCamera3d = signal<{ lon: number; lat: number; dist: number } | null>(null);
 
   readonly isAnalyticsMinimized = signal<boolean>(this.initialUi.analyticsMinimized);
   readonly isAnalyticsExpanded = signal<boolean>(this.initialUi.analyticsExpanded);
@@ -573,19 +587,22 @@ export class WildfireStateService {
     this.regionPolygon.set(bboxToPolygonRing(clean));
     this.regionBbox.set(clean);
     if (flyTo) {
+      this.userCamera2d.set(null);
+      this.userCamera3d.set(null);
       this.flyToBboxTrigger.update(v => v + 1);
     }
   }
 
-  setDataset(dataset: ActiveFireDataset) {
-    if (dataset === 'VIIRS' && !this.isViirsAvailable()) return;
+  setDataset(dataset: DatasetSelectionMode) {
+    if (this.requiresBothSensors() && dataset !== 'BOTH') return;
+    if (!this.isViirsAvailable() && dataset !== 'MODIS') return;
     this.preferredDataset.set(dataset);
   }
 
   private syncDatasetForEndDate(prevEnd: string, nextEnd: string) {
     const wasAvail = !prevEnd || prevEnd >= VIIRS_FIRST_DATE;
     const isAvail = !nextEnd || nextEnd >= VIIRS_FIRST_DATE;
-    if (!wasAvail && isAvail) {
+    if (!wasAvail && isAvail && this.preferredDataset() === 'MODIS') {
       this.preferredDataset.set('VIIRS');
     }
   }
@@ -669,6 +686,7 @@ export class WildfireStateService {
 
   previewCoordBox(bbox: BoundingBox): void {
     const clean = this.sanitizeBbox(bbox);
+    this.showRegionBbox.set(true);
     this.draftPolygon.set(bboxToPolygonRing(clean));
   }
 
@@ -682,6 +700,7 @@ export class WildfireStateService {
 
   startDrawBoundingBox(mode: 'replace' | 'add' = 'replace') {
     this.drawBoxMode.set(mode);
+    this.showRegionBbox.set(true);
     this.draftPolygon.set(null);
     const wasOpen = this.viewMode() === 'analytics' && !this.isAnalyticsMinimized();
     this.autoRestoreAfterDraw.set(wasOpen);
@@ -705,6 +724,7 @@ export class WildfireStateService {
     const clean = this.sanitizeBbox(bbox);
     this.liveDrawBbox.set(null);
     this.isDrawingBbox.set(false);
+    this.showRegionBbox.set(true);
     this.draftPolygon.set(bboxToPolygonRing(clean));
     if (this.autoRestoreAfterDraw()) {
       this.isAnalyticsMinimized.set(false);
@@ -944,6 +964,8 @@ export class WildfireStateService {
 
   requestFlyToBbox() {
     if (this.regionBbox()) {
+      this.userCamera2d.set(null);
+      this.userCamera3d.set(null);
       this.flyToBboxTrigger.update(v => v + 1);
     }
   }

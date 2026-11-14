@@ -20,6 +20,7 @@ export interface PredefinedCountry {
 export type ColorRampId = 'okabeIto' | 'cividis' | 'viridis' | 'ylOrRd';
 export type HotspotSensor = 'MODIS' | 'VIIRS' | 'HARMONIZED';
 export type ActiveFireDataset = 'VIIRS' | 'MODIS';
+export type DatasetSelectionMode = 'VIIRS' | 'MODIS' | 'BOTH';
 export type CalendarGranularity = 'daily' | 'monthly';
 export type ChartGranularity = 'monthly' | 'yearly';
 
@@ -102,7 +103,7 @@ export interface HotspotAnalyticsSummary {
   anomalyZScore: number;
   areaKm2: number;
   areaHa: number;
-  activeDataset: ActiveFireDataset;
+  activeDataset: DatasetSelectionMode;
   activeDatasetFires: number;
 }
 

@@ -1,4 +1,5 @@
 export type Lang = 'en' | 'pl';
+export type DateFormatPref = 'auto' | 'dmy-dot' | 'dmy-slash' | 'mdy-slash' | 'iso';
 
 export interface DataSourceItem {
   name: string;
@@ -20,6 +21,10 @@ export interface Dict {
 
   // Top HUD & Navigation
   changeLanguage: string;
+  settingsTitle: string;
+  settingsAria: string;
+  dateFormatLabel: string;
+  dateFormatAuto: string;
   chooseView: string;
   mapMode2d: string;
   mapModeGlobe: string;
@@ -128,10 +133,13 @@ export interface Dict {
   datasetUsedLabel: string;
   datasetViirsBtn: string;
   datasetModisBtn: string;
+  datasetBothBtn: string;
   datasetMixedLabel: string;
   datasetViirsDesc: string;
   datasetModisDesc: string;
+  datasetBothDesc: string;
   viirsUnavailableTooltip: string;
+  bothSensorsRequiredTooltip: string;
   datasetDetectionsLabel: string;
   searchAreasPlaceholder: string;
   searchNoResults: string;
@@ -249,6 +257,7 @@ export interface Dict {
   backendLiveLabel: string;
   backendLoadingLabel: string;
   backendDownloadingLabel: string;
+  backendAnalyzingLabel: string;
   backendOfflineLabel: string;
   backendChunksLabel: string;
   largeSelectionTitle: string;

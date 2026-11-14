@@ -1,10 +1,17 @@
 import { Injectable, computed, effect, signal } from '@angular/core';
-import { Dict, Lang } from './i18n.types';
+import { DateFormatPref, Dict, Lang } from './i18n.types';
 import { EN } from './en';
 import { PL } from './pl';
 
 const DICTS: Record<Lang, Dict> = { en: EN, pl: PL };
 const STORAGE_KEY = 'nasa-wildfires-model.lang';
+const DATE_FORMAT_KEY = 'nasa-wildfires-model.date-format';
+const DATE_FORMAT_LOCALES: Record<Exclude<DateFormatPref, 'auto'>, string> = {
+  'dmy-dot': 'pl-PL',
+  'dmy-slash': 'en-GB',
+  'mdy-slash': 'en-US',
+  iso: 'sv-SE'
+};
 
 /**
  * Manages UI language and localized texts.
@@ -16,8 +23,9 @@ export class I18nService {
   readonly dicts = DICTS;
   readonly langs: Lang[] = ['en', 'pl'];
   readonly lang = signal<Lang>(this.resolveInitialLang());
+  readonly dateFormatPref = signal<DateFormatPref>(this.resolveInitialDateFormat());
   readonly t = computed(() => DICTS[this.lang()]);
-  readonly dateLocale = computed<string>(() => {
+  readonly autoDateLocale = computed<string>(() => {
     const currentLang = this.lang();
     const fallback = this.t().locale;
     if (typeof navigator === 'undefined') {
@@ -34,6 +42,10 @@ export class I18nService {
     });
     return regional ?? fallback;
   });
+  readonly dateLocale = computed<string>(() => {
+    const pref = this.dateFormatPref();
+    return pref === 'auto' ? this.autoDateLocale() : DATE_FORMAT_LOCALES[pref];
+  });
 
   constructor() {
     effect(() => {
@@ -49,6 +61,27 @@ export class I18nService {
 
   setLang(lang: Lang) {
     this.lang.set(lang);
+  }
+
+  setDateFormatPref(pref: DateFormatPref) {
+    this.dateFormatPref.set(pref);
+    try {
+      localStorage.setItem(DATE_FORMAT_KEY, pref);
+    } catch {
+      // localStorage unavailable
+    }
+  }
+
+  private resolveInitialDateFormat(): DateFormatPref {
+    try {
+      const stored = localStorage.getItem(DATE_FORMAT_KEY);
+      if (stored === 'auto' || stored === 'dmy-dot' || stored === 'dmy-slash' || stored === 'mdy-slash' || stored === 'iso') {
+        return stored;
+      }
+    } catch {
+      // localStorage unavailable
+    }
+    return 'auto';
   }
 
   private resolveInitialLang(): Lang {

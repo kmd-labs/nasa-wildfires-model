@@ -24,6 +24,12 @@ import { GlobeTileService } from '../../core/services/globe-tile.service';
 import { BoundingBox, ColorRampId, MultiPolygonCoords, PolygonCoords, PolygonRing } from '../../core/models/wildfire.model';
 import { LonLat, ScreenPt, clipPolygonToTriangle, findNearestEdgePx, findNearestVertexPx } from '../../core/utils/polygon-clip';
 import { USER_LOCATION_PIN_COLOR, drawUserLocationPin } from '../../core/utils/location-pin';
+import { getUnobstructedViewportBounds } from '../../core/utils/viewport-framing';
+
+const MIN_GLOBE_DISTANCE = 10.25;
+const MAX_GLOBE_DISTANCE_DESKTOP = 32.0;
+const MAX_GLOBE_DISTANCE_PORTRAIT = 44.0;
+const MAX_GLOBE_TILE_ZOOM = 14;
 
 @Component({
   selector: 'app-globe',
@@ -111,20 +117,53 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
       }
     });
 
+    // React to sidepanel minimize/expand before the user manually pans or zooms
+    let panelFramingInitialized = false;
+    effect(() => {
+      this.state.isAnalyticsMinimized();
+      this.state.isAnalyticsExpanded();
+      if (!panelFramingInitialized) {
+        panelFramingInitialized = true;
+        return;
+      }
+      if (this.camera && this.controls) {
+        untracked(() => {
+          if (this.state.userCamera3d() !== null) return;
+          const bbox = this.state.regionBbox();
+          if (bbox) {
+            this.flyToBbox(bbox);
+          } else {
+            const [lon, lat] = this.state.bboxCenter();
+            this.flyToFocus(this.state.cameraFocus(), this.state.viewMode(), lon, lat);
+          }
+        });
+      }
+    });
+
     // React to view mode or camera focus preset changes
+    let focusInitialized = false;
     effect(() => {
       const focus = this.state.cameraFocus();
       const view = this.state.viewMode();
+      if (!focusInitialized) {
+        focusInitialized = true;
+        return;
+      }
       if (this.camera) {
         const [lon, lat] = untracked(() => this.state.bboxCenter());
-        untracked(() => this.flyToFocus(focus, view, lon, lat));
+        untracked(() => {
+          this.state.userCamera3d.set(null);
+          this.flyToFocus(focus, view, lon, lat);
+        });
       }
     });
 
     // React to explicit fly-to-bbox requests
+    let lastFlyTrigger = untracked(() => this.state.flyToBboxTrigger());
     effect(() => {
       const trigger = this.state.flyToBboxTrigger();
-      if (trigger > 0 && this.camera) {
+      if (trigger > lastFlyTrigger && this.camera) {
+        lastFlyTrigger = trigger;
         const bbox = untracked(() => this.state.regionBbox());
         if (bbox) {
           untracked(() => this.flyToBbox(bbox));
@@ -141,7 +180,7 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
       const showBbox = this.state.showRegionBbox();
       if (this.scene) {
         untracked(() => {
-          this.bboxGroup.visible = showBbox || live !== null || draft !== null;
+          this.bboxGroup.visible = showBbox || live !== null;
           this.rebuildRegionMultiPolygon(multi, draft, live, mode === 'add');
         });
       }
@@ -201,12 +240,56 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
     if (this.animId !== null) cancelAnimationFrame(this.animId);
     window.removeEventListener('resize', this.onResize);
     this.clearGroup(this.bordersGroup);
+    this.controls?.removeEventListener('start', this.onControlsStart);
+    this.controls?.removeEventListener('end', this.onControlsEnd);
     this.controls?.dispose();
     this.renderer?.dispose();
     this.tiles.disposeAll();
   }
 
   private readonly onResize = () => this.handleResize();
+
+  private readonly onControlsStart = () => {
+    this.isCamAnimating = false;
+  };
+
+  private readonly onControlsEnd = () => {
+    this.persistUserCamera3d();
+  };
+
+  private maxGlobeDistance(): number {
+    const aspect = this.canvasWidth / (this.canvasHeight || 1);
+    return aspect < 0.85 ? MAX_GLOBE_DISTANCE_PORTRAIT : MAX_GLOBE_DISTANCE_DESKTOP;
+  }
+
+  private desktopRightOffsetLonDeg(targetLat: number, camDist: number): number {
+    const framing = getUnobstructedViewportBounds(
+      this.canvasWidth,
+      this.canvasHeight,
+      this.state.isAnalyticsMinimized(),
+      this.state.isAnalyticsExpanded()
+    );
+    if (framing.isMobile || this.state.isAnalyticsMinimized()) return 0;
+
+    const shiftPx = framing.desiredCenterX - this.canvasWidth * 0.5;
+    const tanHalfFov = Math.tan(((this.camera?.fov ?? 40) * Math.PI) / 360);
+    const nx = (shiftPx / Math.max(1, this.canvasHeight * 0.5)) * tanHalfFov;
+    const alt = Math.max(0.25, camDist - this.math.R);
+    const sinAlpha = this.math.clamp((alt / this.math.R) * nx, -0.5, 0.5);
+    const cosLat = Math.max(0.4, Math.cos((targetLat * Math.PI) / 180));
+    return ((Math.asin(sinAlpha) * 180) / Math.PI) / cosLat;
+  }
+
+  private persistUserCamera3d(): void {
+    if (!this.camera) return;
+    const dist = this.math.clamp(this.camera.position.length(), MIN_GLOBE_DISTANCE, this.maxGlobeDistance());
+    const unit = this.camera.position.clone().normalize();
+    const [lon, lat] = this.dirToLonLat(unit);
+    this.ngZone.run(() => {
+      this.state.userCamera3d.set({ lon, lat, dist });
+      this.state.cameraTargetLonLat.set([lon, lat]);
+    });
+  }
 
   private initThree() {
     const canvas = this.canvasRef.nativeElement;
@@ -232,28 +315,44 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
 
     const isLand = isMobileLandscape();
     const portrait = !isLand && (this.canvasWidth / (this.canvasHeight || 1) < 0.95 || isAtMost('mobile'));
-    const hasInitialBbox = this.state.regionBbox() !== null;
-    const initialDist = hasInitialBbox
-      ? (portrait ? 24 : isLand ? 16.5 : 18.5)
-      : (portrait ? 29 : isLand ? 21 : 23.5);
-    const [initLon, initLat] = this.state.bboxCenter();
+    const maxDist = this.maxGlobeDistance();
+    const saved = this.state.userCamera3d();
+    if (saved) {
+      const clampedDist = this.math.clamp(saved.dist, MIN_GLOBE_DISTANCE, maxDist);
+      this.math.pos(saved.lon, saved.lat, clampedDist, this.camTargetPos);
+      this.camera.position.copy(this.camTargetPos);
+      this.isCamAnimating = false;
+    } else {
+      const hasInitialBbox = this.state.regionBbox() !== null;
+      const initialDist = this.math.clamp(
+        hasInitialBbox
+          ? (portrait ? 24 : isLand ? 16.5 : 18.5)
+          : (portrait ? 29 : isLand ? 21 : 23.5),
+        MIN_GLOBE_DISTANCE,
+        maxDist
+      );
+      const [initLon, initLat] = this.state.bboxCenter();
+      const targetLon = initLon - this.desktopRightOffsetLonDeg(initLat, initialDist);
 
-    this.math.pos(initLon, initLat, initialDist, this.camTargetPos);
-    this.math.pos(initLon - 6.0, initLat + 3.0, initialDist * 1.15, this.camStartPos);
+      this.math.pos(targetLon, initLat, initialDist, this.camTargetPos);
+      this.math.pos(targetLon - 6.0, initLat + 3.0, Math.min(maxDist, initialDist * 1.15), this.camStartPos);
 
-    this.camera.position.copy(this.camStartPos);
-    this.isCamAnimating = true;
-    this.camAnimStart = performance.now();
+      this.camera.position.copy(this.camStartPos);
+      this.isCamAnimating = true;
+      this.camAnimStart = performance.now();
+    }
 
     this.controls = new OrbitControls(this.camera, canvas);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.14;
     this.controls.enableRotate = false; // Handled by 1:1 surface-grabbing
     this.controls.zoomSpeed = 0.45;
-    this.controls.minDistance = 10.025;
-    this.controls.maxDistance = 58.0;
+    this.controls.minDistance = MIN_GLOBE_DISTANCE;
+    this.controls.maxDistance = maxDist;
     this.controls.enablePan = false;
     this.controls.target.set(0, 0, 0);
+    this.controls.addEventListener('start', this.onControlsStart);
+    this.controls.addEventListener('end', this.onControlsEnd);
     this.controls.update();
     this.grabSphere.radius = this.math.R;
 
@@ -281,6 +380,7 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
       if (view === 'spread' || view === 'evacuation') {
         dist = 15.2 * scale;
       }
+      lon = aoiLon - this.desktopRightOffsetLonDeg(lat, dist);
     } else if (focus === 'northAtlantic') {
       lon = -35.0;
       lat = 39.0;
@@ -291,6 +391,7 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
       dist = 31.0 * scale;
     }
 
+    dist = this.math.clamp(dist, MIN_GLOBE_DISTANCE, this.maxGlobeDistance());
     this.camStartPos.copy(this.camera.position);
     this.math.pos(lon, lat, dist, this.camTargetPos);
     this.camAnimDuration = 1100;
@@ -310,10 +411,11 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
     const scale = portrait ? 1.18 : isLand ? 0.9 : 1.0;
 
     // Map angular span onto smooth camera distance (clamped within OrbitControls bounds)
-    const targetDist = this.math.clamp((10.25 + spanDeg * 0.55) * scale, 10.18, 52.0);
+    const targetDist = this.math.clamp((10.25 + spanDeg * 0.55) * scale, MIN_GLOBE_DISTANCE, this.maxGlobeDistance());
+    const targetLon = centerLon - this.desktopRightOffsetLonDeg(centerLat, targetDist);
 
     this.camStartPos.copy(this.camera.position);
-    this.math.pos(centerLon, centerLat, targetDist, this.camTargetPos);
+    this.math.pos(targetLon, centerLat, targetDist, this.camTargetPos);
     this.camAnimDuration = 950;
     this.camAnimStart = performance.now();
     this.isCamAnimating = true;
@@ -408,6 +510,7 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
     this.scene.add(this.bboxGroup);
     this.scene.add(this.hotspotGroup);
     this.scene.add(this.userLocationGroup);
+    this.bboxGroup.visible = this.state.showRegionBbox() || this.state.liveDrawBbox() !== null;
     this.rebuildRegionMultiPolygon(
       this.state.regionMultiPolygon(),
       this.state.draftPolygon(),
@@ -531,6 +634,7 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
   }
 
   private getEditableActivePoly(): PolygonRing | null {
+    if (!this.state.showRegionBbox()) return null;
     const draft = this.state.draftPolygon();
     if (draft && draft.length >= 3) return draft;
     if (this.state.regionBorderMultiPolygon()) return null;
@@ -998,12 +1102,16 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
+    const wasDraggingGlobe = this.isDraggingGlobe;
     this.isDraggingGlobe = false;
     this.grabDir = null;
     try {
       this.canvasRef.nativeElement.releasePointerCapture(ev.pointerId);
     } catch {
       // ignore
+    }
+    if (wasDraggingGlobe) {
+      this.persistUserCamera3d();
     }
   }
 
@@ -1015,6 +1123,16 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
     this.camera.aspect = this.canvasWidth / (this.canvasHeight || 1);
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(this.canvasWidth, this.canvasHeight, false);
+    if (this.controls) {
+      this.controls.minDistance = MIN_GLOBE_DISTANCE;
+      this.controls.maxDistance = this.maxGlobeDistance();
+    }
+    if (this.state.userCamera3d() === null) {
+      const bbox = this.state.regionBbox();
+      if (bbox) {
+        this.flyToBbox(bbox);
+      }
+    }
   }
 
   private readonly animate = (now: number) => {
@@ -1094,7 +1212,7 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
       this.canvasHeight || window.innerHeight,
       centerLat,
       2,
-      16
+      MAX_GLOBE_TILE_ZOOM
     );
 
     const tileKey = `${z}:${Math.round(centerLon * 2)}:${Math.round(centerLat * 2)}`;

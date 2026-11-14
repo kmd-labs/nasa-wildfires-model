@@ -34,21 +34,10 @@
             </span>
             @if (bStatus === 'live' && data.backendCalendar(); as bCal) {
               <span class="backend-pill backend-pill--live">{{ t.backendLiveLabel }} · {{ bCal.metadata.dataThrough | localeDate }}</span>
-            } @else if (bStatus === 'loading') {
+            } @else if (bStatus === 'loading' || bStatus === 'downloading') {
               <span class="backend-pill backend-pill--sync">
                 <lucide-icon [img]="loaderIcon" [size]="11" class="spin-icon"></lucide-icon>
-                <span>{{ t.backendLoadingLabel }}</span>
-              </span>
-            } @else if (bStatus === 'downloading') {
-              @let prog = data.backendProgress();
-              <span class="backend-pill backend-pill--sync">
-                <lucide-icon [img]="loaderIcon" [size]="11" class="spin-icon"></lucide-icon>
-                <span>
-                  {{ t.backendDownloadingLabel }}
-                  @if (prog && prog.total > 0) {
-                    ({{ prog.done }}/{{ prog.total }} {{ t.backendChunksLabel }})
-                  }
-                </span>
+                <span>{{ syncStatusText() }}</span>
               </span>
             } @else if (bStatus === 'error' && data.backendError(); as bErr) {
               <span class="backend-pill backend-pill--err" [title]="bErr">{{ bErr }}</span>
@@ -268,7 +257,10 @@
         </div>
 
         <div class="region-form__coords">
-            <div class="coords-fields">
+            <div
+              class="coords-fields"
+              (focusin)="onCoordFocusChange(true)"
+              (focusout)="onCoordFocusChange(false)">
               <label class="coord-field">
                 <span>{{ t.coordWest }}</span>
                 <input
@@ -356,6 +348,24 @@
       @if (showDataSection()) {
         <section class="region-form" [attr.aria-label]="t.dataSectionTitle">
           <div class="region-form__dates">
+            <div class="region-form__date-inputs">
+              <app-locale-date-input
+                min="2000-11-01"
+                [max]="maxSelectableDate"
+                [label]="t.dateStartLabel"
+                [value]="state.draftDateStart()"
+                [missing]="state.missingDateStart()"
+                (valueChange)="state.setDraftDateStart($event)">
+              </app-locale-date-input>
+              <app-locale-date-input
+                min="2000-11-01"
+                [max]="maxSelectableDate"
+                [label]="t.dateEndLabel"
+                [value]="state.draftDateEnd()"
+                [missing]="state.missingDateEnd()"
+                (valueChange)="state.setDraftDateEnd($event)">
+              </app-locale-date-input>
+            </div>
             <app-date-range-slider
               minDate="2000-11-01"
               [maxDate]="maxSelectableDate"
@@ -364,6 +374,7 @@
               [startLabel]="t.dateStartLabel"
               [endLabel]="t.dateEndLabel"
               [ariaLabel]="t.dateRangeLabel"
+              [showInputs]="false"
               [missingStart]="state.missingDateStart()"
               [missingEnd]="state.missingDateEnd()"
               (startDateChange)="state.setDraftDateStart($event)"
@@ -396,13 +407,23 @@
 
           <div class="region-form__dataset">
             <span class="region-form__dataset-label">{{ t.datasetLabel }}:</span>
-            <app-switcher
-              size="sm"
-              [options]="datasetOptions()"
-              [value]="state.activeDataset()"
-              [ariaLabel]="t.datasetLabel"
-              (valueChange)="$event && state.setDataset($event)">
-            </app-switcher>
+            <div class="dataset-switcher" role="radiogroup" [attr.aria-label]="t.datasetLabel">
+              @for (opt of datasetOptions(); track opt.value) {
+                <button
+                  type="button"
+                  role="radio"
+                  class="dataset-switcher__option"
+                  [class.dataset-switcher__option--active]="state.activeDataset() === opt.value"
+                  [class.dataset-switcher__option--disabled]="opt.disabled"
+                  [attr.aria-checked]="state.activeDataset() === opt.value"
+                  [attr.aria-disabled]="opt.disabled ? 'true' : null"
+                  [appTooltip]="opt.tooltip"
+                  tooltipPlacement="top"
+                  (click)="onDatasetOptionClick(opt, $event)">
+                  {{ opt.label }}
+                </button>
+              }
+            </div>
             <span class="region-form__dataset-used">
               {{ t.datasetUsedLabel }}: <b>{{ activeDatasetDisplayLabel() }}</b>
             </span>
@@ -442,18 +463,9 @@
           class="backend-banner"
           [class.backend-banner--sync]="data.backendStatus() === 'loading' || data.backendStatus() === 'downloading'"
           [class.backend-banner--err]="data.backendStatus() === 'error'">
-          @if (data.backendStatus() === 'loading') {
+          @if (data.backendStatus() === 'loading' || data.backendStatus() === 'downloading') {
             <lucide-icon [img]="loaderIcon" [size]="14" class="spin-icon"></lucide-icon>
-            <span>{{ t.backendLoadingLabel }}</span>
-          } @else if (data.backendStatus() === 'downloading') {
-            @let prog = data.backendProgress();
-            <lucide-icon [img]="loaderIcon" [size]="14" class="spin-icon"></lucide-icon>
-            <span>
-              {{ t.backendDownloadingLabel }}
-              @if (prog && prog.total > 0) {
-                ({{ prog.done | number }}/{{ prog.total | number }} {{ t.backendChunksLabel }})
-              }
-            </span>
+            <span>{{ syncStatusText() }}</span>
           } @else {
             <span>{{ data.backendError() }}</span>
           }

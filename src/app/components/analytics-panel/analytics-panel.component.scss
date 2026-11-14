@@ -225,7 +225,7 @@
 
   &--1 {
     top: 0;
-    z-index: 23;
+    z-index: 26;
   }
 
   &--2 {
@@ -305,6 +305,18 @@
     gap: 6px;
     padding-top: 6px;
     border-top: 1px dashed color("line");
+
+    ::ng-deep .date-range__readout {
+      display: none;
+    }
+  }
+
+  &__date-inputs {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    width: 100%;
   }
 
   &__date-readout {
@@ -381,6 +393,59 @@
   margin: 0;
   font-size: font-size("xxs");
   color: #b91c1c;
+}
+
+.dataset-switcher {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 2px;
+  gap: 2px;
+  border-radius: radius("pill");
+  background: color("btn-bg");
+  border: 1px solid color("line");
+
+  &__option {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 24px;
+    padding: 0 9px;
+    border: none;
+    background: transparent;
+    color: color("text-dim");
+    font: inherit;
+    font-size: font-size("xxs");
+    font-weight: font-weight("medium");
+    line-height: 1.25;
+    border-radius: radius("pill");
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
+    transition: background transition("fast"), color transition("fast"), box-shadow transition("fast");
+
+    &:hover:not(&--disabled):not(&--active) {
+      background: color("btn-hover");
+      color: color("text-bright");
+    }
+
+    &:focus-visible {
+      outline: 2px solid color("accent");
+      outline-offset: 1px;
+    }
+
+    &--disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    &--active {
+      background: color("panel-bg-solid");
+      color: color("text-bright");
+      font-weight: font-weight("semibold");
+      box-shadow: 0 1px 3px color("shadow-panel");
+    }
+  }
 }
 
 .analysis-section {
@@ -505,7 +570,6 @@
 .layers-section {
   &__body {
     position: relative;
-    z-index: 18;
     display: flex;
     flex-direction: column;
     gap: 8px;
