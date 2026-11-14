@@ -6,13 +6,121 @@
   -webkit-backdrop-filter: blur(14px) !important;
 }
 
-@include respond-to("mobile") {
+.popup-dialog__footer .btn.btn--hot {
+  background: color("accent");
+  border-color: color("accent");
+  color: #ffffff;
+  font-weight: font-weight("semibold");
+
+  &:hover:not(:disabled) {
+    background: color("accent-hover");
+    border-color: color("accent-hover");
+    color: #ffffff;
+  }
+}
+
+@include respond-to("desktop") {
+  :root {
+    --kmd-brand-h: 36px;
+  }
+
   .popup-backdrop {
     padding-top: 56px !important;
   }
 
-  .header__brand:not(.header__brand--expanded) {
-    max-width: 56px !important;
+  .header__brand {
+    height: var(--kmd-brand-h, 36px) !important;
+    padding: 3px !important;
+    overflow: hidden !important;
+    box-sizing: border-box;
+    transition:
+      max-width 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 0.3s ease;
+  }
+
+  .header__brand:not(.header__brand--expanded):not(.header__brand--popup-open) {
+    max-width: 52px !important;
+
+    .header__brand-btn {
+      height: 28px !important;
+      padding: 0 5px !important;
+      gap: 0 !important;
+    }
+
+    .header__brand-expand {
+      margin-left: 0 !important;
+      max-width: 0 !important;
+      opacity: 0 !important;
+      overflow: hidden !important;
+      pointer-events: none !important;
+    }
+  }
+
+  .header__brand--expanded,
+  .header__brand--popup-open {
+    max-width: min(460px, calc(100vw - 24px)) !important;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.22);
+
+    .header__brand-btn {
+      height: 28px !important;
+      padding: 0 10px 0 5px !important;
+      gap: 0 !important;
+    }
+
+    .header__brand-expand {
+      display: inline-flex !important;
+      align-items: center;
+      margin-left: 6px !important;
+      max-width: 400px !important;
+      opacity: 1 !important;
+      overflow: visible !important;
+      pointer-events: auto !important;
+    }
+
+    .header__app-name {
+      display: inline-block !important;
+      font-size: font-size("xs") !important;
+      white-space: nowrap !important;
+    }
+  }
+
+  .header__logo-img {
+    height: 13px !important;
+    width: 33px !important;
+  }
+
+  /* Match top-left language dropdown and top-right switcher height (28px inner -> 36px pill) to action buttons */
+  .header__settings .btn {
+    height: 28px !important;
+    min-height: 28px !important;
+    padding: 0 8px !important;
+    font-size: font-size("xxs") !important;
+    gap: 4px !important;
+  }
+
+  .header__view .switcher--sm .switcher__option {
+    height: 28px !important;
+    padding: 0 8px !important;
+
+    &.switcher__option--icon-only {
+      width: 28px !important;
+      padding: 0 !important;
+    }
+  }
+}
+
+@include respond-to("mobile-landscape") {
+  .header__brand {
+    max-width: none !important;
+    overflow: visible !important;
+
+    .header__brand-expand {
+      max-width: none !important;
+      opacity: 1 !important;
+      margin-left: 5px !important;
+      overflow: visible !important;
+      pointer-events: auto !important;
+    }
   }
 }
 

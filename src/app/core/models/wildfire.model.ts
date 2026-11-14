@@ -21,6 +21,7 @@ export type ColorRampId = 'okabeIto' | 'cividis' | 'viridis' | 'ylOrRd';
 export type HotspotSensor = 'MODIS' | 'VIIRS' | 'HARMONIZED';
 export type ActiveFireDataset = 'VIIRS' | 'MODIS';
 export type CalendarGranularity = 'daily' | 'monthly';
+export type ChartGranularity = 'monthly' | 'yearly';
 
 export interface HarmonizedHotspotRecord {
   id: string;
@@ -69,6 +70,18 @@ export interface YearlyComparisonPoint {
   harmonizedCount: number;
   frpMw: number;
   multiYearAvgCount: number;
+  anomalyPct: number;
+  anomalyZScore: number;
+  inSelectedRange: boolean;
+}
+
+export interface ChartSeriesPoint {
+  key: string;
+  label: string;
+  rawModisCount: number;
+  rawViirsCount: number;
+  harmonizedCount: number;
+  avgCount: number;
   anomalyPct: number;
   anomalyZScore: number;
   inSelectedRange: boolean;
@@ -253,6 +266,7 @@ export interface BackendPixelDetection {
   lon: number;
   lat: number;
   sensor: ActiveFireDataset;
+  preViirs?: boolean;
   count: number;
   frpMw: number;
 }

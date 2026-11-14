@@ -266,16 +266,20 @@ def build_cube(df: pd.DataFrame, avail: Availability, h3_res: int) -> Cube:
     cell_of = [h3.latlng_to_cell(lat, lon, h3_res) for lat, lon in zip(df.latitude.to_numpy(), df.longitude.to_numpy())]
     cells = sorted(set(cell_of))
     cell_idx = {c: i for i, c in enumerate(cells)}
-    p_idx = df.platform.map({p: i for i, p in enumerate(PLATFORMS)}).to_numpy()
-    s_idx = df.stratum.to_numpy().astype(np.int64)
+    p_idx = df.platform.map({p: i for i, p in enumerate(PLATFORMS)}).fillna(-1).to_numpy(dtype=np.int64)
+    s_idx = df.stratum.to_numpy(dtype=np.int64)
     c_idx = np.fromiter((cell_idx[c] for c in cell_of), dtype=np.int64, count=len(cell_of))
-    m_idx = (df.date.dt.year.to_numpy() - months[0].year) * 12 + df.date.dt.month.to_numpy() - months[0].month
-    inside = (m_idx >= 0) & (m_idx < len(months))
+    m_idx = (
+        ((df.date.dt.year.to_numpy() - months[0].year) * 12 + df.date.dt.month.to_numpy() - months[0].month).astype(np.int64)
+        if len(df) else np.empty(0, dtype=np.int64)
+    )
+    inside = (p_idx >= 0) & (m_idx >= 0) & (m_idx < len(months))
     shape = (len(PLATFORMS), len(STRATA), len(cells), len(months))
     counts, pct_sum = np.zeros(shape), np.zeros(shape)
-    at = (p_idx[inside], s_idx[inside], c_idx[inside], m_idx[inside])
-    np.add.at(counts, at, 1)
-    np.add.at(pct_sum, at, df.frp_pct.to_numpy()[inside])
+    if inside.any():
+        at = (p_idx[inside], s_idx[inside], c_idx[inside], m_idx[inside])
+        np.add.at(counts, at, 1)
+        np.add.at(pct_sum, at, df.frp_pct.to_numpy(dtype=float)[inside])
 
     units = {}
     if inside.any():

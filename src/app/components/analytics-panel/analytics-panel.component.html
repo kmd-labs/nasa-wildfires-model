@@ -2,7 +2,7 @@
 @let summary = analytics.summary();
 @let cal = analytics.burningCalendar();
 @let dims = calendarSvgDims();
-@let yearly = analytics.yearlyComparison();
+@let series = analytics.chartSeries();
 
 @if (state.isAnalyticsMinimized()) {
   <div class="analytics-pill glass-panel">
@@ -30,17 +30,25 @@
           @let bStatus = data.backendStatus();
           <div class="analytics-panel__subtitle">
             <span class="backend-pill backend-pill--dataset">
-              {{ t.datasetUsedLabel }}: {{ state.activeDataset() === 'VIIRS' ? t.datasetViirsBtn : t.datasetModisBtn }}
+              {{ t.datasetUsedLabel }}: {{ activeDatasetDisplayLabel() }}
             </span>
             @if (bStatus === 'live' && data.backendCalendar(); as bCal) {
-              <span class="backend-pill backend-pill--live">{{ t.backendLiveLabel }} · {{ bCal.metadata.dataThrough }}</span>
+              <span class="backend-pill backend-pill--live">{{ t.backendLiveLabel }} · {{ bCal.metadata.dataThrough | localeDate }}</span>
+            } @else if (bStatus === 'loading') {
+              <span class="backend-pill backend-pill--sync">
+                <lucide-icon [img]="loaderIcon" [size]="11" class="spin-icon"></lucide-icon>
+                <span>{{ t.backendLoadingLabel }}</span>
+              </span>
             } @else if (bStatus === 'downloading') {
               @let prog = data.backendProgress();
               <span class="backend-pill backend-pill--sync">
-                {{ t.backendDownloadingLabel }}
-                @if (prog && prog.total > 0) {
-                  ({{ prog.done }}/{{ prog.total }} {{ t.backendChunksLabel }})
-                }
+                <lucide-icon [img]="loaderIcon" [size]="11" class="spin-icon"></lucide-icon>
+                <span>
+                  {{ t.backendDownloadingLabel }}
+                  @if (prog && prog.total > 0) {
+                    ({{ prog.done }}/{{ prog.total }} {{ t.backendChunksLabel }})
+                  }
+                </span>
               </span>
             } @else if (bStatus === 'error' && data.backendError(); as bErr) {
               <span class="backend-pill backend-pill--err" [title]="bErr">{{ bErr }}</span>
@@ -54,15 +62,7 @@
       <div class="analytics-panel__header-actions">
         <button
           type="button"
-          class="icon-action"
-          [title]="showForm() ? t.analyticsCollapse : t.coordsTitle"
-          [attr.aria-expanded]="showForm()"
-          (click)="showForm.set(!showForm())">
-          <lucide-icon [img]="slidersIcon" [size]="14"></lucide-icon>
-        </button>
-        <button
-          type="button"
-          class="icon-action"
+          class="icon-action icon-action--expand"
           [title]="expanded() ? t.analyticsCollapse : t.analyticsExpand"
           (click)="expanded.set(!expanded())">
           <lucide-icon [img]="expanded() ? collapseIcon : expandIcon" [size]="14"></lucide-icon>
@@ -77,184 +77,41 @@
       </div>
     </header>
 
-    <!-- Single Bounding Box & Date Range Controls -->
-    @if (showForm()) {
-      <section class="region-form" [attr.aria-label]="t.coordsTitle">
-        <div class="region-form__top">
-          <button
-            type="button"
-            class="draw-bbox-btn"
-            [class.draw-bbox-btn--active]="state.isDrawingBbox()"
-            (click)="state.toggleDrawBbox('replace')">
-            <lucide-icon [img]="boxSelectIcon" [size]="13"></lucide-icon>
-            <span>{{ t.drawBboxBtn }}</span>
-          </button>
-
-          @if (state.needsRecalculate()) {
-            <button
-              type="button"
-              class="accept-bbox-btn"
-              (click)="state.recalculateSelection()">
-              <lucide-icon [img]="checkIcon" [size]="13"></lucide-icon>
-              <span>{{ t.recalculateBtn }}</span>
-            </button>
-          } @else if (state.regionBbox(); as bbox) {
-            <span class="region-form__bbox-pill">
-              {{ bbox[0] | number:'1.2-2' }}, {{ bbox[1] | number:'1.2-2' }} → {{ bbox[2] | number:'1.2-2' }}, {{ bbox[3] | number:'1.2-2' }}
-            </span>
-          }
-
-          <span class="region-form__spacer"></span>
-
-          @if (state.hasBoundingBox() || state.dateStart() || state.dateEnd()) {
-            <button
-              type="button"
-              class="region-form__clear"
-              [title]="t.resetRegion"
-              (click)="state.resetRegionAndDates()">
-              <lucide-icon [img]="resetIcon" [size]="11"></lucide-icon>
-              <span>{{ t.clearSelectionBtn }}</span>
-            </button>
-          }
-
-          <button
-            type="button"
-            class="icon-action"
-            [title]="t.coordsBtn"
-            [attr.aria-expanded]="showCoordsInputs()"
-            (click)="showCoordsInputs.set(!showCoordsInputs())">
-            <lucide-icon [img]="showCoordsInputs() ? chevronUpIcon : chevronDownIcon" [size]="14"></lucide-icon>
-          </button>
-        </div>
-
-        @if (showCoordsInputs()) {
-          <div class="region-form__coords">
-            <div class="coords-fields">
-              <label class="coord-field">
-                <span>{{ t.coordWest }}</span>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="-180"
-                  max="180"
-                  placeholder="-10.0"
-                  [value]="draftW()"
-                  (input)="onCoordInput('w', $any($event.target).value)"
-                  (keydown.enter)="applyDraftCoords()" />
-              </label>
-              <label class="coord-field">
-                <span>{{ t.coordSouth }}</span>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="-85"
-                  max="85"
-                  placeholder="36.0"
-                  [value]="draftS()"
-                  (input)="onCoordInput('s', $any($event.target).value)"
-                  (keydown.enter)="applyDraftCoords()" />
-              </label>
-              <label class="coord-field">
-                <span>{{ t.coordEast }}</span>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="-180"
-                  max="180"
-                  placeholder="3.5"
-                  [value]="draftE()"
-                  (input)="onCoordInput('e', $any($event.target).value)"
-                  (keydown.enter)="applyDraftCoords()" />
-              </label>
-              <label class="coord-field">
-                <span>{{ t.coordNorth }}</span>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="-85"
-                  max="85"
-                  placeholder="44.0"
-                  [value]="draftN()"
-                  (input)="onCoordInput('n', $any($event.target).value)"
-                  (keydown.enter)="applyDraftCoords()" />
-              </label>
-            </div>
-
-            @if (coordError()) {
-              <p class="coord-error">{{ t.applyCoordsError }}</p>
-            }
-
-            <div class="coords-actions">
-              <app-button variant="preset" size="sm" (btnClick)="applyDraftCoords()">{{ t.recalculateBtn }}</app-button>
-            </div>
-          </div>
-        }
-
-        <div class="region-form__dates">
-          <label class="inline-date">
-            <span>{{ t.dateStartLabel }}</span>
-            <input
-              type="date"
-              min="2000-01-01"
-              max="2030-12-31"
-              [value]="state.draftDateStart()"
-              (change)="state.setDraftDateStart($any($event.target).value)" />
-          </label>
-          <label class="inline-date">
-            <span>{{ t.dateEndLabel }}</span>
-            <input
-              type="date"
-              min="2000-01-01"
-              max="2030-12-31"
-              [value]="state.draftDateEnd()"
-              (change)="state.setDraftDateEnd($any($event.target).value)" />
-          </label>
-        </div>
-
-        <div class="region-form__dataset">
-          <span class="region-form__dataset-label">{{ t.datasetLabel }}:</span>
-          <app-switcher
-            size="sm"
-            [options]="datasetOptions()"
-            [value]="state.activeDataset()"
-            [ariaLabel]="t.datasetLabel"
-            (valueChange)="$event && state.setDataset($event)">
-          </app-switcher>
-          <span class="region-form__dataset-used">
-            {{ t.datasetUsedLabel }}: <b>{{ state.activeDataset() === 'VIIRS' ? t.datasetViirsBtn : t.datasetModisBtn }}</b>
-          </span>
-        </div>
-      </section>
-    }
-
-    <!-- Separate Collapsible Layers & Preferences Section -->
-    <section class="layers-section" [attr.aria-label]="t.layersTitle">
-      <div class="layers-section__header">
-        <span class="layers-section__title">
-          <lucide-icon [img]="layersIcon" [size]="13" class="layers-section__icon"></lucide-icon>
+    <!-- Unified Scrollable Panel Container with Sticky Section Headers -->
+    <div class="analytics-panel__scroll" #scrollContainer>
+      <!-- Separate Collapsible Layers & Preferences Section (First, collapsed by default) -->
+      <span #layersAnchor class="section-anchor" aria-hidden="true"></span>
+      <div class="section-sticky-header section-sticky-header--1">
+        <button
+          type="button"
+          class="section-sticky-header__title-btn"
+          [title]="t.layersTitle"
+          [attr.aria-expanded]="showLayersSection()"
+          (click)="toggleSection('layers')">
+          <lucide-icon [img]="layersIcon" [size]="13" class="section-sticky-header__icon"></lucide-icon>
           <span>{{ t.layersTitle }}</span>
-          <span class="layers-section__zoom">Zoom z{{ state.activeTileZoom() }}</span>
-        </span>
+          <span class="layers-section__count">{{ activeLayersCount() }}</span>
+        </button>
         <button
           type="button"
           class="icon-action"
           [title]="t.layersTitle"
           [attr.aria-label]="t.layersTitle"
           [attr.aria-expanded]="showLayersSection()"
-          (click)="showLayersSection.set(!showLayersSection())">
+          (click)="toggleSection('layers')">
           <lucide-icon [img]="showLayersSection() ? chevronUpIcon : chevronDownIcon" [size]="14"></lucide-icon>
         </button>
       </div>
 
       @if (showLayersSection()) {
-        <div class="layers-section__body">
+        <section class="layers-section__body" [attr.aria-label]="t.layersTitle">
           <div class="layers-section__items">
             @for (item of layerItems(); track item.id) {
               <label class="layers-section__item">
                 <input
                   type="checkbox"
                   [checked]="item.checked"
-                  (change)="item.setChecked($any($event.target).checked)" />
+                  (change)="onLayerToggle(item, $any($event.target))" />
                 <span class="layers-section__swatch" [style.background]="item.swatch"></span>
                 <span class="layers-section__label">{{ item.label }}</span>
               </label>
@@ -267,6 +124,7 @@
               <span class="ramp-bar__label">{{ t.colorRampLabel }}</span>
               <app-dropdown
                 variant="ghost"
+                direction="down"
                 [options]="colorRampOptions()"
                 [value]="state.colorRamp()"
                 [ariaLabel]="t.colorRampLabel"
@@ -275,47 +133,321 @@
             </div>
             <span class="ramp-bar__swatch" [style.background]="activeRampGradient()"></span>
           </div>
+        </section>
+      }
 
-          <div class="layers-section__actions">
-            <button type="button" class="layers-section__reset" (click)="state.resetDefaultLayers()">
-              <lucide-icon [img]="resetIcon" [size]="11"></lucide-icon>
-              <span>{{ t.layersResetBtn }}</span>
+      <!-- Collapsible Region MultiPolygon, Coordinates & Date Range Section -->
+      <span #regionAnchor class="section-anchor" aria-hidden="true"></span>
+      <div class="section-sticky-header section-sticky-header--2">
+        <button
+          type="button"
+          class="section-sticky-header__title-btn"
+          [title]="t.coordsTitle"
+          [attr.aria-expanded]="showForm()"
+          (click)="toggleSection('region')">
+          <lucide-icon [img]="slidersIcon" [size]="13" class="section-sticky-header__icon"></lucide-icon>
+          <span>{{ t.coordsTitle }}</span>
+        </button>
+        <button
+          type="button"
+          class="icon-action"
+          [title]="t.coordsTitle"
+          [attr.aria-label]="t.coordsTitle"
+          [attr.aria-expanded]="showForm()"
+          (click)="toggleSection('region')">
+          <lucide-icon [img]="showForm() ? chevronUpIcon : chevronDownIcon" [size]="14"></lucide-icon>
+        </button>
+      </div>
+
+      @if (showForm()) {
+        <section class="region-form" [attr.aria-label]="t.coordsTitle">
+        <div class="region-form__top">
+          <button
+            type="button"
+            class="draw-bbox-btn"
+            [class.draw-bbox-btn--active]="state.isDrawingBbox()"
+            [class.draw-bbox-btn--missing]="state.missingRegion()"
+            (click)="state.toggleDrawBbox('replace')">
+            <lucide-icon [img]="boxSelectIcon" [size]="13"></lucide-icon>
+            <span>{{ t.drawBboxBtn }}</span>
+          </button>
+
+          @if (state.needsRecalculate()) {
+            <button
+              type="button"
+              class="accept-bbox-btn"
+              [disabled]="!state.canRecalculate()"
+              (click)="state.recalculateSelection()">
+              <lucide-icon [img]="checkIcon" [size]="13"></lucide-icon>
+              <span>{{ t.recalculateBtn }}</span>
+            </button>
+          }
+
+          <span class="region-form__spacer"></span>
+
+          @if (state.hasBoundingBox() || state.dateStart() || state.dateEnd()) {
+            <button
+              type="button"
+              class="region-form__clear"
+              [title]="t.resetRegion"
+              (click)="state.resetRegionAndDates()">
+              <lucide-icon [img]="resetIcon" [size]="13"></lucide-icon>
+              <span>{{ t.clearSelectionBtn }}</span>
+            </button>
+          }
+        </div>
+
+        <div class="area-picker" #areaPicker>
+          <div class="area-picker__label-row">
+            <span class="area-picker__label">{{ t.predefinedAreasLabel }}</span>
+          </div>
+          <div class="area-picker__control" [class.area-picker__control--open]="areaDropdownOpen()">
+            <lucide-icon [img]="globeIcon" [size]="13" class="area-picker__lead-icon"></lucide-icon>
+            <input
+              type="text"
+              class="area-picker__input"
+              [placeholder]="activeRegionName() || t.searchAreasPlaceholder"
+              [value]="areaSearchQuery()"
+              [attr.aria-label]="t.predefinedAreasLabel"
+              [attr.aria-expanded]="areaDropdownOpen()"
+              (focus)="areaDropdownOpen.set(true)"
+              (input)="areaSearchQuery.set($any($event.target).value); areaDropdownOpen.set(true)" />
+            @if (areaSearchQuery()) {
+              <button
+                type="button"
+                class="area-picker__btn"
+                [title]="t.close"
+                [attr.aria-label]="t.close"
+                (click)="areaSearchQuery.set('')">
+                <lucide-icon [img]="closeIcon" [size]="12"></lucide-icon>
+              </button>
+            }
+            <button
+              type="button"
+              class="area-picker__btn"
+              [title]="t.groupCountries"
+              [attr.aria-label]="t.groupCountries"
+              (click)="toggleAreaDropdown()">
+              <lucide-icon [img]="areaDropdownOpen() ? chevronUpIcon : chevronDownIcon" [size]="13"></lucide-icon>
             </button>
           </div>
-        </div>
-      }
-    </section>
 
-    <!-- Collapsible & Expandable Analysis Section -->
-    <section class="analysis-section" [attr.aria-label]="t.analysisSectionTitle">
-      <div class="analysis-section__header">
-        <span class="analysis-section__title">
-          <lucide-icon [img]="chartIcon" [size]="13" class="analysis-section__icon"></lucide-icon>
+          @if (areaDropdownOpen()) {
+            <div class="area-picker__menu" role="listbox" [attr.aria-label]="t.groupCountries">
+              @if (showIberiaOption()) {
+                <button
+                  type="button"
+                  class="area-picker__option"
+                  [class.area-picker__option--active]="activeRegionName() === t.regionIberiaDefault"
+                  role="option"
+                  (click)="chooseIberiaDefault()">
+                  <span class="area-picker__option-name">{{ t.regionIberiaDefault }}</span>
+                  <span class="area-picker__option-badge area-picker__option-badge--cached">{{ t.cachedBadgeLabel }}</span>
+                </button>
+              }
+
+              @let matches = filteredCountries();
+              @if (matches.length > 0) {
+                <div class="area-picker__group-title">{{ t.groupCountries }}</div>
+                @for (c of matches; track c.code) {
+                  <button
+                    type="button"
+                    class="area-picker__option"
+                    [class.area-picker__option--active]="selectedCountryCode() === c.code && !!activeRegionName()"
+                    role="option"
+                    (click)="chooseCountry(c)">
+                    <span class="area-picker__option-name">{{ countryLabel(c) }}</span>
+                    <span class="area-picker__option-badge">{{ c.code }}</span>
+                  </button>
+                }
+              } @else if (!showIberiaOption()) {
+                <div class="area-picker__empty">{{ t.searchNoResults }}</div>
+              }
+            </div>
+          }
+        </div>
+
+        <div class="region-form__coords">
+            <div class="coords-fields">
+              <label class="coord-field">
+                <span>{{ t.coordWest }}</span>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="-180"
+                  max="180"
+                  placeholder="-10.0"
+                  [value]="draftW()"
+                  (input)="onCoordInput('w', $any($event.target).value)"
+                  (keydown.enter)="onCoordEnter()" />
+              </label>
+              <label class="coord-field">
+                <span>{{ t.coordSouth }}</span>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="-85"
+                  max="85"
+                  placeholder="36.0"
+                  [value]="draftS()"
+                  (input)="onCoordInput('s', $any($event.target).value)"
+                  (keydown.enter)="onCoordEnter()" />
+              </label>
+              <label class="coord-field">
+                <span>{{ t.coordEast }}</span>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="-180"
+                  max="180"
+                  placeholder="3.5"
+                  [value]="draftE()"
+                  (input)="onCoordInput('e', $any($event.target).value)"
+                  (keydown.enter)="onCoordEnter()" />
+              </label>
+              <label class="coord-field">
+                <span>{{ t.coordNorth }}</span>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="-85"
+                  max="85"
+                  placeholder="44.0"
+                  [value]="draftN()"
+                  (input)="onCoordInput('n', $any($event.target).value)"
+                  (keydown.enter)="onCoordEnter()" />
+              </label>
+            </div>
+
+            @if (coordError()) {
+              <p class="coord-error">{{ t.applyCoordsError }}</p>
+            }
+          </div>
+
+          @if (state.missingRegion()) {
+            <p class="missing-inputs-hint" role="alert">{{ t.missingInputsHint }}</p>
+          }
+        </section>
+      }
+
+      <!-- Collapsible Data (Date Range & Sensor Dataset) Section -->
+      <span #dataAnchor class="section-anchor" aria-hidden="true"></span>
+      <div class="section-sticky-header section-sticky-header--3">
+        <button
+          type="button"
+          class="section-sticky-header__title-btn"
+          [title]="t.dataSectionTitle"
+          [attr.aria-expanded]="showDataSection()"
+          (click)="toggleSection('data')">
+          <lucide-icon [img]="calendarIcon" [size]="13" class="section-sticky-header__icon"></lucide-icon>
+          <span>{{ t.dataSectionTitle }}</span>
+        </button>
+        <button
+          type="button"
+          class="icon-action"
+          [title]="t.dataSectionTitle"
+          [attr.aria-label]="t.dataSectionTitle"
+          [attr.aria-expanded]="showDataSection()"
+          (click)="toggleSection('data')">
+          <lucide-icon [img]="showDataSection() ? chevronUpIcon : chevronDownIcon" [size]="14"></lucide-icon>
+        </button>
+      </div>
+
+      @if (showDataSection()) {
+        <section class="region-form" [attr.aria-label]="t.dataSectionTitle">
+          <div class="region-form__dates">
+            <app-date-range-slider
+              minDate="2000-11-01"
+              [maxDate]="maxSelectableDate"
+              [startDate]="state.draftDateStart()"
+              [endDate]="state.draftDateEnd()"
+              [startLabel]="t.dateStartLabel"
+              [endLabel]="t.dateEndLabel"
+              [ariaLabel]="t.dateRangeLabel"
+              [missingStart]="state.missingDateStart()"
+              [missingEnd]="state.missingDateEnd()"
+              (startDateChange)="state.setDraftDateStart($event)"
+              (endDateChange)="state.setDraftDateEnd($event)">
+            </app-date-range-slider>
+            @if (state.hasValidDraftDates()) {
+              <div class="region-form__date-readout">
+                <span class="region-form__dataset-label">{{ t.dateRangeLabel }}:</span>
+                <span class="region-form__date-value">{{ state.draftDateStart() | localeDate }} → {{ state.draftDateEnd() | localeDate }}</span>
+              </div>
+            }
+          </div>
+
+          @if (state.hasPendingDateChanges()) {
+            <div class="region-form__top">
+              <button
+                type="button"
+                class="accept-bbox-btn"
+                [disabled]="!state.canRecalculate()"
+                (click)="state.recalculateSelection()">
+                <lucide-icon [img]="checkIcon" [size]="13"></lucide-icon>
+                <span>{{ t.recalculateBtn }}</span>
+              </button>
+            </div>
+          }
+
+          @if (state.missingDateStart() || state.missingDateEnd()) {
+            <p class="missing-inputs-hint" role="alert">{{ t.missingInputsHint }}</p>
+          }
+
+          <div class="region-form__dataset">
+            <span class="region-form__dataset-label">{{ t.datasetLabel }}:</span>
+            <app-switcher
+              size="sm"
+              [options]="datasetOptions()"
+              [value]="state.activeDataset()"
+              [ariaLabel]="t.datasetLabel"
+              (valueChange)="$event && state.setDataset($event)">
+            </app-switcher>
+            <span class="region-form__dataset-used">
+              {{ t.datasetUsedLabel }}: <b>{{ activeDatasetDisplayLabel() }}</b>
+            </span>
+          </div>
+        </section>
+      }
+
+      <!-- Collapsible & Expandable Analysis Section -->
+      <span #analysisAnchor class="section-anchor" aria-hidden="true"></span>
+      <div class="section-sticky-header section-sticky-header--4">
+        <button
+          type="button"
+          class="section-sticky-header__title-btn"
+          [title]="t.analysisSectionTitle"
+          [attr.aria-expanded]="showAnalysisSection()"
+          (click)="toggleSection('analysis')">
+          <lucide-icon [img]="chartIcon" [size]="13" class="section-sticky-header__icon"></lucide-icon>
           <span>{{ t.analysisSectionTitle }}</span>
           @if (state.hasActiveSelection()) {
             <span class="analysis-section__count">{{ summary.harmonizedFires | number }}</span>
           }
-        </span>
+        </button>
         <button
           type="button"
           class="icon-action"
           [title]="t.analysisSectionTitle"
           [attr.aria-label]="t.analysisSectionTitle"
           [attr.aria-expanded]="showAnalysisSection()"
-          (click)="showAnalysisSection.set(!showAnalysisSection())">
+          (click)="toggleSection('analysis')">
           <lucide-icon [img]="showAnalysisSection() ? chevronUpIcon : chevronDownIcon" [size]="14"></lucide-icon>
         </button>
       </div>
-    </section>
 
-    @if (showAnalysisSection()) {
-      @if (state.hasActiveSelection() && !data.isCustomDataset() && (data.backendStatus() === 'downloading' || (data.backendStatus() === 'error' && data.backendError()))) {
+      @if (showAnalysisSection()) {
+      @if (state.hasActiveSelection() && !data.isCustomDataset() && (data.backendStatus() === 'loading' || data.backendStatus() === 'downloading' || (data.backendStatus() === 'error' && data.backendError()))) {
         <div
           class="backend-banner"
-          [class.backend-banner--sync]="data.backendStatus() === 'downloading'"
+          [class.backend-banner--sync]="data.backendStatus() === 'loading' || data.backendStatus() === 'downloading'"
           [class.backend-banner--err]="data.backendStatus() === 'error'">
-          @if (data.backendStatus() === 'downloading') {
+          @if (data.backendStatus() === 'loading') {
+            <lucide-icon [img]="loaderIcon" [size]="14" class="spin-icon"></lucide-icon>
+            <span>{{ t.backendLoadingLabel }}</span>
+          } @else if (data.backendStatus() === 'downloading') {
             @let prog = data.backendProgress();
+            <lucide-icon [img]="loaderIcon" [size]="14" class="spin-icon"></lucide-icon>
             <span>
               {{ t.backendDownloadingLabel }}
               @if (prog && prog.total > 0) {
@@ -339,26 +471,36 @@
             <p class="analytics-empty-state__desc">{{ t.emptyAnalysisDesc }}</p>
 
             <div class="analytics-empty-state__steps">
-              <div class="empty-step" [class.empty-step--done]="state.hasBoundingBox()">
-                <lucide-icon [img]="state.hasBoundingBox() ? checkCircleIcon : circleDashedIcon" [size]="15"></lucide-icon>
+              <div
+                class="empty-step"
+                [class.empty-step--done]="state.hasBoundingBox() || state.hasUnacceptedDraft()"
+                [class.empty-step--missing]="state.missingRegion()">
+                <lucide-icon [img]="state.hasBoundingBox() || state.hasUnacceptedDraft() ? checkCircleIcon : circleDashedIcon" [size]="15"></lucide-icon>
                 <span class="empty-step__label">{{ t.emptyStepBbox }}</span>
                 <span class="empty-step__status">
-                  {{ state.hasBoundingBox() ? t.emptyStatusReady : t.emptyStatusPending }}
+                  {{ state.hasBoundingBox() || state.hasUnacceptedDraft() ? t.emptyStatusReady : t.emptyStatusPending }}
                 </span>
               </div>
 
-              <div class="empty-step" [class.empty-step--done]="state.hasDateRange()">
-                <lucide-icon [img]="state.hasDateRange() ? checkCircleIcon : circleDashedIcon" [size]="15"></lucide-icon>
+              <div
+                class="empty-step"
+                [class.empty-step--done]="state.hasValidDraftDates()"
+                [class.empty-step--missing]="state.missingDateStart() || state.missingDateEnd()">
+                <lucide-icon [img]="state.hasValidDraftDates() ? checkCircleIcon : circleDashedIcon" [size]="15"></lucide-icon>
                 <span class="empty-step__label">{{ t.emptyStepDates }}</span>
                 <span class="empty-step__status">
-                  {{ state.hasDateRange() ? t.emptyStatusReady : t.emptyStatusPending }}
+                  {{ state.hasValidDraftDates() ? t.emptyStatusReady : t.emptyStatusPending }}
                 </span>
               </div>
             </div>
 
             @if (state.hasUnacceptedDraft()) {
               <p class="analytics-empty-state__desc">{{ t.draftPendingDesc }}</p>
-              <app-button variant="preset" size="sm" (btnClick)="state.acceptDraftPolygon()">
+              <app-button
+                variant="preset"
+                size="sm"
+                [disabled]="!state.canRecalculate()"
+                (btnClick)="state.acceptDraftPolygon()">
                 <lucide-icon [img]="checkIcon" [size]="13"></lucide-icon>
                 <span>{{ t.acceptAndCalculateBtn }}</span>
               </app-button>
@@ -372,14 +514,16 @@
         </div>
       } @else {
         <!-- Scrollable Merged Analytics Body -->
-        <div class="analytics-panel__body">
+        <div
+          class="analytics-panel__body"
+          [class.analytics-panel__body--loading]="!data.isCustomDataset() && (data.backendStatus() === 'loading' || data.backendStatus() === 'downloading')">
           <!-- KPI Strip -->
           <div class="kpi-grid">
             <div class="kpi-card">
               <span class="kpi-card__label">{{ t.kpiHarmonizedFires }}</span>
               <strong class="kpi-card__val">{{ summary.harmonizedFires | number }}</strong>
               <span class="kpi-card__sub">
-                {{ summary.activeDataset === 'VIIRS' ? t.datasetViirsBtn : t.datasetModisBtn }}: {{ summary.activeDatasetFires | number }} · MODIS {{ summary.rawModisFires | number }} · VIIRS {{ summary.rawViirsFires | number }}
+                {{ activeDatasetDisplayLabel() }}: {{ summary.activeDatasetFires | number }} · MODIS {{ summary.rawModisFires | number }} · VIIRS {{ summary.rawViirsFires | number }}
               </span>
             </div>
 
@@ -404,7 +548,7 @@
 
             <div class="kpi-card">
               <span class="kpi-card__label">{{ t.kpiPeakDate }}</span>
-              <strong class="kpi-card__val">{{ summary.peakDate ?? '—' }}</strong>
+              <strong class="kpi-card__val">{{ summary.peakDate ? (summary.peakDate | localeDate) : '—' }}</strong>
               <span class="kpi-card__sub">{{ summary.activeFireDays }} {{ t.kpiActiveDays }} · {{ summary.areaKm2 | number }} km²</span>
             </div>
           </div>
@@ -496,7 +640,7 @@
                 <span class="mono-tag">FRP: {{ hc.frpMw | number }} MW</span>
                 <span class="mono-tag">Avg: {{ hc.multiYearAvg }} ({{ hc.anomalyZScore >= 0 ? '+' : '' }}{{ hc.anomalyZScore }}σ)</span>
               } @else {
-                <span class="hover-readout__hint">{{ t.drawBboxShiftHint }}</span>
+                <span class="hover-readout__hint">{{ t.calendarHoverPlaceholder }}</span>
               }
             </div>
           </section>
@@ -507,6 +651,15 @@
               <div>
                 <h3 class="viz-card__title">{{ t.historicalFiresTitle }}</h3>
                 <p class="viz-card__meta">{{ t.historicalFiresSubtitle }}</p>
+              </div>
+              <div class="viz-card__actions">
+                <app-switcher
+                  size="sm"
+                  [options]="chartModeOptions()"
+                  [value]="state.chartGranularity()"
+                  [ariaLabel]="t.historicalFiresTitle"
+                  (valueChange)="$event && state.chartGranularity.set($event)">
+                </app-switcher>
               </div>
             </div>
 
@@ -519,8 +672,8 @@
             <div class="svg-wrap">
               <svg class="chart-svg" viewBox="0 0 520 185" role="img" [attr.aria-label]="t.historicalFiresTitle">
                 @let maxY = historyMaxVal();
-                @let avgY = yearly.length > 0 ? 156 - (yearly[0].multiYearAvgCount / maxY) * 138 : 156;
-                @let slotW = 472 / Math.max(1, yearly.length);
+                @let avgY = series.length > 0 ? 156 - (series[0].avgCount / maxY) * 138 : 156;
+                @let slotW = 472 / Math.max(1, series.length);
 
                 <line x1="38" y1="18" x2="510" y2="18" class="svg-grid" />
                 <line x1="38" y1="87" x2="510" y2="87" class="svg-grid" />
@@ -529,13 +682,13 @@
                 <text x="34" y="90" class="svg-axis-label" text-anchor="end">{{ (maxY / 2) | number:'1.0-0' }}</text>
                 <text x="34" y="159" class="svg-axis-label" text-anchor="end">0</text>
 
-                @for (pt of yearly; track pt.year; let i = $index) {
-                  @let bx = 42 + i * slotW;
-                  @let barW = Math.max(4, slotW - 3);
+                @for (pt of series; track pt.key; let i = $index) {
+                  @let barW = Math.min(68, Math.max(4, slotW - 4));
+                  @let bx = 42 + i * slotW + (slotW - barW) / 2;
                   @let hHarm = (pt.harmonizedCount / maxY) * 138;
                   @let hModis = (pt.rawModisCount / maxY) * 138;
 
-                  @if (pt.year === 2012) {
+                  @if (pt.key === '2012' || pt.key === '2012-01') {
                     <line [attr.x1]="bx + barW / 2" y1="12" [attr.x2]="bx + barW / 2" y2="156" class="svg-marker" />
                     <text [attr.x]="bx + barW / 2" y="10" class="svg-marker-text" text-anchor="middle">VIIRS 2012</text>
                   }
@@ -549,8 +702,8 @@
                     [attr.fill]="pt.inSelectedRange ? '#d37400' : '#94a3b8'"
                     [attr.opacity]="pt.inSelectedRange ? 0.92 : 0.42"
                     class="chart-bar"
-                    (mouseenter)="hoveredYear.set(pt)"
-                    (mouseleave)="hoveredYear.set(null)" />
+                    (mouseenter)="hoveredChartPoint.set(pt)"
+                    (mouseleave)="hoveredChartPoint.set(null)" />
                   <rect
                     [attr.x]="bx + barW * 0.22"
                     [attr.y]="156 - hModis"
@@ -561,8 +714,8 @@
                     opacity="0.32"
                     pointer-events="none" />
 
-                  @if (i % Math.max(1, Math.floor(yearly.length / 7)) === 0) {
-                    <text [attr.x]="bx + barW / 2" y="172" class="svg-axis-label" text-anchor="middle">{{ pt.year }}</text>
+                  @if (series.length <= 8 || i % Math.ceil(series.length / 7) === 0) {
+                    <text [attr.x]="bx + barW / 2" y="172" class="svg-axis-label" text-anchor="middle">{{ pt.label }}</text>
                   }
                 }
 
@@ -577,6 +730,15 @@
                 <h3 class="viz-card__title">{{ t.anomalyChartTitle }}</h3>
                 <p class="viz-card__meta">{{ t.anomalyChartSubtitle }}</p>
               </div>
+              <div class="viz-card__actions">
+                <app-switcher
+                  size="sm"
+                  [options]="chartModeOptions()"
+                  [value]="state.chartGranularity()"
+                  [ariaLabel]="t.anomalyChartTitle"
+                  (valueChange)="$event && state.chartGranularity.set($event)">
+                </app-switcher>
+              </div>
             </div>
 
             <div class="chart-legend">
@@ -588,16 +750,16 @@
               <svg class="chart-svg" viewBox="0 0 520 160" role="img" [attr.aria-label]="t.anomalyChartTitle">
                 @let maxZ = anomalyMaxAbsZ();
                 @let zeroY = 74;
-                @let anomSlotW = 472 / Math.max(1, yearly.length);
+                @let anomSlotW = 472 / Math.max(1, series.length);
 
                 <line x1="38" [attr.y1]="zeroY" x2="510" [attr.y2]="zeroY" class="svg-axis" />
                 <text x="34" y="20" class="svg-axis-label" text-anchor="end">+{{ maxZ | number:'1.1-1' }}σ</text>
                 <text x="34" [attr.y]="zeroY + 4" class="svg-axis-label" text-anchor="end">0σ</text>
                 <text x="34" y="136" class="svg-axis-label" text-anchor="end">-{{ maxZ | number:'1.1-1' }}σ</text>
 
-                @for (pt of yearly; track pt.year; let i = $index) {
-                  @let bx = 42 + i * anomSlotW;
-                  @let barW = Math.max(4, anomSlotW - 3);
+                @for (pt of series; track pt.key; let i = $index) {
+                  @let barW = Math.min(68, Math.max(4, anomSlotW - 4));
+                  @let bx = 42 + i * anomSlotW + (anomSlotW - barW) / 2;
                   @let mag = (Math.abs(pt.anomalyZScore) / maxZ) * 56;
                   @let by = pt.anomalyZScore >= 0 ? zeroY - mag : zeroY;
 
@@ -610,30 +772,38 @@
                     [attr.fill]="pt.anomalyZScore >= 0 ? ramps.anomalyPositiveHex : ramps.anomalyNegativeHex"
                     [attr.opacity]="pt.inSelectedRange ? 0.92 : 0.42"
                     class="chart-bar"
-                    (mouseenter)="hoveredYear.set(pt)"
-                    (mouseleave)="hoveredYear.set(null)" />
+                    (mouseenter)="hoveredChartPoint.set(pt)"
+                    (mouseleave)="hoveredChartPoint.set(null)" />
 
-                  @if (i % Math.max(1, Math.floor(yearly.length / 7)) === 0) {
-                    <text [attr.x]="bx + barW / 2" y="152" class="svg-axis-label" text-anchor="middle">{{ pt.year }}</text>
+                  @if (series.length <= 8 || i % Math.ceil(series.length / 7) === 0) {
+                    <text [attr.x]="bx + barW / 2" y="152" class="svg-axis-label" text-anchor="middle">{{ pt.label }}</text>
                   }
                 }
               </svg>
             </div>
 
             <div class="hover-readout">
-              @let hy = hoveredYear();
-              @if (hy) {
-                <span class="hover-readout__title">{{ hy.year }}</span>
-                <span class="mono-tag">{{ t.legendHarmonized }}: <b>{{ hy.harmonizedCount | number }}</b></span>
-                <span class="mono-tag">MODIS: {{ hy.rawModisCount | number }} · VIIRS: {{ hy.rawViirsCount | number }}</span>
-                <span class="mono-tag">{{ hy.anomalyZScore >= 0 ? '+' : '' }}{{ hy.anomalyZScore }}σ ({{ hy.anomalyPct >= 0 ? '+' : '' }}{{ hy.anomalyPct }}%)</span>
+              @let hp = hoveredChartPoint();
+              @if (hp) {
+                <span class="hover-readout__title">{{ hp.label }}</span>
+                <span class="mono-tag">{{ t.legendHarmonized }}: <b>{{ hp.harmonizedCount | number }}</b></span>
+                <span class="mono-tag">MODIS: {{ hp.rawModisCount | number }} · VIIRS: {{ hp.rawViirsCount | number }}</span>
+                <span class="mono-tag">{{ hp.anomalyZScore >= 0 ? '+' : '' }}{{ hp.anomalyZScore }}σ ({{ hp.anomalyPct >= 0 ? '+' : '' }}{{ hp.anomalyPct }}%)</span>
               } @else {
-                <span class="hover-readout__hint">{{ t.legendMultiYearAvg }}: {{ yearly[0]?.multiYearAvgCount ?? 0 }} / yr</span>
+                <span class="hover-readout__hint">{{ t.legendMultiYearAvg }}: {{ series[0]?.avgCount ?? 0 }} / {{ state.chartGranularity() === 'monthly' ? 'mo' : 'yr' }}</span>
               }
             </div>
           </section>
+
+          <div class="analytics-panel__footer">
+            <app-button variant="default" (btnClick)="openExport()">
+              <lucide-icon [img]="downloadIcon" [size]="14"></lucide-icon>
+              <span>{{ t.exportBtn }}</span>
+            </app-button>
+          </div>
         </div>
       }
-    }
+      }
+    </div>
   </aside>
 }

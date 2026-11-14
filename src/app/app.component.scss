@@ -25,7 +25,8 @@
 
     .header__settings,
     .header__action,
-    .header__view {
+    .header__view,
+    .draw-banner {
       opacity: 0;
       visibility: hidden;
       pointer-events: none;
@@ -60,18 +61,7 @@
     width: auto;
   }
 
-  @include respond-to("tablet") {
-    &__left,
-    &__right {
-      gap: 6px;
-    }
-
-    &__view {
-      width: auto;
-    }
-  }
-
-  @include respond-to("mobile") {
+  @include respond-to("desktop") {
     top: 10px;
     left: 8px;
     right: 8px;
@@ -90,6 +80,25 @@
     &__view {
       width: auto;
     }
+
+    &.header--brand-hovered,
+    &:not(.header--mobile-landscape):has(.header__brand--expanded:not(.header__brand--popup-open)) {
+      .header__settings,
+      .header__action,
+      .header__view {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition: opacity transition("fast"), visibility transition("fast");
+      }
+
+      .header__right {
+        position: absolute;
+        right: 0;
+        top: 0;
+        pointer-events: none;
+      }
+    }
   }
 }
 
@@ -99,18 +108,16 @@
 }
 
 .draw-banner {
-  position: fixed;
-  top: 68px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 22;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
+  min-height: 40px;
+  padding: 4px 5px 4px 11px;
+  box-sizing: border-box;
   border-radius: radius("pill");
-  max-width: calc(100vw - 24px);
+  white-space: nowrap;
   animation: panelSlideIn 0.2s ease-out;
+  transition: opacity transition("fast"), visibility transition("fast");
 
   &__icon {
     color: color("info-600");
@@ -127,8 +134,8 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    height: 24px;
-    padding: 0 10px;
+    height: 30px;
+    padding: 0 11px;
     border: none;
     border-radius: radius("pill");
     background: color("accent");
@@ -139,16 +146,54 @@
     cursor: pointer;
     white-space: nowrap;
 
-    &:hover {
+    &:hover:not(:disabled) {
       filter: brightness(0.94);
+    }
+
+    &:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
     }
   }
 
+  &__close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border-radius: radius("pill");
+    border: 1px solid color("line");
+    background: color("btn-bg");
+    color: color("text-dim");
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background transition("fast"), color transition("fast");
+
+    &:hover {
+      background: color("btn-hover");
+      color: color("text-bright");
+    }
+  }
+
+  @include respond-to("desktop") {
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 22;
+    max-width: calc(100vw - 24px);
+    min-height: 36px;
+    padding: 4px 6px 4px 12px;
+  }
+
   @include respond-to("mobile") {
-    top: 56px;
-    border-radius: radius("card");
+    bottom: 40px;
     flex-wrap: wrap;
     justify-content: center;
+    border-radius: radius("card");
+    white-space: normal;
   }
 }
 
@@ -172,7 +217,7 @@
     color: color("text-bright");
   }
 
-  @include respond-to("tablet") {
+  @include respond-to("desktop") {
     right: 12px;
     bottom: 8px;
     padding: 4px 9px;

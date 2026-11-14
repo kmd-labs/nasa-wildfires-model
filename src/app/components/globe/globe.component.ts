@@ -23,6 +23,7 @@ import { GlobePixelSquare, HotspotAnalyticsService } from '../../core/services/h
 import { GlobeTileService } from '../../core/services/globe-tile.service';
 import { BoundingBox, ColorRampId, MultiPolygonCoords, PolygonCoords, PolygonRing } from '../../core/models/wildfire.model';
 import { LonLat, ScreenPt, clipPolygonToTriangle, findNearestEdgePx, findNearestVertexPx } from '../../core/utils/polygon-clip';
+import { USER_LOCATION_PIN_COLOR, drawUserLocationPin } from '../../core/utils/location-pin';
 
 @Component({
   selector: 'app-globe',
@@ -63,6 +64,7 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
   private lastTileKey = '';
   private readonly bboxGroup = new THREE.Group();
   private readonly hotspotGroup = new THREE.Group();
+  private readonly userLocationGroup = new THREE.Group();
 
   // Interactive BBox & N-edge polygon editing state
   private isDraggingBbox = false;
@@ -145,17 +147,26 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
       }
     });
 
-    // React to active dataset pixel squares, polygon boundary, color ramp, and globe visibility toggle
+    // React to active dataset pixel squares, MultiPolygon boundary, color ramp, and globe visibility toggle
     effect(() => {
       const squares = this.analytics.globePixelSquares();
-      const poly = this.state.regionPolygon();
+      const multi = this.state.regionMultiPolygon();
       const ramp = this.state.colorRamp();
       const show = this.state.showHotspotsOnGlobe();
       if (this.scene) {
         untracked(() => {
           this.hotspotGroup.visible = show;
-          this.rebuildGlobePixelSquares(squares, poly, ramp);
+          this.rebuildGlobePixelSquares(squares, multi, ramp);
         });
+      }
+    });
+
+    // React to current user location pin visibility & coordinates
+    effect(() => {
+      this.state.showUserLocation();
+      this.state.userLocation();
+      if (this.scene) {
+        untracked(() => this.rebuildUserLocationPin());
       }
     });
   }
@@ -178,7 +189,7 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
         );
         this.rebuildGlobePixelSquares(
           this.analytics.globePixelSquares(),
-          this.state.regionPolygon(),
+          this.state.regionMultiPolygon(),
           this.state.colorRamp()
         );
       });
@@ -396,12 +407,14 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
   private initWildfireGroups() {
     this.scene.add(this.bboxGroup);
     this.scene.add(this.hotspotGroup);
+    this.scene.add(this.userLocationGroup);
     this.rebuildRegionMultiPolygon(
       this.state.regionMultiPolygon(),
       this.state.draftPolygon(),
       this.state.liveDrawBbox(),
       this.state.drawBoxMode() === 'add'
     );
+    this.rebuildUserLocationPin();
   }
 
   private clearGroup(group: THREE.Group) {
@@ -410,10 +423,63 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
       group.remove(child);
       if (child.geometry) child.geometry.dispose();
       if (child.material) {
-        if (Array.isArray(child.material)) child.material.forEach((m: THREE.Material) => m.dispose());
-        else child.material.dispose();
+        const mats = Array.isArray(child.material) ? child.material : [child.material];
+        for (const m of mats) {
+          if (m.map) m.map.dispose();
+          m.dispose();
+        }
       }
     }
+  }
+
+  private rebuildUserLocationPin(): void {
+    this.clearGroup(this.userLocationGroup);
+    if (!this.state.showUserLocation()) return;
+    const loc = this.state.userLocation();
+    if (!loc) return;
+
+    const R = this.math.R;
+    const haloPos = this.math.pos(loc.lon, loc.lat, R * 1.0025, new THREE.Vector3());
+    const haloGeo = new THREE.CircleGeometry(1, 24);
+    const haloMat = new THREE.MeshBasicMaterial({
+      color: new THREE.Color(USER_LOCATION_PIN_COLOR),
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.25,
+      depthWrite: false
+    });
+    const haloMesh = new THREE.Mesh(haloGeo, haloMat);
+    haloMesh.position.copy(haloPos);
+    haloMesh.lookAt(haloPos.clone().multiplyScalar(2));
+    haloMesh.userData['handlePx'] = 9;
+    haloMesh.renderOrder = 44;
+    this.userLocationGroup.add(haloMesh);
+
+    if (typeof document !== 'undefined') {
+      const canvas = document.createElement('canvas');
+      canvas.width = 64;
+      canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        drawUserLocationPin(ctx, 32, 56, 46);
+      }
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      const spriteMat = new THREE.SpriteMaterial({
+        map: texture,
+        transparent: true,
+        depthTest: true,
+        depthWrite: false
+      });
+      const sprite = new THREE.Sprite(spriteMat);
+      sprite.position.copy(this.math.pos(loc.lon, loc.lat, R * 1.003, new THREE.Vector3()));
+      sprite.center.set(0.5, 8 / 64);
+      sprite.userData['handlePx'] = 34;
+      sprite.renderOrder = 45;
+      this.userLocationGroup.add(sprite);
+    }
+
+    this.updateBboxHandleScales();
   }
 
   private rebuildRegionMultiPolygon(
@@ -449,32 +515,40 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  private cleanRing(ring: PolygonRing): [number, number][] {
+    const pts: [number, number][] = [];
+    for (let i = 0; i < ring.length; i++) {
+      const pt = ring[i];
+      if (i === ring.length - 1 && pts.length > 0 && Math.abs(pt[0] - pts[0][0]) < 1e-6 && Math.abs(pt[1] - pts[0][1]) < 1e-6) {
+        continue;
+      }
+      if (pts.length > 0 && Math.abs(pt[0] - pts[pts.length - 1][0]) < 1e-6 && Math.abs(pt[1] - pts[pts.length - 1][1]) < 1e-6) {
+        continue;
+      }
+      pts.push(pt);
+    }
+    return pts;
+  }
+
+  private getEditableActivePoly(): PolygonRing | null {
+    const draft = this.state.draftPolygon();
+    if (draft && draft.length >= 3) return draft;
+    if (this.state.regionBorderMultiPolygon()) return null;
+    const region = this.state.regionPolygon();
+    return region && region.length >= 3 && region.length <= 32 ? region : null;
+  }
+
   private addSphericalPolygonToGroup(poly: PolygonCoords, isPreview: boolean) {
     if (!poly || poly.length === 0 || poly[0].length < 3) return;
     const R = this.math.R;
     const edgeColor = isPreview ? 0x0284c7 : 0xd37400;
     const fillColor = isPreview ? 0x38bdf8 : 0xd37400;
 
-    const cleanRing = (ring: PolygonRing): [number, number][] => {
-      const pts: [number, number][] = [];
-      for (let i = 0; i < ring.length; i++) {
-        const pt = ring[i];
-        if (i === ring.length - 1 && pts.length > 0 && Math.abs(pt[0] - pts[0][0]) < 1e-6 && Math.abs(pt[1] - pts[0][1]) < 1e-6) {
-          continue;
-        }
-        if (pts.length > 0 && Math.abs(pt[0] - pts[pts.length - 1][0]) < 1e-6 && Math.abs(pt[1] - pts[pts.length - 1][1]) < 1e-6) {
-          continue;
-        }
-        pts.push(pt);
-      }
-      return pts;
-    };
-
-    const outerPts = cleanRing(poly[0]);
+    const outerPts = this.cleanRing(poly[0]);
     if (outerPts.length < 3) return;
 
     const contourV2 = outerPts.map(([x, y]) => new THREE.Vector2(x, y));
-    const holesPts = poly.slice(1).map(cleanRing).filter(r => r.length >= 3);
+    const holesPts = poly.slice(1).map(r => this.cleanRing(r)).filter(r => r.length >= 3);
     const holesV2 = holesPts.map(r => r.map(([x, y]) => new THREE.Vector2(x, y)));
 
     // 1. Triangulate 2D polygon and subdivide large spherical triangles so fill hugs the globe
@@ -584,7 +658,7 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
     }
 
     // 3. Vertex anchor dots + edge midpoint cues (unit circles scaled to constant CSS pixel size)
-    if (outerPts.length >= 3 && holesPts.length === 0) {
+    if (outerPts.length >= 3 && outerPts.length <= 32 && holesPts.length === 0 && (isPreview || !this.state.regionBorderMultiPolygon())) {
       const dotGeo = new THREE.CircleGeometry(1, 16);
       const dotMat = new THREE.MeshBasicMaterial({
         color: edgeColor,
@@ -622,33 +696,62 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
 
   private rebuildGlobePixelSquares(
     squares: GlobePixelSquare[],
-    regionPoly: PolygonRing | null,
+    regionMulti: MultiPolygonCoords,
     rampId: ColorRampId
   ) {
     this.clearGroup(this.hotspotGroup);
-    if (!squares || squares.length === 0 || !regionPoly || regionPoly.length < 3) return;
+    if (!squares || squares.length === 0 || !regionMulti || regionMulti.length === 0) return;
 
-    const polyV2 = regionPoly.map(([x, y]) => new THREE.Vector2(x, y));
-    const triIndices = THREE.ShapeUtils.triangulateShape(polyV2, []);
-    if (triIndices.length === 0) return;
-
-    const polyTris: { pts: [LonLat, LonLat, LonLat]; minLon: number; maxLon: number; minLat: number; maxLat: number }[] = [];
-    for (const [ia, ib, ic] of triIndices) {
-      const a = regionPoly[ia] as LonLat;
-      const b = regionPoly[ib] as LonLat;
-      const c = regionPoly[ic] as LonLat;
-      if (!a || !b || !c) continue;
-      polyTris.push({
-        pts: [a, b, c],
-        minLon: Math.min(a[0], b[0], c[0]),
-        maxLon: Math.max(a[0], b[0], c[0]),
-        minLat: Math.min(a[1], b[1], c[1]),
-        maxLat: Math.max(a[1], b[1], c[1])
-      });
+    interface TriBucket {
+      minLon: number;
+      maxLon: number;
+      minLat: number;
+      maxLat: number;
+      tris: { pts: [LonLat, LonLat, LonLat]; minLon: number; maxLon: number; minLat: number; maxLat: number }[];
     }
-    if (polyTris.length === 0) return;
 
-    // Sort lower-intensity pixels first; clip each true-scale square against the N-edge polygon
+    const buckets: TriBucket[] = [];
+    for (const poly of regionMulti) {
+      if (!poly || poly.length === 0) continue;
+      const outerPts = this.cleanRing(poly[0]);
+      if (outerPts.length < 3) continue;
+
+      const holesPts = poly.slice(1).map(r => this.cleanRing(r)).filter(r => r.length >= 3);
+      const contourV2 = outerPts.map(([x, y]) => new THREE.Vector2(x, y));
+      const holesV2 = holesPts.map(r => r.map(([x, y]) => new THREE.Vector2(x, y)));
+      const allPts: LonLat[] = [...outerPts];
+      for (const h of holesPts) allPts.push(...h);
+
+      const triIndices = THREE.ShapeUtils.triangulateShape(contourV2, holesV2);
+      if (triIndices.length === 0) continue;
+
+      const tris: TriBucket['tris'] = [];
+      let bMinLon = Infinity;
+      let bMaxLon = -Infinity;
+      let bMinLat = Infinity;
+      let bMaxLat = -Infinity;
+      for (const [ia, ib, ic] of triIndices) {
+        const a = allPts[ia];
+        const b = allPts[ib];
+        const c = allPts[ic];
+        if (!a || !b || !c) continue;
+        const minLon = Math.min(a[0], b[0], c[0]);
+        const maxLon = Math.max(a[0], b[0], c[0]);
+        const minLat = Math.min(a[1], b[1], c[1]);
+        const maxLat = Math.max(a[1], b[1], c[1]);
+        if (minLon < bMinLon) bMinLon = minLon;
+        if (maxLon > bMaxLon) bMaxLon = maxLon;
+        if (minLat < bMinLat) bMinLat = minLat;
+        if (maxLat > bMaxLat) bMaxLat = maxLat;
+        tris.push({ pts: [a, b, c], minLon, maxLon, minLat, maxLat });
+      }
+      if (tris.length > 0) {
+        buckets.push({ minLon: bMinLon, maxLon: bMaxLon, minLat: bMinLat, maxLat: bMaxLat, tris });
+      }
+    }
+    if (buckets.length === 0) return;
+
+    // Sort lower-intensity pixels first; clip each true-scale square against the MultiPolygon region
     const ordered = [...squares].sort((a, b) => a.normIntensity - b.normIntensity);
     const R = this.math.R;
     const positions: number[] = [];
@@ -676,25 +779,30 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
       // Place pixels flush on top of the surface tiles rather than floating like clouds
       const rSurf = R * 1.00125;
 
-      for (const tri of polyTris) {
-        if (maxLon < tri.minLon || minLon > tri.maxLon || maxLat < tri.minLat || minLat > tri.maxLat) {
+      for (const bucket of buckets) {
+        if (maxLon < bucket.minLon || minLon > bucket.maxLon || maxLat < bucket.minLat || minLat > bucket.maxLat) {
           continue;
         }
-        const clipped = clipPolygonToTriangle(sqRing, tri.pts);
-        if (clipped.length < 3) continue;
-        for (let k = 1; k < clipped.length - 1; k++) {
-          const p0 = clipped[0];
-          const p1 = clipped[k];
-          const p2 = clipped[k + 1];
-          this.math.pos(p0[0], p0[1], rSurf, vTmp);
-          positions.push(vTmp.x, vTmp.y, vTmp.z);
-          colors.push(cr, cg, cb);
-          this.math.pos(p1[0], p1[1], rSurf, vTmp);
-          positions.push(vTmp.x, vTmp.y, vTmp.z);
-          colors.push(cr, cg, cb);
-          this.math.pos(p2[0], p2[1], rSurf, vTmp);
-          positions.push(vTmp.x, vTmp.y, vTmp.z);
-          colors.push(cr, cg, cb);
+        for (const tri of bucket.tris) {
+          if (maxLon < tri.minLon || minLon > tri.maxLon || maxLat < tri.minLat || minLat > tri.maxLat) {
+            continue;
+          }
+          const clipped = clipPolygonToTriangle(sqRing, tri.pts);
+          if (clipped.length < 3) continue;
+          for (let k = 1; k < clipped.length - 1; k++) {
+            const p0 = clipped[0];
+            const p1 = clipped[k];
+            const p2 = clipped[k + 1];
+            this.math.pos(p0[0], p0[1], rSurf, vTmp);
+            positions.push(vTmp.x, vTmp.y, vTmp.z);
+            colors.push(cr, cg, cb);
+            this.math.pos(p1[0], p1[1], rSurf, vTmp);
+            positions.push(vTmp.x, vTmp.y, vTmp.z);
+            colors.push(cr, cg, cb);
+            this.math.pos(p2[0], p2[1], rSurf, vTmp);
+            positions.push(vTmp.x, vTmp.y, vTmp.z);
+            colors.push(cr, cg, cb);
+          }
         }
       }
     }
@@ -763,11 +871,11 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
             }
           });
         } else {
-          const activePoly = this.state.draftPolygon() ?? this.state.regionPolygon();
+          const activePoly = this.getEditableActivePoly();
           const rect = this.canvasRef.nativeElement.getBoundingClientRect();
           const px = ev.clientX - rect.left;
           const py = ev.clientY - rect.top;
-          const screenPts = activePoly && activePoly.length >= 3 ? this.projectPolyToScreenPx(activePoly) : [];
+          const screenPts = activePoly ? this.projectPolyToScreenPx(activePoly) : [];
           const hitVertexIdx = screenPts.length >= 3 ? findNearestVertexPx(px, py, screenPts) : -1;
 
           if (hitVertexIdx >= 0) {
@@ -937,17 +1045,20 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
     this.renderer.render(this.scene, this.camera);
   };
 
-  /** Keep 3D handle dots a constant small CSS pixel size across all camera zoom distances. */
+  /** Keep 3D handle dots and location pin a constant CSS pixel size across all camera zoom distances. */
   private updateBboxHandleScales() {
-    if (!this.camera || !this.bboxGroup || this.bboxGroup.children.length === 0) return;
+    if (!this.camera) return;
     const h = Math.max(1, this.canvasHeight || window.innerHeight);
     const halfTan = Math.tan((this.camera.fov * Math.PI) / 360);
-    for (const child of this.bboxGroup.children) {
-      const targetPx = child.userData?.['handlePx'] as number | undefined;
-      if (!targetPx) continue;
-      const dist = this.camera.position.distanceTo(child.position);
-      const pxToWorld = (2 * dist * halfTan) / h;
-      child.scale.setScalar(targetPx * pxToWorld);
+    for (const group of [this.bboxGroup, this.userLocationGroup]) {
+      if (!group || group.children.length === 0) continue;
+      for (const child of group.children) {
+        const targetPx = child.userData?.['handlePx'] as number | undefined;
+        if (!targetPx) continue;
+        const dist = this.camera.position.distanceTo(child.position);
+        const pxToWorld = (2 * dist * halfTan) / h;
+        child.scale.setScalar(targetPx * pxToWorld);
+      }
     }
   }
 

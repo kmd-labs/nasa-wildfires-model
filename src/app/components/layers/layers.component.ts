@@ -57,34 +57,30 @@ export class LayersComponent {
           }
         ]
       },
-      ...(this.state.mapMode() === 'globe'
-        ? [
-            {
-              id: 'base',
-              title: t.layersSectionBase,
-              items: [
+      {
+        id: 'base',
+        title: t.layersSectionBase,
+        items: [
+          {
+            id: 'ortho',
+            label: t.layerLandOrtho,
+            swatch: '#2f6f4e',
+            checked: this.state.showLandOrtho(),
+            setChecked: (v: boolean) => this.state.showLandOrtho.set(v)
+          },
+          ...(this.state.showLandOrtho()
+            ? [
                 {
-                  id: 'ortho',
-                  label: t.layerLandOrtho,
-                  swatch: '#2f6f4e',
-                  checked: this.state.showLandOrtho(),
-                  setChecked: (v: boolean) => this.state.showLandOrtho.set(v)
-                },
-                ...(this.state.showLandOrtho()
-                  ? [
-                      {
-                        id: 'borders',
-                        label: t.layerBorders,
-                        swatch: '#cbd5e1',
-                        checked: this.state.showBorders(),
-                        setChecked: (v: boolean) => this.state.showBorders.set(v)
-                      }
-                    ]
-                  : [])
+                  id: 'borders',
+                  label: t.layerBorders,
+                  swatch: '#cbd5e1',
+                  checked: this.state.showBorders(),
+                  setChecked: (v: boolean) => this.state.showBorders.set(v)
+                }
               ]
-            }
-          ]
-        : [])
+            : [])
+        ]
+      }
     ];
   });
 }

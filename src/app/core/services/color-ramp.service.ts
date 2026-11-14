@@ -69,7 +69,7 @@ export class ColorRampService {
   readonly anomalyNeutralHex = '#64748b';
 
   getRamp(id: ColorRampId): ColorRampDefinition {
-    return this.ramps[id] ?? this.ramps.okabeIto;
+    return this.ramps[id] ?? this.ramps.ylOrRd;
   }
 
   sampleRgb(id: ColorRampId, value01: number): [number, number, number] {
