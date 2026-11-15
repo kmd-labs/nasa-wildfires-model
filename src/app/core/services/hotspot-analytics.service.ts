@@ -33,6 +33,56 @@ export interface YearBurningCalendarModel {
   totalHarmonized: number;
 }
 
+function daysInUtcMonth(year: number, month1Based: number): number {
+  return new Date(Date.UTC(year, month1Based, 0)).getUTCDate();
+}
+
+function isMmDdInDateRange(monthIdx0: number, day1Based: number, start: string, end: string): boolean {
+  const startYear = Number(start.slice(0, 4));
+  const endYear = Number(end.slice(0, 4));
+  const mm = String(monthIdx0 + 1).padStart(2, '0');
+  const dd = String(day1Based).padStart(2, '0');
+  for (let y = startYear; y <= endYear; y++) {
+    if (day1Based > daysInUtcMonth(y, monthIdx0 + 1)) continue;
+    const iso = `${y}-${mm}-${dd}`;
+    if (iso >= start && iso <= end) return true;
+  }
+  return false;
+}
+
+function sumDailyBucketsInMonth(
+  rows: BackendDailyBucket[] | undefined,
+  year: number,
+  month1Based: number,
+  start: string,
+  end: string
+): { modis: number; viirs: number; harm: number } | null {
+  if (!rows) return null;
+  const mmPrefix = `${String(month1Based).padStart(2, '0')}-`;
+  let modis = 0;
+  let viirs = 0;
+  let harm = 0;
+  for (const row of rows) {
+    if (!row.mmdd.startsWith(mmPrefix)) continue;
+    const iso = `${year}-${row.mmdd}`;
+    if (iso < start || iso > end) continue;
+    modis += row.rawModis;
+    viirs += row.rawViirs;
+    harm += row.harmonized;
+  }
+  return { modis, viirs, harm };
+}
+
+function backendPayloadCoversRange(
+  sel: { from: string; to: string; fromDate?: string; toDate?: string },
+  start: string,
+  end: string
+): boolean {
+  const selFrom = sel.fromDate ?? `${sel.from}-01`;
+  const selTo = sel.toDate ?? `${sel.to}-${String(daysInUtcMonth(Number(sel.to.slice(0, 4)), Number(sel.to.slice(5, 7)))).padStart(2, '0')}`;
+  return selFrom <= start && selTo >= end;
+}
+
 export interface GlobePixelSquare {
   lon: number;
   lat: number;
@@ -386,6 +436,11 @@ export class HotspotAnalyticsService {
       }
 
       if (useSeasonalWindow) {
+        const startDay = Number(start.slice(8, 10)) || 1;
+        const endDay = Number(end.slice(8, 10)) || 31;
+        const dailyByYear = backend.selection.dailyByYear ?? {};
+        const coversRange = backendPayloadCoversRange(backend.selection, start, end);
+
         for (let i = 0; i < backend.months.length; i++) {
           const ym = backend.months[i];
           const y = Number(ym.slice(0, 4));
@@ -394,6 +449,29 @@ export class HotspotAnalyticsService {
           if (!matches) continue;
           const b = byYear.get(y);
           if (!b) continue;
+
+          const dim = daysInUtcMonth(y, m);
+          const isStartM = m === startM && startDay > 1;
+          const isEndM = m === endM && endDay < dim;
+          if (isStartM || isEndM) {
+            if (coversRange && y >= startYear && y <= endYear && dailyByYear[String(y)]) {
+              const exact = sumDailyBucketsInMonth(dailyByYear[String(y)], y, m, start, end);
+              if (exact) {
+                b.modis += Math.round(exact.modis * ratio);
+                b.viirs += Math.round(exact.viirs * ratio);
+                b.harm += exact.harm * ratio;
+                continue;
+              }
+            }
+            const lo = isStartM ? startDay : 1;
+            const hi = isEndM ? Math.min(dim, endDay) : dim;
+            const frac = lo <= hi ? (hi - lo + 1) / dim : 0;
+            b.modis += Math.round((backend.series.rawModis[i] ?? 0) * ratio * frac);
+            b.viirs += Math.round((backend.series.rawViirs[i] ?? 0) * ratio * frac);
+            b.harm += (backend.series.harmonized[i] ?? 0) * ratio * frac;
+            continue;
+          }
+
           b.modis += Math.round((backend.series.rawModis[i] ?? 0) * ratio);
           b.viirs += Math.round((backend.series.rawViirs[i] ?? 0) * ratio);
           b.harm += (backend.series.harmonized[i] ?? 0) * ratio;
@@ -534,8 +612,41 @@ export class HotspotAnalyticsService {
 
     if (!isCustom && backend) {
       const ratio = this.backendSpatialRatio();
+      const startDay = hasDates ? Number(start.slice(8, 10)) || 1 : 1;
+      const endDay = hasDates ? Number(end.slice(8, 10)) || 31 : 31;
+      const dailyByYear = backend.selection.dailyByYear ?? {};
+      const coversRange = !hasDates || backendPayloadCoversRange(backend.selection, start, end);
+
       for (let i = 0; i < backend.months.length; i++) {
-        countsByYm.set(backend.months[i], {
+        const ym = backend.months[i];
+        const y = Number(ym.slice(0, 4));
+        const m = Number(ym.slice(5, 7));
+        const dim = daysInUtcMonth(y, m);
+        const isPartialStart = hasDates && ym === startYm && startDay > 1;
+        const isPartialEnd = hasDates && ym === endYm && endDay < dim;
+        if (isPartialStart || isPartialEnd) {
+          if (coversRange && dailyByYear[String(y)]) {
+            const exact = sumDailyBucketsInMonth(dailyByYear[String(y)], y, m, start, end);
+            if (exact) {
+              countsByYm.set(ym, {
+                modis: Math.round(exact.modis * ratio),
+                viirs: Math.round(exact.viirs * ratio),
+                harm: Math.round(exact.harm * ratio)
+              });
+              continue;
+            }
+          }
+          const lo = isPartialStart ? startDay : 1;
+          const hi = isPartialEnd ? Math.min(dim, endDay) : dim;
+          const frac = lo <= hi ? (hi - lo + 1) / dim : 0;
+          countsByYm.set(ym, {
+            modis: Math.round((backend.series.rawModis[i] ?? 0) * ratio * frac),
+            viirs: Math.round((backend.series.rawViirs[i] ?? 0) * ratio * frac),
+            harm: Math.round((backend.series.harmonized[i] ?? 0) * ratio * frac)
+          });
+          continue;
+        }
+        countsByYm.set(ym, {
           modis: Math.round((backend.series.rawModis[i] ?? 0) * ratio),
           viirs: Math.round((backend.series.rawViirs[i] ?? 0) * ratio),
           harm: Math.round((backend.series.harmonized[i] ?? 0) * ratio)
@@ -606,9 +717,58 @@ export class HotspotAnalyticsService {
     if (!this.data.isCustomDataset() && backend) {
       const ratio = this.backendSpatialRatio();
       const sel = backend.selection;
-      const harm = Math.round(sel.hotspots.harmonized * ratio);
-      const modis = Math.round(sel.hotspots.rawModis * ratio);
-      const viirs = Math.round(sel.hotspots.rawViirs * ratio);
+      const start = this.state.dateStart();
+      const end = this.state.dateEnd();
+      const hasDates = this.state.hasDateRange();
+
+      let rawHarmTotal = sel.hotspots.harmonized;
+      let rawModisTotal = sel.hotspots.rawModis;
+      let rawViirsTotal = sel.hotspots.rawViirs;
+      if (hasDates && (!sel.fromDate || !sel.toDate || sel.fromDate < start || sel.toDate > end)) {
+        const startYm = start.slice(0, 7);
+        const endYm = end.slice(0, 7);
+        const startDay = Number(start.slice(8, 10)) || 1;
+        const endDay = Number(end.slice(8, 10)) || 31;
+        const dailyByYear = sel.dailyByYear ?? {};
+        let calcHarm = 0;
+        let calcModis = 0;
+        let calcViirs = 0;
+        for (let i = 0; i < backend.months.length; i++) {
+          const ym = backend.months[i];
+          if (ym < startYm || ym > endYm) continue;
+          const y = Number(ym.slice(0, 4));
+          const m = Number(ym.slice(5, 7));
+          const dim = daysInUtcMonth(y, m);
+          const isPartialStart = ym === startYm && startDay > 1;
+          const isPartialEnd = ym === endYm && endDay < dim;
+          if (isPartialStart || isPartialEnd) {
+            const exact = sumDailyBucketsInMonth(dailyByYear[String(y)], y, m, start, end);
+            if (exact) {
+              calcHarm += exact.harm;
+              calcModis += exact.modis;
+              calcViirs += exact.viirs;
+              continue;
+            }
+            const lo = isPartialStart ? startDay : 1;
+            const hi = isPartialEnd ? Math.min(dim, endDay) : dim;
+            const frac = lo <= hi ? (hi - lo + 1) / dim : 0;
+            calcHarm += (backend.series.harmonized[i] ?? 0) * frac;
+            calcModis += (backend.series.rawModis[i] ?? 0) * frac;
+            calcViirs += (backend.series.rawViirs[i] ?? 0) * frac;
+          } else {
+            calcHarm += backend.series.harmonized[i] ?? 0;
+            calcModis += backend.series.rawModis[i] ?? 0;
+            calcViirs += backend.series.rawViirs[i] ?? 0;
+          }
+        }
+        rawHarmTotal = calcHarm;
+        rawModisTotal = calcModis;
+        rawViirsTotal = calcViirs;
+      }
+
+      const harm = Math.round(rawHarmTotal * ratio);
+      const modis = Math.round(rawModisTotal * ratio);
+      const viirs = Math.round(rawViirsTotal * ratio);
       const totalFrp = Math.round((sel.frp?.totalMw ?? 0) * ratio);
       const meanFrp = sel.frp?.meanMw ?? 0;
       const activeFireDays = sel.frp?.activeFireDays ?? 0;
@@ -751,23 +911,36 @@ export class HotspotAnalyticsService {
     if (!this.data.isCustomDataset() && backend) {
       const ratio = this.backendSpatialRatio();
       if (mode === 'daily') {
+        const hasDates = this.state.hasDateRange();
         const byMmDd = new Map<string, BackendDailyBucket>();
         for (const row of backend.selection.daily ?? []) {
           byMmDd.set(row.mmdd, row);
         }
-        const maxCount = Math.max(1, ...Array.from(byMmDd.values()).map(v => Math.round(v.harmonized * ratio)));
-        const maxFrp = Math.max(1, ...Array.from(byMmDd.values()).map(v => Math.round(v.frpMw * ratio)));
+
+        const inRangeValues: BackendDailyBucket[] = [];
+        for (let m = 0; m < 12; m++) {
+          const daysInMonth = daysInUtcMonth(2024, m + 1);
+          for (let d = 0; d < daysInMonth; d++) {
+            const mmdd = `${String(m + 1).padStart(2, '0')}-${String(d + 1).padStart(2, '0')}`;
+            if (hasDates && !isMmDdInDateRange(m, d + 1, start, end)) continue;
+            const b = byMmDd.get(mmdd);
+            if (b) inRangeValues.push(b);
+          }
+        }
+        const maxCount = Math.max(1, ...inRangeValues.map(v => Math.round(v.harmonized * ratio)));
+        const maxFrp = Math.max(1, ...inRangeValues.map(v => Math.round(v.frpMw * ratio)));
 
         const cells: BurningCalendarCell[] = [];
         for (let m = 0; m < 12; m++) {
-          const daysInMonth = new Date(Date.UTC(2024, m + 1, 0)).getUTCDate();
+          const daysInMonth = daysInUtcMonth(2024, m + 1);
           for (let d = 0; d < 31; d++) {
             const validDay = d < daysInMonth;
+            const inRange = validDay && (!hasDates || isMmDdInDateRange(m, d + 1, start, end));
             const mmdd = `${String(m + 1).padStart(2, '0')}-${String(d + 1).padStart(2, '0')}`;
-            const b = byMmDd.get(mmdd);
+            const b = inRange ? byMmDd.get(mmdd) : undefined;
             const harm = b ? Math.round(b.harmonized * ratio) : 0;
             const avg = b ? b.baselineAvg * ratio : 0;
-            const z = avg > 0 ? (harm - avg) / Math.max(1, Math.sqrt(avg)) : harm > 0 ? 1.5 : 0;
+            const z = inRange ? (avg > 0 ? (harm - avg) / Math.max(1, Math.sqrt(avg)) : harm > 0 ? 1.5 : 0) : 0;
             cells.push({
               key: mmdd,
               label: `${monthShort[m]} ${String(d + 1).padStart(2, '0')}`,
@@ -779,8 +952,8 @@ export class HotspotAnalyticsService {
               frpMw: Math.round((b?.frpMw ?? 0) * ratio),
               multiYearAvg: Number(avg.toFixed(1)),
               anomalyZScore: Number(z.toFixed(2)),
-              intensity: validDay && harm > 0 ? Math.min(1, Math.pow(harm / maxCount, 0.72)) : 0,
-              inRange: validDay
+              intensity: inRange && harm > 0 ? Math.min(1, Math.pow(harm / maxCount, 0.72)) : 0,
+              inRange
             });
           }
         }
@@ -886,15 +1059,17 @@ export class HotspotAnalyticsService {
       const maxCount = Math.max(1, ...Array.from(buckets.values()).map(v => v.harm));
       const maxFrp = Math.max(1, ...Array.from(buckets.values()).map(v => v.frp));
 
+      const hasDates = this.state.hasDateRange();
       const cells: BurningCalendarCell[] = [];
       for (let m = 0; m < 12; m++) {
-        const daysInMonth = new Date(Date.UTC(2024, m + 1, 0)).getUTCDate(); // leap-safe 31/29
+        const daysInMonth = daysInUtcMonth(2024, m + 1); // leap-safe 31/29
         for (let d = 0; d < 31; d++) {
           const validDay = d < daysInMonth;
+          const inRange = validDay && (!hasDates || isMmDdInDateRange(m, d + 1, start, end));
           const mmdd = `${String(m + 1).padStart(2, '0')}-${String(d + 1).padStart(2, '0')}`;
-          const b = buckets.get(mmdd) ?? { harm: 0, modis: 0, viirs: 0, frp: 0 };
+          const b = inRange ? (buckets.get(mmdd) ?? { harm: 0, modis: 0, viirs: 0, frp: 0 }) : { harm: 0, modis: 0, viirs: 0, frp: 0 };
           const avg = (baselineBuckets.get(mmdd) ?? 0) / yearsInRegion;
-          const z = avg > 0 ? (b.harm - avg) / Math.max(1, Math.sqrt(avg)) : b.harm > 0 ? 1.5 : 0;
+          const z = inRange ? (avg > 0 ? (b.harm - avg) / Math.max(1, Math.sqrt(avg)) : b.harm > 0 ? 1.5 : 0) : 0;
 
           cells.push({
             key: mmdd,
@@ -907,8 +1082,8 @@ export class HotspotAnalyticsService {
             frpMw: Math.round(b.frp),
             multiYearAvg: Number(avg.toFixed(1)),
             anomalyZScore: Number(z.toFixed(2)),
-            intensity: validDay && b.harm > 0 ? Math.min(1, Math.pow(b.harm / maxCount, 0.72)) : 0,
-            inRange: validDay
+            intensity: inRange && b.harm > 0 ? Math.min(1, Math.pow(b.harm / maxCount, 0.72)) : 0,
+            inRange
           });
         }
       }

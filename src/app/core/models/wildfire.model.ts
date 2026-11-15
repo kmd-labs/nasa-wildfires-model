@@ -328,6 +328,8 @@ export interface BackendCalendarPayload {
   selection: {
     from: string;
     to: string;
+    fromDate?: string;
+    toDate?: string;
     hotspots: {
       harmonized: number;
       rawModis: number;
