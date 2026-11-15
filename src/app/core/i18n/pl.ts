@@ -284,7 +284,7 @@ export const PL: Dict = {
   downloadSvgBtn: 'Wykresy SVG',
   downloadPngBtn: 'Raport PNG',
   recordsCountLabel: 'pasujących rekordów',
-  backendLiveLabel: 'Dane na żywo NASA FIRMS',
+  backendLiveLabel: 'Połączenie na żywo z NASA FIRMS',
   backendCachedLabel: 'Cache offline',
   backendCachedTooltip: 'Wczytano z lokalnej pamięci IndexedDB przeglądarki (tryb offline lub brak połączenia).',
   backendLoadingLabel: 'Obliczanie aktywności pożarowej…',
