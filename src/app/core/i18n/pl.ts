@@ -180,6 +180,8 @@ export const PL: Dict = {
   kpiOfMedian: 'mediany',
   kpiYearsShort: 'lat',
   kpiMedianHint: 'Wybrany okres w porównaniu z medianą tego samego okresu w innych pobranych latach. „W normie” = między 25. a 75. percentylem tych lat.',
+  kpiYearlyMedian: 'Mediana roczna',
+  kpiYearlyMedianHint: 'Mediana rocznych sum zharmonizowanych hotspotów w wybranych latach z danymi (co najmniej 3 pełne lata).',
   normalWithin: 'w normie',
   normalAbove: 'powyżej normy',
   normalBelow: 'poniżej normy',

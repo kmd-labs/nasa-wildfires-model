@@ -180,6 +180,8 @@ export const EN: Dict = {
   kpiOfMedian: 'of median',
   kpiYearsShort: 'yrs',
   kpiMedianHint: 'The selected period vs the median of the same period in the other downloaded years. “Normal” = between the 25th and 75th percentile of those years.',
+  kpiYearlyMedian: 'Yearly median',
+  kpiYearlyMedianHint: 'Median of the yearly harmonized hotspot totals of the selected years with data (at least 3 full years).',
   normalWithin: 'normal',
   normalAbove: 'above normal',
   normalBelow: 'below normal',

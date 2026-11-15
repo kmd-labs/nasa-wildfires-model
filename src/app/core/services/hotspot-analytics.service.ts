@@ -801,6 +801,22 @@ export class HotspotAnalyticsService {
     return { pctOfMedian: pct, medianComparisonYears: years, normalBand: band };
   }
 
+  /**
+   * Median of the yearly harmonized totals of the selected years with data. For a selection of
+   * several years this is the median the user can see even when the same multi-year window was
+   * never downloaded in other years; needs MIN_ANOMALY_YEARS full years.
+   */
+  private selectedYearsMedian(yearly: YearlyComparisonPoint[]): Pick<HotspotAnalyticsSummary, 'selectedYearsMedian' | 'selectedYearsCount'> {
+    const totals = yearly
+      .filter(y => y.inSelectedRange && y.hasData)
+      .map(y => y.harmonizedCount)
+      .sort((a, b) => a - b);
+    const n = totals.length;
+    if (n < MIN_ANOMALY_YEARS) return { selectedYearsMedian: null, selectedYearsCount: n };
+    const median = n % 2 ? totals[(n - 1) / 2] : (totals[n / 2 - 1] + totals[n / 2]) / 2;
+    return { selectedYearsMedian: Math.round(median), selectedYearsCount: n };
+  }
+
   /** Summary KPI figures for the selected region & date range. */
   readonly summary = computed<HotspotAnalyticsSummary>(() => {
     const area = this.bboxArea();
@@ -925,6 +941,7 @@ export class HotspotAnalyticsService {
         anomalyComparisonYears,
         anomalyAvailable,
         ...this.medianComparison(sel),
+        ...this.selectedYearsMedian(yearly),
         areaKm2: area.km2,
         areaHa: area.ha,
         activeDataset,
@@ -1006,6 +1023,7 @@ export class HotspotAnalyticsService {
       pctOfMedian: null,
       medianComparisonYears: 0,
       normalBand: null,
+      ...this.selectedYearsMedian(yearly),
       areaKm2: area.km2,
       areaHa: area.ha,
       activeDataset,

@@ -168,6 +168,8 @@ export interface Dict {
   kpiOfMedian: string;
   kpiYearsShort: string;
   kpiMedianHint: string;
+  kpiYearlyMedian: string;
+  kpiYearlyMedianHint: string;
   normalWithin: string;
   normalAbove: string;
   normalBelow: string;

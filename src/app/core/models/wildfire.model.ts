@@ -125,6 +125,9 @@ export interface HotspotAnalyticsSummary {
   pctOfMedian: number | null;
   medianComparisonYears: number;
   normalBand: 'below' | 'normal' | 'above' | null;
+  /** Median of the yearly totals of the selected full years with data (>= 3 years), else null. */
+  selectedYearsMedian: number | null;
+  selectedYearsCount: number;
   areaKm2: number;
   areaHa: number;
   activeDataset: DatasetSelectionMode;

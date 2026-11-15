@@ -561,6 +561,11 @@
                 <span class="kpi-card__sub">
                   {{ summary.anomalyPct >= 0 ? '+' : '' }}{{ summary.anomalyPct }}% {{ t.kpiVsBaseline }}
                 </span>
+                @if (summary.pctOfMedian === null && summary.selectedYearsMedian !== null) {
+                  <span class="kpi-card__sub" [attr.title]="t.kpiYearlyMedianHint">
+                    {{ t.kpiYearlyMedian }} ({{ summary.selectedYearsCount }} {{ t.kpiYearsShort }}): <b>{{ summary.selectedYearsMedian | number }}</b>
+                  </span>
+                }
                 @if (summary.pctOfMedian !== null) {
                   <span class="kpi-card__sub" [attr.title]="t.kpiMedianHint">
                     {{ summary.pctOfMedian }}% {{ t.kpiOfMedian }} ({{ summary.medianComparisonYears }} {{ t.kpiYearsShort }}) ·
