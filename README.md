@@ -12,7 +12,7 @@ A scientifically validated **Burning Activity Calendar** and Earth Observation a
 
 - **26+ Years on a Single Scale:** Seamless monthly and daily fire activity from `2000-11` onward, chained across Terra, Aqua, Suomi NPP, NOAA-20, and NOAA-21.
 - **Zero 2012 Sensor-Entry Jump:** Naive summation jumps **4.64×** when VIIRS launches; harmonization **v4** reduces the median jump to **1.0×**.
-- **Globally Validated (22 Regions, 8 Biomes, 0 Errors):** Predicting raw MODIS strictly from VIIRS in blocked $k$-fold validation achieves **1.1%** median $|\text{bias}|$ (2012–2019) and **2.7%** (2023+ — within 10% in **19/22** regions and within 20% in **22/22**), with **0.9** calibrated 90% interval coverage. See the full [Global v4 Validation Report](docs/validation/global-v4/report.md).
+- **Validated on 22 Regions across 6 Continents and 8 Biomes:** Predicting raw MODIS strictly from VIIRS in blocked $k$-fold validation achieves **1.1%** median $|\text{bias}|$ (2012–2019) and **2.7%** (2023+ — within 10% in **19/22** regions and within 20% in **22/22**), with **0.9** calibrated 90% interval coverage. See the full [v4 Validation Report](docs/validation/global-v4/report.md) and its [scope and limits](#2-multi-regional-validation-summary).
 - **Orbit-Drift & End-of-Mission Ready:** Explicitly models MODIS orbital drift directly from `acq_time` (Terra `-1.36 h`, Aqua `+1.39 h` median shift) and chains NOAA-20/NOAA-21 to Suomi NPP for continuity beyond Suomi NPP's November 2026 end.
 
 ---
@@ -21,7 +21,7 @@ A scientifically validated **Burning Activity Calendar** and Earth Observation a
 
 - [The Challenge & Our Solution](#the-challenge--our-solution)
   - [1. Cross-Sensor Harmonization Engine (`backend/`)](#1-cross-sensor-harmonization-engine-backend)
-  - [2. Global Validation Summary](#2-global-validation-summary)
+  - [2. Multi-Regional Validation Summary](#2-multi-regional-validation-summary)
   - [3. Interactive Burning Activity Calendar (`src/`)](#3-interactive-burning-activity-calendar-src)
 - [Architecture & Performance](#architecture--performance)
 - [API Reference](#api-reference)
@@ -51,7 +51,7 @@ The backend converts multi-satellite NASA FIRMS hotspot counts into consistent *
    Selectable engine versions (`HARMONIZATION=v1|v2|v3|v4` in [`backend/harmonization_select.py`](backend/harmonization_select.py)) span the baseline model through day/night + FRP stratification (`v2`), separated small-fire attribution (`v3`), and the production MODIS orbit-drift model (`v4`). Methodology notes are documented in [`docs/harmonization.md`](docs/harmonization.md).
 4. **Uncertainty, Anomalies & External Witness Checks:** Delivers calibrated 90% quasi-Poisson confidence intervals, leave-one-out multi-year baselines (Z-scores, percentiles, % of median), blocked $k$-fold cross-validation, and burned-area seam tests against NASA LP DAAC (`MCD64A1` / `VNP64A1`).
 
-### 2. Global Validation Summary
+### 2. Multi-Regional Validation Summary
 
 Across **22 fire-prone regions** spanning boreal forests, tropical forests, savannas, temperate zones, grasslands, croplands, Mediterranean shrublands, and peatlands ([full report](docs/validation/global-v4/report.md)):
 
@@ -62,6 +62,8 @@ Across **22 fire-prone regions** spanning boreal forests, tropical forests, sava
 | **k-fold $\|\text{Bias}\|$ (2023+, VIIRS → MODIS)** | — | `4.0%` | **`2.7%`** *(better in 13/22)* |
 | **Forward $\|\text{Bias}\|$ (fit $\le 2023 \rightarrow 2025$)** | — | `11.5%` | **`8.3%`** *(better in 13/22)* |
 | **Calibrated 90% Interval Coverage** | — | `0.9` | **`0.9`** |
+
+**Scope and limits.** This is a multi-regional validation, not wall-to-wall global coverage. Because of the time constraints of the hackathon, we validated 22 hand-picked fire-prone boxes (3–6° each) in one overnight run instead of a random, biome-stratified sample of the whole globe. NOAA-21 is missing in 8 of the regions (the FIRMS Area API rate limit stopped the download), there is no region yet in Central Africa, the tundra, China or the Middle East, the data end in 2025, and the burned-area witness (MCD64A1) is itself a MODIS product. The [validation script](scripts/validation/global_validation.py) is resumable and ready for a larger sample.
 
 ### 3. Interactive Burning Activity Calendar (`src/`)
 
