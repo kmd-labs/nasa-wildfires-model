@@ -29,7 +29,7 @@ const DATE_START_STORAGE_KEY = 'nasa-wildfires-model.dateStart';
 const DATE_END_STORAGE_KEY = 'nasa-wildfires-model.dateEnd';
 const UI_STORAGE_KEY = 'nasa-wildfires-model.ui';
 const PREFILL_VERSION_KEY = 'nasa-wildfires-model.prefillVersion';
-const CURRENT_PREFILL_VERSION = '3';
+const CURRENT_PREFILL_VERSION = '4';
 
 const VALID_COLOR_RAMPS = new Set<ColorRampId>(['okabeIto', 'cividis', 'viridis', 'ylOrRd']);
 const VALID_CALENDAR_MODES = new Set<CalendarGranularity>(['daily', 'monthly']);
@@ -37,8 +37,9 @@ const VALID_CHART_MODES = new Set<ChartGranularity>(['monthly', 'yearly']);
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 const LEGACY_PREFILL_BBOX: BoundingBox = [-8.11, 40.0, -7.62, 40.43];
+const V3_DEFAULT_PREFILL_DATES = { start: '2025-06-01', end: '2025-09-30' };
 
-// Prefill with 6-edge polygon encompassing the entire Iberian Peninsula & 2025 fire season (Jun–Sep 2025)
+// Prefill with 6-edge polygon encompassing the entire Iberian Peninsula & 2010–2013 MODIS→VIIRS transition window
 export const DEFAULT_PREFILL_BBOX: BoundingBox = [-9.55, 36.0, 3.45, 43.8];
 export const DEFAULT_PREFILL_POLYGON: PolygonRing = [
   [-9.55, 37.0],
@@ -48,7 +49,7 @@ export const DEFAULT_PREFILL_POLYGON: PolygonRing = [
   [-1.8, 43.65],
   [-9.4, 43.8]
 ];
-export const DEFAULT_PREFILL_DATES = { start: '2025-06-01', end: '2025-09-30' };
+export const DEFAULT_PREFILL_DATES = { start: '2010-01-01', end: '2013-12-31' };
 
 export function bboxToPolygonRing(bbox: BoundingBox): PolygonRing {
   const [w, s, e, n] = bbox;
@@ -355,8 +356,10 @@ export class WildfireStateService {
 
   private migrateLegacyPrefillIfNeeded(): void {
     try {
-      if (localStorage.getItem(PREFILL_VERSION_KEY) === CURRENT_PREFILL_VERSION) return;
+      const prevVersion = localStorage.getItem(PREFILL_VERSION_KEY);
+      if (prevVersion === CURRENT_PREFILL_VERSION) return;
       const rawBox = localStorage.getItem(BBOX_STORAGE_KEY);
+      let isDefaultIberiaBox = !rawBox;
       if (rawBox) {
         const parsed = JSON.parse(rawBox);
         if (
@@ -368,18 +371,34 @@ export class WildfireStateService {
           localStorage.removeItem(POLYGON_STORAGE_KEY);
           localStorage.removeItem(DATE_START_STORAGE_KEY);
           localStorage.removeItem(DATE_END_STORAGE_KEY);
+        } else if (
+          Array.isArray(parsed) &&
+          parsed.length === 4 &&
+          DEFAULT_PREFILL_BBOX.every((v, i) => typeof parsed[i] === 'number' && Math.abs(parsed[i] - v) < 1e-3)
+        ) {
+          isDefaultIberiaBox = true;
         }
       }
-      const rawUi = localStorage.getItem(UI_STORAGE_KEY);
-      if (rawUi) {
-        try {
-          const parsedUi = JSON.parse(rawUi);
-          if (parsedUi && typeof parsedUi === 'object') {
-            parsedUi.showLayersSection = false;
-            localStorage.setItem(UI_STORAGE_KEY, JSON.stringify(parsedUi));
+      if (
+        isDefaultIberiaBox &&
+        localStorage.getItem(DATE_START_STORAGE_KEY) === V3_DEFAULT_PREFILL_DATES.start &&
+        localStorage.getItem(DATE_END_STORAGE_KEY) === V3_DEFAULT_PREFILL_DATES.end
+      ) {
+        localStorage.removeItem(DATE_START_STORAGE_KEY);
+        localStorage.removeItem(DATE_END_STORAGE_KEY);
+      }
+      if (!prevVersion) {
+        const rawUi = localStorage.getItem(UI_STORAGE_KEY);
+        if (rawUi) {
+          try {
+            const parsedUi = JSON.parse(rawUi);
+            if (parsedUi && typeof parsedUi === 'object') {
+              parsedUi.showLayersSection = false;
+              localStorage.setItem(UI_STORAGE_KEY, JSON.stringify(parsedUi));
+            }
+          } catch {
+            // ignore malformed stored ui
           }
-        } catch {
-          // ignore malformed stored ui
         }
       }
       localStorage.setItem(PREFILL_VERSION_KEY, CURRENT_PREFILL_VERSION);

@@ -70,8 +70,8 @@ interface TimelineMetaJson {
 
 const DEFAULT_HOSTED_API_BASE = 'https://nasa-wildfires-model-95065765400.europe-west1.run.app';
 const DEFAULT_CACHED_IBERIA_BBOX: BoundingBox = [-9.55, 36.0, 3.45, 43.8];
-const DEFAULT_CACHED_FROM_YM = '2025-06';
-const DEFAULT_CACHED_TO_YM = '2025-09';
+const DEFAULT_CACHED_FROM_DATE = '2010-01-01';
+const DEFAULT_CACHED_TO_DATE = '2013-12-31';
 
 /**
  * Fallback AOI registry matching aoi.csv from Issue #22
@@ -455,7 +455,7 @@ export class WildfireDataService {
     if (!firstBox) return false;
     const matchesBox = DEFAULT_CACHED_IBERIA_BBOX.every((val, idx) => Math.abs(firstBox[idx] - val) <= 0.02);
     if (!matchesBox) return false;
-    return dateStart.slice(0, 10) === `${DEFAULT_CACHED_FROM_YM}-01` && dateEnd.slice(0, 10) === `${DEFAULT_CACHED_TO_YM}-30`;
+    return dateStart.slice(0, 10) === DEFAULT_CACHED_FROM_DATE && dateEnd.slice(0, 10) === DEFAULT_CACHED_TO_DATE;
   }
 
   async syncCalendarFromBackend(
@@ -862,7 +862,7 @@ export class WildfireDataService {
 
       if (defaultCal?.months && defaultCal?.selection) {
         this.cachedDefaultCalendar = defaultCal;
-        const defaultKey = `${DEFAULT_CACHED_IBERIA_BBOX.map(v => Number(v.toFixed(4))).join(',')}|${DEFAULT_CACHED_FROM_YM}|${DEFAULT_CACHED_TO_YM}`;
+        const defaultKey = `${DEFAULT_CACHED_IBERIA_BBOX.map(v => Number(v.toFixed(4))).join(',')}|${DEFAULT_CACHED_FROM_DATE}|${DEFAULT_CACHED_TO_DATE}`;
         void this.offlineCache.putCalendar(defaultKey, defaultCal);
         if (!this.isCustomDataset() && !this.backendCalendar()) {
           this.backendCalendar.set(defaultCal);
