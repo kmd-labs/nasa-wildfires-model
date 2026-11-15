@@ -1,7 +1,7 @@
 # NASA Wildfires Model — Harmonized MODIS & VIIRS Burning Activity Calendar
 
 > **Live Application:** [harmonization.kmd-labs.org](https://harmonization.kmd-labs.org/)  
-> **Hackathon Challenge:** **2026 NASA Space Apps Challenge** — *Challenge 15: Harmonization of MODIS and VIIRS Hot Spots*  
+> **Hackathon Challenge:** **2026 NASA Space Apps Challenge** — [Challenge 15: Harmonization of MODIS and VIIRS Hot Spots](https://www.spaceappschallenge.org/2026/challenges/modis-and-viirs-hot-spots/)  
 > **Built by:** **KMD Labs** ([kmd-labs.org](https://kmd-labs.org))
 
 A scientifically validated **Burning Activity Calendar** and Earth Observation analytics platform that reconciles over 25 years of active-fire detections across **MODIS (Terra & Aqua, 1 km)** and **VIIRS (Suomi NPP, NOAA-20 & NOAA-21, 375 m)** into one consistent, drift-corrected time series from **November 2000 to the present**.
@@ -32,7 +32,7 @@ A scientifically validated **Burning Activity Calendar** and Earth Observation a
 
 ## The Challenge & Our Solution
 
-This repository is our solution to **Challenge 15 — *Harmonization of MODIS and VIIRS Hot Spots*** in the **2026 NASA Space Apps Challenge**.
+This repository is our solution to [Challenge 15 — Harmonization of MODIS and VIIRS Hot Spots](https://www.spaceappschallenge.org/2026/challenges/modis-and-viirs-hot-spots/) in the **2026 NASA Space Apps Challenge**.
 
 **The Problem:** As MODIS approaches the end of its operational life, long-term wildfire monitoring depends on bridging MODIS (`1 km`) with higher-resolution VIIRS instruments (`375 m` across `S-NPP`, `NOAA-20`, and `NOAA-21`). Directly summing detections produces an artificial 4–5× spike in 2012 and distorts historical trends due to differing sensitivity, pixel resolution, and drifting satellite overpass schedules.
 
