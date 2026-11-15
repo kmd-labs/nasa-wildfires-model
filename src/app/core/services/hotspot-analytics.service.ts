@@ -1,5 +1,6 @@
 import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import {
+  BackendCalendarPayload,
   ActiveFireDataset,
   BackendDailyBucket,
   BoundingBox,
@@ -100,6 +101,9 @@ interface ChartItem {
   hasData: boolean;
   lo: number | null;
   hi: number | null;
+  small?: number | null;
+  median?: number | null;
+  within?: boolean | null;
 }
 
 export interface GlobePixelSquare {
@@ -644,6 +648,8 @@ export class HotspotAnalyticsService {
     const endIdx = Math.max(startIdx, ey * 12 + (em - 1));
     type MonthCounts = { modis: number; viirs: number; harm: number; hasData: boolean; lo: number | null; hi: number | null };
     const countsByYm = new Map<string, MonthCounts>();
+    // explanatory per-month layers from the backend (v3+/v4): small fires and the other-years median
+    const extraByYm = new Map<string, { small: number | null; median: number | null; within: boolean | null }>();
 
     if (!isCustom && backend) {
       const ratio = this.backendSpatialRatio();
@@ -662,6 +668,16 @@ export class HotspotAnalyticsService {
         const hasData = backend.series.harmonized[i] !== null && (backend.series.dataCoverage?.[i] ?? 1) > 0;
         const loRaw = backend.series.harmonizedLo90?.[i] ?? null;
         const hiRaw = backend.series.harmonizedHi90?.[i] ?? null;
+        const smallRaw = backend.series.smallFiresPerViirsSatellite?.[i] ?? null;
+        const medianRaw = backend.series.otherYearsMedian?.[i] ?? null;
+        const withinRaw = backend.series.withinNormal?.[i] ?? null;
+        const partialMonth = isPartialStart || isPartialEnd;
+        extraByYm.set(ym, {
+          small: hasData && smallRaw !== null ? smallRaw * ratio : null,
+          // a whole-month median is not comparable with a partly selected month
+          median: hasData && !partialMonth && medianRaw !== null ? medianRaw * ratio : null,
+          within: hasData && !partialMonth && withinRaw !== null ? withinRaw >= 0.5 : null
+        });
         if (isPartialStart || isPartialEnd) {
           if (coversRange && dailyByYear[String(y)]) {
             const exact = sumDailyBucketsInMonth(dailyByYear[String(y)], y, m, start, end);
@@ -726,7 +742,10 @@ export class HotspotAnalyticsService {
         inSelectedRange: true,
         hasData: c.hasData,
         lo: c.lo,
-        hi: c.hi
+        hi: c.hi,
+        small: extraByYm.get(ym)?.small ?? null,
+        median: extraByYm.get(ym)?.median ?? null,
+        within: extraByYm.get(ym)?.within ?? null
       });
     }
 
@@ -757,9 +776,29 @@ export class HotspotAnalyticsService {
         inSelectedRange: item.inSelectedRange,
         hasData: item.hasData,
         harmonizedLo90: item.lo,
-        harmonizedHi90: item.hi
+        harmonizedHi90: item.hi,
+        smallFires: item.small ?? null,
+        otherYearsMedian: item.median ?? null,
+        withinNormal: item.within ?? null
       };
     });
+  }
+
+  /**
+   * Selected period vs the median of the same period in the other downloaded years (backend
+   * `comparedWithSameMonthsInOtherYears`). Normal band = between the 25th and 75th percentile of
+   * those years; needs MIN_ANOMALY_YEARS other years.
+   */
+  private medianComparison(sel: BackendCalendarPayload['selection']): Pick<HotspotAnalyticsSummary, 'pctOfMedian' | 'medianComparisonYears' | 'normalBand'> {
+    const cmp = sel.comparedWithSameMonthsInOtherYears;
+    const years = cmp?.years ?? 0;
+    if (!cmp || years < MIN_ANOMALY_YEARS || cmp.median === null || cmp.median <= 0) {
+      return { pctOfMedian: null, medianComparisonYears: years, normalBand: null };
+    }
+    const pct = Math.round((sel.hotspots.harmonized / cmp.median) * 100);
+    const p = cmp.percentile;
+    const band = p === null ? null : p < 25 ? 'below' : p > 75 ? 'above' : 'normal';
+    return { pctOfMedian: pct, medianComparisonYears: years, normalBand: band };
   }
 
   /** Summary KPI figures for the selected region & date range. */
@@ -885,6 +924,7 @@ export class HotspotAnalyticsService {
         anomalyZScore,
         anomalyComparisonYears,
         anomalyAvailable,
+        ...this.medianComparison(sel),
         areaKm2: area.km2,
         areaHa: area.ha,
         activeDataset,
@@ -963,6 +1003,9 @@ export class HotspotAnalyticsService {
       anomalyZScore: anomalyAvailable ? anomalyZScore : 0,
       anomalyComparisonYears,
       anomalyAvailable,
+      pctOfMedian: null,
+      medianComparisonYears: 0,
+      normalBand: null,
       areaKm2: area.km2,
       areaHa: area.ha,
       activeDataset,

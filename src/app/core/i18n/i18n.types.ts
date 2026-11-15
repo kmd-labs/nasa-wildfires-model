@@ -159,6 +159,16 @@ export interface Dict {
   legendRawModis: string;
   legendMultiYearAvg: string;
   legendInterval90: string;
+  kpiOfMedian: string;
+  kpiYearsShort: string;
+  kpiMedianHint: string;
+  normalWithin: string;
+  normalAbove: string;
+  normalBelow: string;
+  normalOutside: string;
+  otherYearsMedianLabel: string;
+  legendSmallFires: string;
+  legendSmallFiresHint: string;
   calendarOtherYearsAvg: string;
   chartViirsStartMarker: string;
   perMonthShort: string;

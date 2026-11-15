@@ -561,6 +561,14 @@
                 <span class="kpi-card__sub">
                   {{ summary.anomalyPct >= 0 ? '+' : '' }}{{ summary.anomalyPct }}% {{ t.kpiVsBaseline }}
                 </span>
+                @if (summary.pctOfMedian !== null) {
+                  <span class="kpi-card__sub" [attr.title]="t.kpiMedianHint">
+                    {{ summary.pctOfMedian }}% {{ t.kpiOfMedian }} ({{ summary.medianComparisonYears }} {{ t.kpiYearsShort }}) ·
+                    <b [class.kpi-card__val--hot]="summary.normalBand === 'above'" [class.kpi-card__val--cool]="summary.normalBand === 'below'">{{
+                      summary.normalBand === 'above' ? t.normalAbove : summary.normalBand === 'below' ? t.normalBelow : t.normalWithin
+                    }}</b>
+                  </span>
+                }
               } @else {
                 <strong class="kpi-card__val" [attr.title]="t.kpiAnomalyNoHistoryHint">—</strong>
                 <span class="kpi-card__sub" [attr.title]="t.kpiAnomalyNoHistoryHint">{{ t.kpiAnomalyNoHistory }}</span>
@@ -767,6 +775,9 @@
               <span class="legend-item"><i class="swatch swatch--modis"></i>{{ t.legendRawModis }}</span>
               <span class="legend-item"><i class="swatch swatch--avg"></i>{{ t.legendMultiYearAvg }}</span>
               <span class="legend-item"><i class="swatch swatch--ci"></i>{{ t.legendInterval90 }}</span>
+              @if (hasSmallFireLayer()) {
+                <span class="legend-item" [attr.title]="t.legendSmallFiresHint"><i class="swatch swatch--small"></i>{{ t.legendSmallFires }}</span>
+              }
             </div>
 
             <div class="svg-wrap">
@@ -843,6 +854,19 @@
                 }
 
                 <line x1="38" [attr.y1]="avgY" x2="510" [attr.y2]="avgY" class="svg-avg-line" />
+
+                @if (hasSmallFireLayer()) {
+                  <polyline class="svg-small-line" [attr.points]="smallFirePoints()" />
+                  @for (pt of series; track pt.key; let i = $index) {
+                    @if (pt.smallFires !== null) {
+                      <circle
+                        class="svg-small-dot"
+                        [attr.cx]="42 + i * slotW + slotW / 2"
+                        [attr.cy]="156 - (Math.min(pt.smallFires, maxY) / maxY) * 138"
+                        r="1.8" />
+                    }
+                  }
+                }
               </svg>
             </div>
           </section>
@@ -925,6 +949,12 @@
                   <span class="mono-tag">{{ t.legendHarmonized }}: <b>{{ hp.harmonizedCount | number }}</b></span>
                   @if (hp.harmonizedLo90 !== null && hp.harmonizedHi90 !== null) {
                     <span class="mono-tag">{{ t.legendInterval90 }}: {{ hp.harmonizedLo90 | number:'1.0-1' }}–{{ hp.harmonizedHi90 | number:'1.0-1' }}</span>
+                  }
+                  @if (hp.otherYearsMedian !== null) {
+                    <span class="mono-tag">{{ t.otherYearsMedianLabel }}: {{ hp.otherYearsMedian | number:'1.0-1' }}@if (hp.withinNormal !== null) { · {{ hp.withinNormal ? t.normalWithin : t.normalOutside }}}</span>
+                  }
+                  @if (hp.smallFires !== null) {
+                    <span class="mono-tag">{{ t.legendSmallFires }}: {{ hp.smallFires | number:'1.0-1' }}</span>
                   }
                   <span class="mono-tag">MODIS: {{ hp.rawModisCount | number }} · VIIRS: {{ hp.rawViirsCount | number }}</span>
                   <span class="mono-tag">{{ hp.anomalyZScore >= 0 ? '+' : '' }}{{ hp.anomalyZScore }}σ ({{ hp.anomalyPct >= 0 ? '+' : '' }}{{ hp.anomalyPct }}%)</span>

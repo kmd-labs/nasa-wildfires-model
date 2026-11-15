@@ -362,7 +362,23 @@ export class AnalyticsPanelComponent {
 
   readonly historyMaxVal = computed(() => {
     const list = this.analytics.chartSeries();
-    return Math.max(1, ...list.map(y => Math.max(y.harmonizedCount, y.rawModisCount, y.avgCount, y.harmonizedHi90 ?? 0)));
+    return Math.max(1, ...list.map(y => Math.max(y.harmonizedCount, y.rawModisCount, y.avgCount, y.harmonizedHi90 ?? 0, y.smallFires ?? 0)));
+  });
+
+  /** The VIIRS small-fire layer (backend v3+/v4) is drawn in the monthly view when present. */
+  readonly hasSmallFireLayer = computed<boolean>(
+    () => this.state.chartGranularity() === 'monthly' && this.analytics.chartSeries().some(p => p.smallFires !== null)
+  );
+
+  /** SVG polyline points of the small-fire layer, in the history chart's coordinates. */
+  readonly smallFirePoints = computed<string>(() => {
+    const list = this.analytics.chartSeries();
+    const maxY = this.historyMaxVal();
+    const slotW = 472 / Math.max(1, list.length);
+    return list
+      .map((p, i) => (p.smallFires === null ? null : `${(42 + i * slotW + slotW / 2).toFixed(1)},${(156 - (Math.min(p.smallFires, maxY) / maxY) * 138).toFixed(1)}`))
+      .filter((v): v is string => v !== null)
+      .join(' ');
   });
 
   readonly anomalyMaxAbsZ = computed(() => {

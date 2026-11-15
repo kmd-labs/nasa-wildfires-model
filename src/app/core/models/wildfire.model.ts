@@ -93,6 +93,11 @@ export interface ChartSeriesPoint {
   /** 90 % interval of the harmonized value (monthly view with backend data only). */
   harmonizedLo90: number | null;
   harmonizedHi90: number | null;
+  /** Small fires seen only by VIIRS, per VIIRS satellite (explanatory layer, not in the count). */
+  smallFires: number | null;
+  /** Median of the same month in the other years with data, and whether the 90% interval contains it. */
+  otherYearsMedian: number | null;
+  withinNormal: boolean | null;
 }
 
 export interface HotspotAnalyticsSummary {
@@ -114,6 +119,10 @@ export interface HotspotAnalyticsSummary {
   /** Other years with data the anomaly is computed against; below MIN_ANOMALY_YEARS there is no anomaly. */
   anomalyComparisonYears: number;
   anomalyAvailable: boolean;
+  /** Selected period vs the median of the same period in other years (null without enough years). */
+  pctOfMedian: number | null;
+  medianComparisonYears: number;
+  normalBand: 'below' | 'normal' | 'above' | null;
   areaKm2: number;
   areaHa: number;
   activeDataset: DatasetSelectionMode;
@@ -335,6 +344,12 @@ export interface BackendCalendarPayload {
     percentile: (number | null)[];
     /** Share of each month's days downloaded; 0 = never downloaded (values are null, not zero). */
     dataCoverage?: (number | null)[];
+    /** v3+/v4: median of the same calendar month in the other years, % of it, interval contains it (1/0). */
+    otherYearsMedian?: (number | null)[];
+    pctOfMedian?: (number | null)[];
+    withinNormal?: (number | null)[];
+    /** v3+/v4: VIIRS detections below the small-fire FRP threshold, per operating VIIRS satellite. */
+    smallFiresPerViirsSatellite?: (number | null)[];
   };
   calendar: {
     years: number[];
