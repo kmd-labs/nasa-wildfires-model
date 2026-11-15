@@ -11,7 +11,7 @@ import pandas as pd
 
 from .harmonization_select import hz
 from .burned_area import PIXEL_KM2, PRODUCTS, BurnedAreaClient, BurnedAreaError, tiles_for_bbox
-from .firms import FirmsClient, FirmsError, Region, RegionStore
+from .firms import PLATFORM_SENSOR, FirmsClient, FirmsError, Region, RegionStore, today_utc
 from .harmonization3 import seam_test
 
 ATTRIBUTION = ("We acknowledge the use of data and imagery from NASA's Fire Information for Resource Management "
@@ -23,6 +23,9 @@ MAX_BBOX_DEG2 = 8000.0  # up to ~90 x 88 degrees; larger requests are refused
 BURNED_AREA_MAX_DEG2 = 400.0    # burned-area downloads: about 4 sinusoidal tiles x 310 months at most
 BURNED_AREA_LATENCY_DAYS = 75  # the newest burned-area month LP DAAC has normally published is about this old
 BURNED_AREA_RETRY_S = 600       # a burned-area job with failed tiles is retried after this many seconds
+# Chunks of a query window that failed are not re-requested for this long; meanwhile the data that did
+# arrive is served and the failed days are reported as missing (prevents an endless 202 loop).
+FAILED_WINDOW_RETRY_S = 120
 
 
 class NotReady(Exception):
@@ -85,6 +88,17 @@ def parse_day(text: str, end: bool) -> pd.Timestamp:
         raise BadRequest("dates must be YYYY-MM-DD or YYYY-MM") from exc
 
 
+def query_window(date_from: str | None, date_to: str | None) -> tuple[dt.date, dt.date] | None:
+    """Days a query needs downloaded: [from, to]. Neither date given means the whole record (None)."""
+    if not date_from and not date_to:
+        return None
+    first = parse_day(date_from, end=False).date() if date_from else dt.date(2000, 11, 1)
+    last = parse_day(date_to, end=True).date() if date_to else today_utc()
+    if first > last:
+        raise BadRequest("from must not be after to")
+    return first, min(last, today_utc())
+
+
 def _clean(values, digits: int = 2) -> list:
     return [None if np.isnan(v) else (int(v) if digits == 0 else round(float(v), digits)) for v in values]
 
@@ -112,12 +126,14 @@ class CalendarService:
         self,
         bbox: tuple[float, float, float, float],
         wait: bool = False,
-        priority_window: tuple[dt.date, dt.date] | None = None,
+        window: tuple[dt.date, dt.date] | None = None,
     ) -> Region:
-        """Return a region with data for bbox, starting a background download when something is missing.
+        """Return a region with the data of `window` for bbox, downloading only what that query needs.
 
-        Raises NotReady while the first download of a region is running. A region that already has
-        data is served as it is while its newest weeks are refreshed in the background.
+        Only chunks overlapping `window` (the user's bbox x date range) are fetched; there is no
+        background download of other years. Raises NotReady while chunks of the window are missing and
+        being downloaded. Chunks that exist but are due for a refresh (recent NRT days) are refreshed in
+        the background while the cached data is served. `window=None` means the whole record (CLI).
         """
         region = self.store.get_or_create(bbox)
         if not self.client.online:
@@ -125,34 +141,48 @@ class CalendarService:
                 raise BadRequest("FIRMS_MAP_KEY is not set and there is no cached data for this area")
             return region
         job = self._job(region)
-        if job is None or (job["finished"] and job["error"] is None and self._needs_sync(region)) or (job["finished"] and job["error"]):
-            job = self._start(region, priority_window=priority_window)
-        if wait:
-            job["thread"].join()
-        if job["error"] and not region.has_data:
-            raise FirmsError(job["error"])
-        if not region.has_data:
+        running = bool(job and not job["finished"])
+        availability = self.client.availability()
+        today = today_utc()
+        missing = region.plan(availability, today, window=window, include_stale=False)
+        if missing:
+            if not running:
+                recently_failed = bool(
+                    job and job["failed"] and job.get("window") == window
+                    and time.time() - job.get("finishedAt", 0.0) < FAILED_WINDOW_RETRY_S
+                )
+                if recently_failed and region.has_data:
+                    return region  # serve what arrived; the failed days read as missing data
+                if recently_failed:
+                    raise FirmsError(job["failed"][0])
+                job = self._start(region, window)
+            if wait:
+                job["thread"].join()
+                if job["error"] and not region.has_data:
+                    raise FirmsError(job["error"])
+                return region
             raise NotReady({"done": job["done"], "total": job["total"]})
+        if not running and region.plan(availability, today, window=window):
+            self._start(region, window)  # refresh recent days of the window in the background
+        if not region.has_data:
+            raise NotReady({"done": 0, "total": 0})
         return region
 
-    def _needs_sync(self, region: Region) -> bool:
-        from .firms import today_utc
-        return bool(region.plan(self.client.availability(), today_utc()))
-
-    def _start(self, region: Region, priority_window: tuple[dt.date, dt.date] | None = None) -> dict:
-        job = {"done": 0, "total": 0, "finished": False, "error": None, "failed": []}
+    def _start(self, region: Region, window: tuple[dt.date, dt.date] | None = None) -> dict:
+        job = {"done": 0, "total": 0, "finished": False, "finishedAt": 0.0, "error": None, "failed": [], "window": window}
 
         def work() -> None:
             try:
                 outcome = region.sync(
                     self.client,
                     progress=lambda done, total: job.update(done=done, total=total),
-                    priority_window=priority_window,
+                    window=window,
                 )
                 job["failed"] = outcome["failed"]
             except Exception as exc:  # the thread must always finish the job record
                 job["error"] = str(exc)
             finally:
+                job["finishedAt"] = time.time()
                 job["finished"] = True
 
         job["thread"] = threading.Thread(target=work, name=f"firms-sync-{region.key}", daemon=True)
@@ -193,11 +223,13 @@ class CalendarService:
         env = envelope_bbox(bboxes)
         res = hz.pick_h3_resolution(env)
         cube = hz.build_cube(df, avail, res)
+        month_coverage = self._apply_coverage(cube, regions, avail)
         eff, regional, calibration = hz.fit_efficiency(cube)
         harmonized, sd = hz.harmonize(cube, eff, regional)
         out = {"cube": cube, "harmonized": harmonized, "sd": sd, "calibration": calibration, "h3Resolution": res,
                "validation": hz.validate(cube) if len(cube.cells) else None, "availability": avail,
-               "df": df[["date", "acq_date", "latitude", "longitude", "frp", "platform"]].copy(), "pixel_df": pixel_df}
+               "df": df[["date", "acq_date", "latitude", "longitude", "frp", "platform"]].copy(), "pixel_df": pixel_df,
+               "coverage": month_coverage}
         if hasattr(hz, "extras"):  # v3: weight per detection and the small-fire layer
             out.update(hz.extras(cube, eff, df))
         with self._lock:
@@ -207,13 +239,41 @@ class CalendarService:
         return out
 
     @staticmethod
+    def _apply_coverage(cube, regions: list[Region], avail) -> np.ndarray:
+        """Scale satellite exposure by the share of days actually downloaded; returns [month] coverage.
+
+        Months (or days) that were never downloaded then carry no sensing power, so they are missing in
+        the fit, the harmonized series and the climatology instead of counting as months without fires.
+        The month coverage is the lowest coverage among the satellites operating that month.
+        """
+        n_t = len(cube.months)
+        if not n_t:
+            return np.ones(0)
+        per_region = [r.coverage(cube.months, avail) for r in regions]
+        operating = cube.exposure > 0
+        cov = np.ones((len(hz.PLATFORMS), n_t))
+        for p, platform in enumerate(hz.PLATFORMS):
+            sensor = PLATFORM_SENSOR[platform]
+            cov[p] = np.min([c.get(sensor, np.zeros(n_t)) for c in per_region], axis=0)
+        cube.exposure = cube.exposure * cov
+        month_cov = np.where(operating, cov, np.inf).min(axis=0)
+        month_cov = np.where(np.isfinite(month_cov), month_cov, 1.0)
+        cube.observed = cube.observed * month_cov
+        return month_cov
+
+    @staticmethod
     def _totals(h: dict) -> dict:
         """Monthly totals of the bbox: raw MODIS / VIIRS per cell and summed, harmonized value and sd."""
         cube = h["cube"]
         modis_cell = cube.counts[hz.PLATFORMS.index("TERRA")] + cube.counts[hz.PLATFORMS.index("AQUA")]
         viirs_cell = cube.counts[[hz.PLATFORMS.index(p) for p in hz.VIIRS]].sum(axis=0)
         empty = np.isnan(h["harmonized"]).all(axis=0) if len(cube.cells) else (cube.exposure.sum(axis=0) == 0)
-        return {"modis_cell": modis_cell, "viirs_cell": viirs_cell, "modis": modis_cell.sum(axis=0), "viirs": viirs_cell.sum(axis=0),
+        coverage = h.get("coverage", np.ones(len(cube.months)))
+        no_data = coverage <= 0  # never downloaded: missing, not zero
+        empty = empty | no_data
+        modis = np.where(no_data, np.nan, modis_cell.sum(axis=0).astype(float))
+        viirs = np.where(no_data, np.nan, viirs_cell.sum(axis=0).astype(float))
+        return {"modis_cell": modis_cell, "viirs_cell": viirs_cell, "modis": modis, "viirs": viirs, "coverage": coverage,
                 "total": np.where(empty, np.nan, np.nansum(h["harmonized"], axis=0)),
                 "sd": np.where(empty, np.nan, np.sqrt(np.nansum(h["sd"] ** 2, axis=0))),
                 "complete": cube.observed >= 0.999}
@@ -242,7 +302,7 @@ class CalendarService:
         self,
         bboxes: tuple[tuple[float, float, float, float], ...],
         wait: bool = False,
-        priority_window: tuple[dt.date, dt.date] | None = None,
+        window: tuple[dt.date, dt.date] | None = None,
     ) -> list[Region]:
         seen: dict[str, Region] = {}
         total_done = 0
@@ -250,7 +310,7 @@ class CalendarService:
         not_ready = False
         for b in bboxes:
             try:
-                reg = self.ensure_data(b, wait=wait, priority_window=priority_window)
+                reg = self.ensure_data(b, wait=wait, window=window)
                 seen[reg.key] = reg
             except NotReady as nr:
                 not_ready = True
@@ -264,13 +324,7 @@ class CalendarService:
         """The API payload: full harmonized calendar of the bbox(es) plus a summary of the selected period."""
         bboxes = parse_bboxes(bbox_text)
         bbox = envelope_bbox(bboxes)
-        prio_window = None
-        if date_from and date_to:
-            p_start = parse_day(date_from, end=False).date()
-            p_end = parse_day(date_to, end=True).date()
-            if p_start <= p_end:
-                prio_window = (p_start, p_end)
-        regions = self._ensure_regions_for_bboxes(bboxes, wait=wait, priority_window=prio_window)
+        regions = self._ensure_regions_for_bboxes(bboxes, wait=wait, window=query_window(date_from, date_to))
         region = regions[0]
         h = self._harmonized(regions, bboxes)
         cube: hz.Cube = h["cube"]
@@ -329,8 +383,8 @@ class CalendarService:
         }
 
         value = float(np.nansum(total[full_window])) if len(full_window) else 0.0
-        raw_modis = int(modis[full_window].sum()) if len(full_window) else 0
-        raw_viirs = int(viirs[full_window].sum()) if len(full_window) else 0
+        raw_modis = int(np.nansum(modis[full_window])) if len(full_window) else 0
+        raw_viirs = int(np.nansum(viirs[full_window])) if len(full_window) else 0
         partial_in_win = (
             in_win[in_win.acq_date.str.slice(0, 7).isin(partial_yms)]
             if (partial_yms and len(in_win))
@@ -491,6 +545,9 @@ class CalendarService:
                 "monthInProgress": None if complete[-1] else months[-1],
                 "refreshing": bool(job and not job["finished"]),
                 "failedChunks": len(job["failed"]) if job else 0,
+                "downloadPolicy": "on-demand: only the days of the requested window are downloaded; "
+                                  "months never downloaded are null (missing), not zero",
+                "historyYears": int(sum(1 for y in years if np.mean(tot["coverage"][cube.years == y]) >= 0.999)),
                 "metric": "hotspotCount",
                 "unit": "MODIS-equivalent hot spots (Terra + Aqua, vegetation fires, confidence >= 30 / nominal)",
                 "platforms": h["availability"].to_json(), "calibration": h["calibration"],
@@ -501,6 +558,7 @@ class CalendarService:
                 "rawModis": _clean(modis, 0), "rawViirs": _clean(viirs, 0), "naiveSum": _clean(modis + viirs, 0),
                 "harmonized": _clean(total, 1),
                 "harmonizedLo90": _clean(lo90, 1), "harmonizedHi90": _clean(hi90, 1),
+                "dataCoverage": _clean(tot["coverage"], 3),
                 "anomalyZ": _clean(z), "percentile": _clean(pct, 1), **extra_series,
             },
             "calendar": {  # year x month matrix of harmonized hot spots, ready for the heat map
@@ -509,10 +567,11 @@ class CalendarService:
                                 else round(float(total[(cube.years == y) & (cube.cal_month == m)][0]), 1) for m in range(12)] for y in years],
             },
             "climatology": {"monthMean": _clean(clim_mean, 1), "monthStd": _clean(clim_std, 1)},
-            "yearly": [{"year": y, "rawModis": int(modis[cube.years == y].sum()), "rawViirs": int(viirs[cube.years == y].sum()),
+            "yearly": [{"year": y, "rawModis": int(np.nansum(modis[cube.years == y])), "rawViirs": int(np.nansum(viirs[cube.years == y])),
                         "harmonized": round(float(np.nansum(total[cube.years == y])), 1),
                         "frpMw": round(float(frp_by_year.get(y, 0.0))),
-                        "monthsWithData": int((~np.isnan(total[cube.years == y])).sum())} for y in years],
+                        "monthsWithData": int((~np.isnan(total[cube.years == y])).sum()),
+                        "dataCoverage": round(float(np.mean(tot["coverage"][cube.years == y])), 3)} for y in years],
             "selection": {
                 "from": months[t0], "to": months[t1],
                 "fromDate": str(first.date()), "toDate": str(last.date()),
@@ -624,7 +683,7 @@ class CalendarService:
     def hotspots_csv(self, bbox_text: str, date_from: str | None = None, date_to: str | None = None, wait: bool = False) -> str:
         """CSV of every hot spot found in the search. `used_in_calendar` tells which rows passed the QA."""
         bboxes = parse_bboxes(bbox_text)
-        regions = self._ensure_regions_for_bboxes(bboxes, wait=wait)
+        regions = self._ensure_regions_for_bboxes(bboxes, wait=wait, window=query_window(date_from, date_to))
         if len(regions) == 1:
             df = regions[0].frame()
         else:

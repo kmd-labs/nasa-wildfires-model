@@ -371,7 +371,7 @@ export class AnalyticsPanelComponent {
 
   readonly historyMaxVal = computed(() => {
     const list = this.analytics.chartSeries();
-    return Math.max(1, ...list.map(y => Math.max(y.harmonizedCount, y.rawModisCount, y.avgCount)));
+    return Math.max(1, ...list.map(y => Math.max(y.harmonizedCount, y.rawModisCount, y.avgCount, y.harmonizedHi90 ?? 0)));
   });
 
   readonly anomalyMaxAbsZ = computed(() => {

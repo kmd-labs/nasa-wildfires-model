@@ -215,6 +215,8 @@ export interface Dict {
   kpiRawSensors: string;
   kpiMultiYearAnomaly: string;
   kpiVsBaseline: string;
+  kpiAnomalyNoHistory: string;
+  kpiAnomalyNoHistoryHint: string;
   kpiTotalFrp: string;
   kpiMeanFrp: string;
   kpiPeakDate: string;
@@ -235,6 +237,8 @@ export interface Dict {
   legendHarmonized: string;
   legendRawModis: string;
   legendMultiYearAvg: string;
+  legendInterval90: string;
+  chartNoData: string;
   anomalyChartTitle: string;
   anomalyChartSubtitle: string;
   anomalyAboveAvg: string;

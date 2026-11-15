@@ -83,6 +83,21 @@ function backendPayloadCoversRange(
   return selFrom <= start && selTo >= end;
 }
 
+/** A multi-year anomaly needs at least this many other years with downloaded data. */
+export const MIN_ANOMALY_YEARS = 3;
+
+interface ChartItem {
+  key: string;
+  label: string;
+  modis: number;
+  viirs: number;
+  harm: number;
+  inSelectedRange: boolean;
+  hasData: boolean;
+  lo: number | null;
+  hi: number | null;
+}
+
 export interface GlobePixelSquare {
   lon: number;
   lat: number;
@@ -425,13 +440,16 @@ export class HotspotAnalyticsService {
       const ratio = this.backendSpatialRatio();
       const startM = Number(start.slice(5, 7));
       const endM = Number(end.slice(5, 7));
-      const byYear = new Map<number, { modis: number; viirs: number; harm: number; frp: number }>();
+      const byYear = new Map<number, { modis: number; viirs: number; harm: number; frp: number; hasData: boolean }>();
       for (const yr of backend.yearly) {
+        // On-demand download: a year counts only when it was downloaded (fully, for whole-year totals)
+        const coverage = yr.dataCoverage ?? 1;
         byYear.set(yr.year, {
           modis: useSeasonalWindow ? 0 : Math.round(yr.rawModis * ratio),
           viirs: useSeasonalWindow ? 0 : Math.round(yr.rawViirs * ratio),
           harm: useSeasonalWindow ? 0 : yr.harmonized * ratio,
-          frp: (yr.frpMw ?? 0) * ratio
+          frp: (yr.frpMw ?? 0) * ratio,
+          hasData: useSeasonalWindow ? true : yr.monthsWithData > 0 && coverage > 0
         });
       }
 
@@ -449,6 +467,10 @@ export class HotspotAnalyticsService {
           if (!matches) continue;
           const b = byYear.get(y);
           if (!b) continue;
+          if (backend.series.harmonized[i] === null || (backend.series.dataCoverage?.[i] ?? 1) <= 0) {
+            b.hasData = false; // a month of the seasonal window was never downloaded for this year
+            continue;
+          }
 
           const dim = daysInUtcMonth(y, m);
           const isStartM = m === startM && startDay > 1;
@@ -479,7 +501,7 @@ export class HotspotAnalyticsService {
       }
 
       const years = Array.from(byYear.keys()).sort((a, b) => a - b);
-      const counts = years.map(y => byYear.get(y)!.harm);
+      const counts = years.filter(y => byYear.get(y)!.hasData).map(y => byYear.get(y)!.harm);
       const nYears = Math.max(1, counts.length);
       const mean = counts.reduce((a, b) => a + b, 0) / nYears;
       const variance = counts.reduce((acc, c) => acc + Math.pow(c - mean, 2), 0) / nYears;
@@ -497,9 +519,10 @@ export class HotspotAnalyticsService {
           harmonizedCount: harm,
           frpMw: Math.round(b.frp),
           multiYearAvgCount: Number(mean.toFixed(1)),
-          anomalyPct: Number(pct.toFixed(1)),
-          anomalyZScore: Number(z.toFixed(2)),
-          inSelectedRange: y >= startYear && y <= endYear
+          anomalyPct: b.hasData ? Number(pct.toFixed(1)) : 0,
+          anomalyZScore: b.hasData ? Number(z.toFixed(2)) : 0,
+          inSelectedRange: y >= startYear && y <= endYear,
+          hasData: b.hasData
         };
       });
     }
@@ -560,7 +583,8 @@ export class HotspotAnalyticsService {
         multiYearAvgCount: Number(mean.toFixed(1)),
         anomalyPct: Number(pct.toFixed(1)),
         anomalyZScore: Number(z.toFixed(2)),
-        inSelectedRange: y >= startYear && y <= endYear
+        inSelectedRange: y >= startYear && y <= endYear,
+        hasData: true
       });
     }
     return out;
@@ -586,7 +610,10 @@ export class HotspotAnalyticsService {
           modis: y.rawModisCount,
           viirs: y.rawViirsCount,
           harm: y.harmonizedCount,
-          inSelectedRange: y.inSelectedRange
+          inSelectedRange: y.inSelectedRange,
+          hasData: y.hasData,
+          lo: null,
+          hi: null
         }))
       );
     }
@@ -608,7 +635,8 @@ export class HotspotAnalyticsService {
 
     const startIdx = sy * 12 + (sm - 1);
     const endIdx = Math.max(startIdx, ey * 12 + (em - 1));
-    const countsByYm = new Map<string, { modis: number; viirs: number; harm: number }>();
+    type MonthCounts = { modis: number; viirs: number; harm: number; hasData: boolean; lo: number | null; hi: number | null };
+    const countsByYm = new Map<string, MonthCounts>();
 
     if (!isCustom && backend) {
       const ratio = this.backendSpatialRatio();
@@ -624,6 +652,9 @@ export class HotspotAnalyticsService {
         const dim = daysInUtcMonth(y, m);
         const isPartialStart = hasDates && ym === startYm && startDay > 1;
         const isPartialEnd = hasDates && ym === endYm && endDay < dim;
+        const hasData = backend.series.harmonized[i] !== null && (backend.series.dataCoverage?.[i] ?? 1) > 0;
+        const loRaw = backend.series.harmonizedLo90?.[i] ?? null;
+        const hiRaw = backend.series.harmonizedHi90?.[i] ?? null;
         if (isPartialStart || isPartialEnd) {
           if (coversRange && dailyByYear[String(y)]) {
             const exact = sumDailyBucketsInMonth(dailyByYear[String(y)], y, m, start, end);
@@ -631,7 +662,10 @@ export class HotspotAnalyticsService {
               countsByYm.set(ym, {
                 modis: Math.round(exact.modis * ratio),
                 viirs: Math.round(exact.viirs * ratio),
-                harm: Math.round(exact.harm * ratio)
+                harm: Math.round(exact.harm * ratio),
+                hasData,
+                lo: null,
+                hi: null
               });
               continue;
             }
@@ -642,20 +676,26 @@ export class HotspotAnalyticsService {
           countsByYm.set(ym, {
             modis: Math.round((backend.series.rawModis[i] ?? 0) * ratio * frac),
             viirs: Math.round((backend.series.rawViirs[i] ?? 0) * ratio * frac),
-            harm: Math.round((backend.series.harmonized[i] ?? 0) * ratio * frac)
+            harm: Math.round((backend.series.harmonized[i] ?? 0) * ratio * frac),
+            hasData,
+            lo: loRaw !== null ? loRaw * ratio * frac : null,
+            hi: hiRaw !== null ? hiRaw * ratio * frac : null
           });
           continue;
         }
         countsByYm.set(ym, {
           modis: Math.round((backend.series.rawModis[i] ?? 0) * ratio),
           viirs: Math.round((backend.series.rawViirs[i] ?? 0) * ratio),
-          harm: Math.round((backend.series.harmonized[i] ?? 0) * ratio)
+          harm: Math.round((backend.series.harmonized[i] ?? 0) * ratio),
+          hasData,
+          lo: loRaw !== null ? loRaw * ratio : null,
+          hi: hiRaw !== null ? hiRaw * ratio : null
         });
       }
     } else {
       for (const r of this.filteredHotspots()) {
         const ym = r.date.slice(0, 7);
-        const cur = countsByYm.get(ym) ?? { modis: 0, viirs: 0, harm: 0 };
+        const cur = countsByYm.get(ym) ?? { modis: 0, viirs: 0, harm: 0, hasData: true, lo: null, hi: null };
         cur.modis += r.rawModisCount;
         cur.viirs += r.rawViirsCount;
         cur.harm += r.harmonizedCount;
@@ -663,37 +703,41 @@ export class HotspotAnalyticsService {
       }
     }
 
-    const items: { key: string; label: string; modis: number; viirs: number; harm: number; inSelectedRange: boolean }[] = [];
+    const items: ChartItem[] = [];
     for (let idx = startIdx; idx <= endIdx; idx++) {
       const y = Math.floor(idx / 12);
       const m = (idx % 12) + 1;
       const ym = `${y}-${String(m).padStart(2, '0')}`;
-      const c = countsByYm.get(ym) ?? { modis: 0, viirs: 0, harm: 0 };
+      // A month absent from the backend payload counts as missing; from a custom dataset as zero
+      const c = countsByYm.get(ym) ?? { modis: 0, viirs: 0, harm: 0, hasData: isCustom || !backend, lo: null, hi: null };
       items.push({
         key: ym,
         label: `${monthShort[m - 1] ?? String(m)} '${String(y).slice(-2)}`,
         modis: c.modis,
         viirs: c.viirs,
         harm: c.harm,
-        inSelectedRange: true
+        inSelectedRange: true,
+        hasData: c.hasData,
+        lo: c.lo,
+        hi: c.hi
       });
     }
 
     return this.finalizeChartSeries(items);
   });
 
-  private finalizeChartSeries(
-    items: { key: string; label: string; modis: number; viirs: number; harm: number; inSelectedRange: boolean }[]
-  ): ChartSeriesPoint[] {
+  private finalizeChartSeries(items: ChartItem[]): ChartSeriesPoint[] {
     if (items.length === 0) return [];
-    const n = items.length;
-    const mean = items.reduce((sum, item) => sum + item.harm, 0) / n;
-    const variance = items.reduce((sum, item) => sum + Math.pow(item.harm - mean, 2), 0) / n;
+    // periods that were never downloaded are gaps: they take no part in the period average
+    const withData = items.filter(item => item.hasData);
+    const n = Math.max(1, withData.length);
+    const mean = withData.reduce((sum, item) => sum + item.harm, 0) / n;
+    const variance = withData.reduce((sum, item) => sum + Math.pow(item.harm - mean, 2), 0) / n;
     const std = Math.sqrt(variance);
 
     return items.map(item => {
-      const pct = mean > 0 ? ((item.harm - mean) / mean) * 100 : 0;
-      const z = std > 0 ? (item.harm - mean) / std : 0;
+      const pct = item.hasData && mean > 0 ? ((item.harm - mean) / mean) * 100 : 0;
+      const z = item.hasData && std > 0 ? (item.harm - mean) / std : 0;
       return {
         key: item.key,
         label: item.label,
@@ -703,7 +747,10 @@ export class HotspotAnalyticsService {
         avgCount: Number(mean.toFixed(1)),
         anomalyPct: Number(pct.toFixed(1)),
         anomalyZScore: Number(z.toFixed(2)),
-        inSelectedRange: item.inSelectedRange
+        inSelectedRange: item.inSelectedRange,
+        hasData: item.hasData,
+        harmonizedLo90: item.lo,
+        harmonizedHi90: item.hi
       };
     });
   }
@@ -777,15 +824,19 @@ export class HotspotAnalyticsService {
 
       const activeYears = yearly.filter(y => y.inSelectedRange);
       const numSelectedYears = Math.max(1, activeYears.length);
-      const singleYearAvg = yearly.length > 0 ? yearly[0].multiYearAvgCount : 0;
-      const expectedTotal = singleYearAvg * numSelectedYears;
+      // Compare only with years that were downloaded; years never fetched are missing, not zero
+      const withData = yearly.filter(y => y.hasData);
+      const anomalyComparisonYears = withData.filter(y => !y.inSelectedRange).length;
+      const anomalyAvailable = anomalyComparisonYears >= MIN_ANOMALY_YEARS;
+      const singleYearAvg = withData.length > 0 ? withData[0].multiYearAvgCount : 0;
+      const expectedTotal = anomalyAvailable ? singleYearAvg * numSelectedYears : 0;
 
-      const counts = yearly.map(y => y.harmonizedCount);
+      const counts = withData.map(y => y.harmonizedCount);
       const variance = counts.reduce((acc, c) => acc + Math.pow(c - singleYearAvg, 2), 0) / Math.max(1, counts.length);
       const std = Math.max(1, Math.sqrt(variance));
 
       const avgPerSelectedYear = harm / numSelectedYears;
-      const anomalyZScore = Number(((avgPerSelectedYear - singleYearAvg) / std).toFixed(2));
+      const anomalyZScore = anomalyAvailable ? Number(((avgPerSelectedYear - singleYearAvg) / std).toFixed(2)) : 0;
       const anomalyPct = expectedTotal > 0 ? Number((((harm - expectedTotal) / expectedTotal) * 100).toFixed(1)) : 0;
 
       const activeDataset = this.state.activeDataset();
@@ -821,6 +872,8 @@ export class HotspotAnalyticsService {
         multiYearAvgFires: Number(expectedTotal.toFixed(1)),
         anomalyPct,
         anomalyZScore,
+        anomalyComparisonYears,
+        anomalyAvailable,
         areaKm2: area.km2,
         areaHa: area.ha,
         activeDataset,
@@ -855,6 +908,8 @@ export class HotspotAnalyticsService {
 
     const activeYears = yearly.filter(y => y.inSelectedRange);
     const numSelectedYears = Math.max(1, activeYears.length);
+    const anomalyComparisonYears = yearly.filter(y => !y.inSelectedRange).length;
+    const anomalyAvailable = anomalyComparisonYears >= MIN_ANOMALY_YEARS;
     const singleYearAvg = yearly.length > 0 ? yearly[0].multiYearAvgCount : 0;
     const expectedTotal = singleYearAvg * numSelectedYears;
 
@@ -891,8 +946,10 @@ export class HotspotAnalyticsService {
       peakDate,
       peakCount,
       multiYearAvgFires: Number(expectedTotal.toFixed(1)),
-      anomalyPct,
-      anomalyZScore,
+      anomalyPct: anomalyAvailable ? anomalyPct : 0,
+      anomalyZScore: anomalyAvailable ? anomalyZScore : 0,
+      anomalyComparisonYears,
+      anomalyAvailable,
       areaKm2: area.km2,
       areaHa: area.ha,
       activeDataset,
@@ -1542,7 +1599,7 @@ export class HotspotAnalyticsService {
       generatedAt: new Date().toISOString(),
       datasetSource: this.data.isCustomDataset()
         ? this.data.hotspotDatasetName()
-        : 'NASA FIRMS MODIS (MCD14ML) + VIIRS (VNP14IMGML) Quantile Harmonized',
+        : 'NASA FIRMS MODIS (MCD14ML) + VIIRS (VNP14IMGML), harmonized to MODIS-equivalent hotspots',
       activeDataset: this.state.activeDataset(),
       regionBbox: this.state.regionBbox(),
       regionPolygon: this.state.regionPolygon(),
@@ -1620,7 +1677,9 @@ export class HotspotAnalyticsService {
     // KPI Cards
     const kpis = [
       { label: t.kpiHarmonizedFires, val: s.harmonizedFires.toLocaleString(), sub: `MODIS ${s.rawModisFires.toLocaleString()} · VIIRS ${s.rawViirsFires.toLocaleString()}` },
-      { label: t.kpiMultiYearAnomaly, val: `${s.anomalyZScore >= 0 ? '+' : ''}${s.anomalyZScore}σ`, sub: `${s.anomalyPct >= 0 ? '+' : ''}${s.anomalyPct}% vs avg (${s.multiYearAvgFires.toLocaleString()})` },
+      s.anomalyAvailable
+        ? { label: t.kpiMultiYearAnomaly, val: `${s.anomalyZScore >= 0 ? '+' : ''}${s.anomalyZScore}σ`, sub: `${s.anomalyPct >= 0 ? '+' : ''}${s.anomalyPct}% vs avg (${s.multiYearAvgFires.toLocaleString()})` }
+        : { label: t.kpiMultiYearAnomaly, val: '—', sub: t.kpiAnomalyNoHistory },
       { label: t.kpiTotalFrp, val: `${s.totalFrpMw.toLocaleString()} MW`, sub: `${t.kpiMeanFrp}: ${s.meanFrpMw} MW` },
       { label: t.kpiPeakDate, val: s.peakDate ?? '—', sub: `${s.activeFireDays} ${t.kpiActiveDays} · ${this.i18n.formatArea(this.bboxArea().m2)}` }
     ];

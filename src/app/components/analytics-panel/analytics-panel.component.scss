@@ -1075,6 +1075,32 @@
     height: 2px;
     background: #0284c7;
   }
+
+  // 90 % interval whisker: a thin vertical line with caps
+  &--ci {
+    width: 8px;
+    height: 10px;
+    border-radius: 0;
+    background: linear-gradient(color("text-bright"), color("text-bright")) center / 1.5px 100% no-repeat;
+    border-top: 1.5px solid color("text-bright");
+    border-bottom: 1.5px solid color("text-bright");
+  }
+}
+
+// 90 % interval of the harmonized bar
+.chart-ci line {
+  stroke: color("text-bright");
+  stroke-width: 1.2;
+  opacity: 0.75;
+}
+
+// Period that was never downloaded: hatched placeholder instead of a zero bar
+.chart-gap {
+  fill: rgba(148, 163, 184, 0.12);
+  stroke: rgba(148, 163, 184, 0.45);
+  stroke-width: 0.8;
+  stroke-dasharray: 2, 2;
+  cursor: help;
 }
 
 .hover-readout {
