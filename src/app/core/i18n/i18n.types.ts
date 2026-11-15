@@ -17,7 +17,6 @@ export interface Dict {
   htmlLang: string;
   locale: string;
   docTitle: string;
-  langName: string;
   appName: string;
 
   // Top HUD & Navigation
@@ -35,69 +34,15 @@ export interface Dict {
   chooseView: string;
   mapMode2d: string;
   mapModeGlobe: string;
-  viewAnalytics: string;
-  viewInertia: string;
-  viewSpread: string;
-  viewEvacuation: string;
-  stageAriaLabel: string;
-
-  // Camera Focus Presets (Climatological Context)
-  focusIberia: string;
-  focusGulfStream: string;
-  focusElNino: string;
 
   // Bottom Dock & Controls
-  timelineLabel: string;
   play: string;
-  pause: string;
   glossary: string;
   glossaryTitle: string;
   close: string;
 
   // Layer & Mode Toggles
-  sensorHarmonized: string;
   sensorRaw: string;
-  sstOrtho: string;
-  sstAnomaly: string;
-  sstAbsolute: string;
-  chokePointsToggle: string;
-  windToggle: string;
-  escapeRoadsToggle: string;
-
-  // Wind Scenarios
-  scenarioLabel: string;
-  scenarioActual: string;
-  scenarioAtlanticSurge: string;
-  scenarioLevanteReversal: string;
-  scenarioElNinoDrought: string;
-
-  // Wildfire AOI Selector & Timeline Phases
-  wildfireSelectLabel: string;
-  phasePreFire: string;
-  phaseActiveFire: string;
-  metricDate: string;
-  metricBurnedArea: string;
-
-  // Telemetry & Context Readouts
-  metricYear: string;
-  metricHotspots: string;
-  metricGulfStream: string;
-  metricElNino: string;
-  metricNdvi: string;
-  metricLag: string;
-  metricWind: string;
-  metricShear: string;
-  metricBurningCells: string;
-  metricChokePoints: string;
-  metricAffectedPop: string;
-  metricEvacZones: string;
-  metricEscapeRoutes: string;
-
-  // Globe Inspect Tooltip
-  inspectWaterTemp: string;
-  inspectAirTemp: string;
-  inspectLand: string;
-  inspectOcean: string;
 
   // Glossary & Legal Attribution Popup
   glossaryIntro: string;
@@ -125,58 +70,35 @@ export interface Dict {
 
   // Region BBox, Draw Mode & Date Range Controls
   regionIberiaAll: string;
-  regionCustomBbox: string;
   regionMultiPolygon: string;
   regionBboxLabel: string;
   drawBboxBtn: string;
-  addBboxBtn: string;
   drawBboxActiveHint: string;
-  drawBboxEditEdgeHint: string;
-  drawBboxShiftHint: string;
-  polygonEdgesLabel: string;
   acceptAndCalculateBtn: string;
   recalculatePrompt: string;
   recalculateBtn: string;
-  calculateBboxBtn: string;
   draftPendingDesc: string;
   datasetLabel: string;
   datasetViirsBtn: string;
   datasetModisBtn: string;
   datasetBothBtn: string;
-  datasetMixedLabel: string;
   datasetViirsDesc: string;
   datasetModisDesc: string;
   datasetBothDesc: string;
   viirsUnavailableTooltip: string;
   bothSensorsRequiredTooltip: string;
-  datasetDetectionsLabel: string;
   searchAreasPlaceholder: string;
   searchNoResults: string;
   predefinedAreasLabel: string;
   regionIberiaDefault: string;
   cachedBadgeLabel: string;
-  groupPredefinedAreas: string;
-  groupFireEvents: string;
   groupCountries: string;
-  regionMediterranean: string;
-  regionWesternEurope: string;
-  regionCentralEurope: string;
-  regionNorthAfrica: string;
-  regionScandinavia: string;
-  addAreaToMultiTooltip: string;
-  polygonsCountLabel: string;
-  wktLabel: string;
-  applyWktBtn: string;
-  removeBoxLabel: string;
-  coordsBtn: string;
   coordsTitle: string;
   dataSectionTitle: string;
   coordWest: string;
   coordSouth: string;
   coordEast: string;
   coordNorth: string;
-  applyCoords: string;
-  focusBbox: string;
   resetRegion: string;
   dateRangeLabel: string;
   dateStartLabel: string;
@@ -188,10 +110,8 @@ export interface Dict {
   rampCividis: string;
   rampViridis: string;
   rampYlOrRd: string;
-  globeHotspotsToggle: string;
 
   // Analytics & Burning Calendar Dashboard
-  analyticsBtn: string;
   analyticsTitle: string;
   analysisSectionTitle: string;
   emptyAnalysisTitle: string;
@@ -211,9 +131,6 @@ export interface Dict {
   analyticsCollapse: string;
   analyticsMinimize: string;
   analyticsShowPanel: string;
-  tabOverviewCalendar: string;
-  tabHistoricalAnomalies: string;
-  tabInputExport: string;
   kpiHarmonizedFires: string;
   kpiRawSensors: string;
   kpiMultiYearAnomaly: string;
@@ -226,7 +143,6 @@ export interface Dict {
   kpiPeakDateHint: string;
   kpiPeakDate: string;
   kpiActiveDays: string;
-  kpiRegionArea: string;
   burningCalendarTitle: string;
   calendarMonthly: string;
   calendarDaily: string;
@@ -254,17 +170,8 @@ export interface Dict {
   anomalyBelowAvg: string;
 
   // Data Input & Downloads
-  inputDataTitle: string;
-  inputDataDesc: string;
   activeDatasetLabel: string;
   defaultDatasetName: string;
-  uploadFileBtn: string;
-  downloadTemplateBtn: string;
-  resetDatasetBtn: string;
-  importSuccessMsg: string;
-  importErrorEmpty: string;
-  importErrorNoRows: string;
-  importErrorParse: string;
   downloadTitle: string;
   exportBtn: string;
   exportPopupTitle: string;
@@ -293,7 +200,6 @@ export interface Dict {
   locationErrorOkBtn: string;
 
   // Map & Globe Layers
-  layersBtn: string;
   layersTitle: string;
   layersZoomBadge: string;
   layersResetBtn: string;
@@ -302,15 +208,8 @@ export interface Dict {
   layerHotspots: string;
   layerRegionBbox: string;
   layerUserLocation: string;
-  layerWindStreamlines: string;
-  layerEscapeRoutes: string;
   layerLandOrtho: string;
-  layerOsmTiles: string;
-  layerForests: string;
-  layerUrbanAreas: string;
   layerBorders: string;
-  layerRoads: string;
-  layerGraticule: string;
   osmAttribution: string;
   gibsAttribution: string;
 }
