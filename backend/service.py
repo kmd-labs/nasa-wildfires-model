@@ -229,7 +229,7 @@ class CalendarService:
         harmonized, sd = hz.harmonize(cube, eff, regional)
         out = {"cube": cube, "harmonized": harmonized, "sd": sd, "calibration": calibration, "h3Resolution": res,
                "validation": hz.validate(cube) if len(cube.cells) else None, "availability": avail,
-               "df": df[["date", "acq_date", "frp", "platform"]].copy(), "pixel_df": pixel_df}
+               "df": df[["date", "acq_date", "latitude", "longitude", "frp", "platform"]].copy(), "pixel_df": pixel_df}
         if hasattr(hz, "extras"):  # v3: weight per detection and the small-fire layer
             out.update(hz.extras(cube, eff, df))
         with self._lock:
@@ -323,7 +323,7 @@ class CalendarService:
             extra_series["smallFiresPerViirsSatellite"] = _clean(np.where(no_viirs, np.nan, small_total), 1)
         years = sorted(set(cube.years.tolist()))
 
-        # selected period: whole months between the two dates
+        # selected period: exact date bounds [first, last]
         first = parse_day(date_from, end=False) if date_from else cube.months[0].start_time
         last = parse_day(date_to, end=True) if date_to else cube.months[-1].end_time.normalize()
         if first > last:
@@ -331,22 +331,18 @@ class CalendarService:
         t0 = int(np.clip((first.year - cube.months[0].year) * 12 + first.month - cube.months[0].month, 0, len(months) - 1))
         t1 = int(np.clip((last.year - cube.months[0].year) * 12 + last.month - cube.months[0].month, t0, len(months) - 1))
         window = np.arange(t0, t1 + 1)
-        value = float(np.nansum(total[window]))
-        same_window = {}
-        for y in years:  # the same calendar months in every year, for "how does this compare with previous years"
-            start = np.flatnonzero((cube.years == y) & (cube.cal_month == cube.cal_month[t0]))
-            if len(start) and start[0] + len(window) <= len(months) and not np.isnan(total[start[0]:start[0] + len(window)]).any():
-                same_window[y] = float(total[start[0]:start[0] + len(window)].sum())
-        others = np.array([v for y, v in same_window.items() if y != int(cube.years[t0])])
-        cells = []
-        for c, cell in enumerate(cube.cells):
-            cell_value = float(np.nansum(h["harmonized"][c, window]))
-            if cell_value > 0:
-                lat, lon = h3.cell_to_latlng(cell)
-                cells.append({"h3": cell, "lon": round(lon, 4), "lat": round(lat, 4), "harmonized": round(cell_value, 2),
-                              "rawModis": int(modis_cell[c, window].sum()), "rawViirs": int(viirs_cell[c, window].sum())})
 
-        # Exact selection stats for FRP, active fire days, peak day, and Month x Day matrix
+        first_is_partial = first.year == cube.months[t0].year and first.month == cube.months[t0].month and first.day > 1
+        last_end_day = cube.months[t1].end_time.normalize()
+        last_is_partial = last.year == cube.months[t1].year and last.month == cube.months[t1].month and last < last_end_day
+        partial_yms: set[str] = set()
+        if first_is_partial:
+            partial_yms.add(months[t0])
+        if last_is_partial:
+            partial_yms.add(months[t1])
+        full_window = np.array([i for i in window if months[i] not in partial_yms], dtype=int)
+
+        # Exact selection stats for FRP, active fire days, peak day, daily buckets, and partial boundary months
         sel_df = h["df"]
         in_win = sel_df[(sel_df.date >= first) & (sel_df.date <= last)]
         frp_vals = in_win.frp.dropna()
@@ -358,14 +354,87 @@ class CalendarService:
         peak_count = int(day_counts.iloc[0]) if len(day_counts) else 0
         frp_by_year = sel_df.groupby(sel_df.date.dt.year)["frp"].sum().to_dict() if len(sel_df) else {}
 
+        raw_tot_arr = modis + viirs
+        scale_by_ym = {
+            months[i]: float(total[i] / raw_tot_arr[i]) if (not np.isnan(total[i]) and raw_tot_arr[i] > 0) else 1.0
+            for i in range(len(months))
+        }
+
+        value = float(np.nansum(total[full_window])) if len(full_window) else 0.0
+        raw_modis = int(modis[full_window].sum()) if len(full_window) else 0
+        raw_viirs = int(viirs[full_window].sum()) if len(full_window) else 0
+        partial_in_win = (
+            in_win[in_win.acq_date.str.slice(0, 7).isin(partial_yms)]
+            if (partial_yms and len(in_win))
+            else in_win.iloc[0:0]
+        )
+        if len(partial_in_win):
+            p_w = partial_in_win.acq_date.str.slice(0, 7).map(scale_by_ym).fillna(1.0)
+            value += float(p_w.sum())
+            raw_modis += int(partial_in_win.platform.isin(hz.MODIS).sum())
+            raw_viirs += int(partial_in_win.platform.isin(hz.VIIRS).sum())
+
+        ym_day_harm: dict[tuple[str, int], float] = {}
+        if partial_yms and len(sel_df):
+            sel_ym = sel_df.acq_date.str.slice(0, 7)
+            sel_w = sel_ym.map(scale_by_ym).fillna(1.0)
+            for (ym_k, day_k), v_k in sel_w.groupby([sel_ym, sel_df.date.dt.day]).sum().items():
+                ym_day_harm[(str(ym_k), int(day_k))] = float(v_k)
+
+        same_window = {}
+        for y in years:  # the same calendar window in every year, for "how does this compare with previous years"
+            start = np.flatnonzero((cube.years == y) & (cube.cal_month == cube.cal_month[t0]))
+            if len(start) and start[0] + len(window) <= len(months) and not np.isnan(total[start[0]:start[0] + len(window)]).any():
+                if not partial_yms:
+                    same_window[y] = float(total[start[0]:start[0] + len(window)].sum())
+                else:
+                    yr_sum = 0.0
+                    for k in range(len(window)):
+                        idx = int(start[0] + k)
+                        if len(window) == 1:
+                            min_d = first.day if first_is_partial else 1
+                            max_d = last.day if last_is_partial else 31
+                            yr_sum += sum(ym_day_harm.get((months[idx], d), 0.0) for d in range(min_d, max_d + 1))
+                        elif k == 0 and first_is_partial:
+                            yr_sum += sum(ym_day_harm.get((months[idx], d), 0.0) for d in range(first.day, 32))
+                        elif k == len(window) - 1 and last_is_partial:
+                            yr_sum += sum(ym_day_harm.get((months[idx], d), 0.0) for d in range(1, last.day + 1))
+                        else:
+                            yr_sum += float(total[idx])
+                    same_window[y] = yr_sum
+        others = np.array([v for y, v in same_window.items() if y != int(cube.years[t0])])
+
+        cell_acc: dict[str, list[float]] = {}
+        for c, cell in enumerate(cube.cells):
+            cell_value = float(np.nansum(h["harmonized"][c, full_window])) if len(full_window) else 0.0
+            cell_m = int(modis_cell[c, full_window].sum()) if len(full_window) else 0
+            cell_v = int(viirs_cell[c, full_window].sum()) if len(full_window) else 0
+            if cell_value > 0 or cell_m > 0 or cell_v > 0:
+                cell_acc[cell] = [cell_value, cell_m, cell_v]
+        if len(partial_in_win):
+            h3_res = h3.get_resolution(cube.cells[0]) if len(cube.cells) else int(h.get("h3Resolution", 4))
+            p_cells = [h3.latlng_to_cell(float(la), float(lo), h3_res) for la, lo in zip(partial_in_win.latitude, partial_in_win.longitude)]
+            p_frame = pd.DataFrame({
+                "cell": p_cells,
+                "harm": partial_in_win.acq_date.str.slice(0, 7).map(scale_by_ym).fillna(1.0).to_numpy(),
+                "modis": partial_in_win.platform.isin(hz.MODIS).astype(int).to_numpy(),
+                "viirs": partial_in_win.platform.isin(hz.VIIRS).astype(int).to_numpy(),
+            })
+            for cell, row in p_frame.groupby("cell").sum().iterrows():
+                cur = cell_acc.setdefault(str(cell), [0.0, 0, 0])
+                cur[0] += float(row["harm"])
+                cur[1] += int(row["modis"])
+                cur[2] += int(row["viirs"])
+        cells = []
+        for cell, (cell_value, cell_m, cell_v) in cell_acc.items():
+            if cell_value > 0:
+                lat, lon = h3.cell_to_latlng(cell)
+                cells.append({"h3": cell, "lon": round(lon, 4), "lat": round(lat, 4), "harmonized": round(cell_value, 2),
+                              "rawModis": int(cell_m), "rawViirs": int(cell_v)})
+
         daily_buckets = []
         daily_by_year: dict[str, list[dict]] = {}
         if len(sel_df):
-            raw_tot_arr = modis + viirs
-            scale_by_ym = {
-                months[i]: float(total[i] / raw_tot_arr[i]) if (not np.isnan(total[i]) and raw_tot_arr[i] > 0) else 1.0
-                for i in range(len(months))
-            }
             n_base_years = max(1, sel_df.date.dt.year.nunique())
             base_mmdd = sel_df.acq_date.str.slice(5, 10)
             base_w = sel_df.acq_date.str.slice(0, 7).map(scale_by_ym).fillna(1.0)
@@ -478,7 +547,8 @@ class CalendarService:
                         "monthsWithData": int((~np.isnan(total[cube.years == y])).sum())} for y in years],
             "selection": {
                 "from": months[t0], "to": months[t1],
-                "hotspots": {"harmonized": round(value, 1), "rawModis": int(modis[window].sum()), "rawViirs": int(viirs[window].sum())},
+                "fromDate": str(first.date()), "toDate": str(last.date()),
+                "hotspots": {"harmonized": round(value, 1), "rawModis": raw_modis, "rawViirs": raw_viirs},
                 "frp": {
                     "totalMw": round(total_frp),
                     "meanMw": round(mean_frp, 1),
