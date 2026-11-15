@@ -1,6 +1,7 @@
 # NASA Wildfires Model — Harmonized MODIS & VIIRS Burning Activity Calendar
 
 > **Live Application:** [harmonization.kmd-labs.org](https://harmonization.kmd-labs.org/)  
+> **Demo Video:** [Watch Demo Video (`demo-vid.mp4`)](https://github.com/kmd-labs/nasa-wildfires-model/blob/demo-v1/demo-vid.mp4) ([direct MP4](https://github.com/kmd-labs/nasa-wildfires-model/raw/refs/tags/demo-v1/demo-vid.mp4))  
 > **Hackathon Challenge:** **2026 NASA Space Apps Challenge** — [Challenge 15: Harmonization of MODIS and VIIRS Hot Spots](https://www.spaceappschallenge.org/2026/challenges/modis-and-viirs-hot-spots/)  
 > **Built by:** **KMD Labs** ([kmd-labs.org](https://kmd-labs.org))
 
