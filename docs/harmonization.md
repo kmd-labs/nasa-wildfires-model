@@ -187,6 +187,24 @@ python scripts/validation/global_validation.py            # całość, na noc
 python scripts/validation/global_validation.py --list     # regiony
 ```
 
+**Wyniki biegu z 15.11.2026** (pełny raport: [`validation/global-v4/report.md`](validation/global-v4/report.md), tabela: [`summary.csv`](validation/global-v4/summary.csv)). Mediany z 22 regionów; sprawdzian to surowy MODIS przewidywany z samego VIIRS:
+
+| | v3 | v4 | v4 lepszy w |
+|---|---|---|---|
+| \|obciążenie\| 2012–2019 (k-fold) | 2,8% | 1,1% | 19 z 22 |
+| \|obciążenie\| 2023+ (k-fold) | 4,0% | 2,7% | 13 z 22 |
+| \|obciążenie\| przewidywania 2025 (uczenie do 2023) | 11,5% | 8,3% | 13 z 22 |
+| błąd miesięczny 2023+ | 14,3% | 15,3% | 7 z 22 |
+| skok 2012 serii zharmonizowanej | 1,0× | 1,0× | |
+
+- Suma naiwna skacze w 2012 o medianę 4,64×; seria zharmonizowana 1,0×.
+- Obciążenie v4 po 2023 mieści się w 10% w 19 regionach i w 20% we wszystkich 22.
+- Dryf jest globalny i spójny: w ostatnim miesiącu Terra przelatuje 1,27–1,45 h wcześniej, Aqua 0,86–1,48 h później niż przed 2020.
+- v4 jest gorszy w Kalifornii (przewidywanie 2025: +44% wobec +23%), Mozambiku (−22% wobec −6%), Grecji i Turcji (obciążenie 2023+: −16% i −18% wobec −11% i −15%).
+- Test szwu na MCD64A1 oznaczył 7 z 66 szwów dla v4 i 6 z 66 dla v3, mniej więcej tyle, ile daje przypadek przy progu |t| ≥ 2.
+
+Zakres: to walidacja wieloregionalna (22 obszary po 3–6°, 6 kontynentów, 8 biomów), a nie pokrycie całego globu. Regiony wybraliśmy ręcznie spośród miejsc z dużą liczbą pożarów. W 8 regionach (Kalifornia, Turcja, Kazachstan, Transbajkalia, Cerrado, Chiquitania, Sudan Południowy, Zambia) zabrakło NOAA-21, bo Area API FIRMS odrzucał zapytania po przekroczeniu limitu. Brakuje Afryki Środkowej, tundry, Chin i Bliskiego Wschodu. Dane kończą się na 2025 roku, a świadek MCD64A1 sam pochodzi z MODIS.
+
 ## Jak włączyć
 
 ```bash
