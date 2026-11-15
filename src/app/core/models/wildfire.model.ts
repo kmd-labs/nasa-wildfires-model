@@ -333,6 +333,7 @@ export interface BackendCalendarPayload {
     unit: string;
     license: string;
     attribution: string;
+    calibration?: Record<string, BackendCalibrationPlatform | BackendCalibrationModel> & { model?: BackendCalibrationModel };
   };
   months: string[];
   series: {
@@ -395,5 +396,48 @@ export interface BackendCalendarPayload {
     cells: BackendH3Cell[];
     pixels?: BackendPixelDetection[];
   };
-  validation: Record<string, unknown> | null;
+  validation: BackendValidation | null;
+  seamTest?: Record<string, unknown> | null;
+}
+
+/** Scores of one validation slice: VIIRS alone predicts raw MODIS on held-out years. */
+export interface BackendValidationScore {
+  months: number;
+  modisHotspots: number;
+  viirsOnlyEstimate: number;
+  totalBiasPct: number;
+  monthlyPearsonR: number | null;
+  monthlyMedianAbsErrorPct: number | null;
+  interval90CoverageUncalibrated?: number;
+  interval90Coverage?: number;
+}
+
+export interface BackendValidation {
+  design?: string;
+  intervalMultiplier?: number;
+  allTestYears?: BackendValidationScore | null;
+  byEra?: Record<string, BackendValidationScore | null>;
+  [key: string]: unknown;
+}
+
+/** Per-platform calibration entry (efficiency = hotspots per MODIS hotspot) plus the model summary. */
+export interface BackendCalibrationPlatform {
+  efficiency?: number;
+  overlapMonths?: number;
+  [key: string]: unknown;
+}
+
+export interface BackendDriftLaw {
+  form?: string;
+  months?: number;
+  latestFactor?: number;
+}
+
+export interface BackendCalibrationModel {
+  version?: number;
+  unit?: string;
+  intervalMultiplier?: number;
+  viirsChain?: Record<string, { overlapMonths?: number }>;
+  modisDrift?: Record<string, { D?: BackendDriftLaw; N?: BackendDriftLaw; latestShiftHours?: number; shiftFromThisArea?: boolean }>;
+  [key: string]: unknown;
 }

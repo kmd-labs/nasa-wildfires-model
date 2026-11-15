@@ -53,4 +53,62 @@
       <p class="data-popup__error" role="alert">{{ t.csvExportError }}</p>
     }
   </section>
+
+  @if (analytics.hasLiveBackend()) {
+    <section class="data-popup__card model-quality">
+      <h3 class="data-popup__title">{{ t.mqTitle }}</h3>
+      <p class="data-popup__meta">{{ t.mqDesc }}</p>
+
+      @if (validation(); as v) {
+        <div class="mq-kpis">
+          <div class="mq-kpi"><span class="mq-kpi__label">{{ t.mqBias }}</span><b class="mono">{{ v.all.totalBiasPct >= 0 ? '+' : '' }}{{ v.all.totalBiasPct | number:'1.1-1' }}%</b></div>
+          <div class="mq-kpi"><span class="mq-kpi__label">{{ t.mqMonthlyError }}</span><b class="mono">{{ v.all.monthlyMedianAbsErrorPct !== null ? (v.all.monthlyMedianAbsErrorPct | number:'1.0-1') + '%' : '—' }}</b></div>
+          <div class="mq-kpi"><span class="mq-kpi__label">{{ t.mqCorrelation }}</span><b class="mono">{{ v.all.monthlyPearsonR !== null ? (v.all.monthlyPearsonR | number:'1.2-2') : '—' }}</b></div>
+          <div class="mq-kpi"><span class="mq-kpi__label">{{ t.mqCoverage }}</span><b class="mono">{{ v.all.interval90Coverage !== undefined ? (v.all.interval90Coverage * 100 | number:'1.0-0') + '%' : '—' }}</b></div>
+        </div>
+        @if (v.eras.length) {
+          <table class="mq-table">
+            <tr><th>{{ t.mqEra }}</th><th>{{ t.mqBias }}</th><th>{{ t.mqCorrelation }}</th><th>{{ t.mqCoverage }}</th><th>{{ t.mqMonths }}</th></tr>
+            @for (e of v.eras; track e.era) {
+              <tr>
+                <td>{{ e.era }}</td>
+                <td class="mono">{{ e.totalBiasPct >= 0 ? '+' : '' }}{{ e.totalBiasPct | number:'1.1-1' }}%</td>
+                <td class="mono">{{ e.monthlyPearsonR !== null ? (e.monthlyPearsonR | number:'1.2-2') : '—' }}</td>
+                <td class="mono">{{ e.interval90Coverage !== undefined ? (e.interval90Coverage * 100 | number:'1.0-0') + '%' : '—' }}</td>
+                <td class="mono">{{ e.months }}</td>
+              </tr>
+            }
+          </table>
+        }
+        <p class="data-popup__meta">{{ t.mqValidationNote }}</p>
+      } @else {
+        <p class="data-popup__meta">{{ t.mqNoValidation }}</p>
+      }
+
+      @if (calibration(); as c) {
+        <h4 class="mq-subtitle">{{ t.mqCalibrationTitle }}@if (c.version) { · v{{ c.version }}}</h4>
+        @if (c.usesPrior) {
+          <p class="mq-warning" role="note">{{ t.mqPriorWarning }}</p>
+        }
+        @if (c.platforms.length) {
+          <p class="data-popup__meta">
+            {{ t.mqEfficiency }}:
+            @for (p of c.platforms; track p.name; let last = $last) {
+              {{ p.name }} <b class="mono">{{ p.efficiency | number:'1.2-2' }}</b>@if (!last) { · }
+            }
+          </p>
+        }
+        @for (d of c.drift; track d.name) {
+          <p class="data-popup__meta">
+            {{ d.name }}: {{ t.mqDriftShift }} <b class="mono">{{ d.shiftHours !== null ? ((d.shiftHours >= 0 ? '+' : '') + (d.shiftHours | number:'1.2-2') + ' h') : '—' }}</b>
+            · {{ t.mqDriftFactor }} <b class="mono">{{ d.factor !== null ? (d.factor | number:'1.2-2') : '—' }}</b>
+            @if (d.fromPrior) { · {{ t.mqFromPrior }} }
+          </p>
+        }
+        @if (c.intervalMultiplier !== null) {
+          <p class="data-popup__meta">{{ t.mqIntervalMultiplier }}: <b class="mono">{{ c.intervalMultiplier | number:'1.2-2' }}</b></p>
+        }
+      }
+    </section>
+  }
 </div>

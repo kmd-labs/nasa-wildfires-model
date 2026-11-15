@@ -1680,7 +1680,9 @@ export class HotspotAnalyticsService {
       summary: this.summary(),
       yearlyComparison: this.yearlyComparison(),
       burningCalendar: this.burningCalendar(),
-      filteredHotspotsCount: this.filteredHotspots().length
+      filteredHotspotsCount: this.filteredHotspots().length,
+      modelCalibration: this.data.backendCalendar()?.metadata.calibration ?? null,
+      modelValidation: this.data.backendCalendar()?.validation ?? null
     };
     const stamp = `${this.state.dateStart() || 'all'}_to_${this.state.dateEnd() || 'all'}`;
     this.triggerDownload(
