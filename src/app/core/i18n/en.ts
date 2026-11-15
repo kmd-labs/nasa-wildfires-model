@@ -277,6 +277,8 @@ export const EN: Dict = {
   exportBtn: 'Export',
   exportPopupTitle: 'Export Fire Analytics & Visualizations',
   downloadCsvBtn: 'Hotspots CSV',
+  csvExportWorking: 'Preparing CSV…',
+  csvExportError: 'Could not download the NASA FIRMS hotspot CSV (the data is still downloading or the server is unavailable). Please try again shortly.',
   downloadJsonBtn: 'Analytics JSON',
   downloadSvgBtn: 'Charts SVG',
   downloadPngBtn: 'Report PNG',

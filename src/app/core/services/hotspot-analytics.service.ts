@@ -1,4 +1,4 @@
-import { Injectable, computed, effect, inject, untracked } from '@angular/core';
+import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import {
   ActiveFireDataset,
   BackendDailyBucket,
@@ -82,6 +82,10 @@ function backendPayloadCoversRange(
   const selTo = sel.toDate ?? `${sel.to}-${String(daysInUtcMonth(Number(sel.to.slice(0, 4)), Number(sel.to.slice(5, 7)))).padStart(2, '0')}`;
   return selFrom <= start && selTo >= end;
 }
+
+/** CSV export polls the backend while it downloads the window: every 3 s for up to 3 minutes. */
+const CSV_EXPORT_POLL_MS = 3000;
+const CSV_EXPORT_MAX_POLLS = 60;
 
 /** A multi-year anomaly needs at least this many other years with downloaded data. */
 export const MIN_ANOMALY_YEARS = 3;
@@ -1552,26 +1556,38 @@ export class HotspotAnalyticsService {
     return Math.abs(areaDeg2 * 0.5) * (111.32 * cosLat) * 110.574;
   }
 
+  /** State of the hotspot CSV export: the backend may answer 202 while the window downloads. */
+  readonly csvExportStatus = signal<'idle' | 'working' | 'error'>('idle');
+
+  /**
+   * NASA FIRMS data: the backend's /api/hotspots.csv (every detection, with `used_in_calendar`),
+   * polled while it answers 202. Never falls back to synthetic rows; on failure the popup says so.
+   * A custom uploaded dataset is exported from its own records.
+   */
   async downloadFilteredCsv(): Promise<void> {
     const start = this.state.dateStart() || 'all';
     const end = this.state.dateEnd() || 'all';
     const stamp = `${start}_to_${end}`;
-    if (!this.data.isCustomDataset() && this.data.backendStatus() === 'live' && this.state.regionBbox()) {
-      try {
-        const url = this.data.getBackendHotspotsCsvUrl(
-          this.state.regionBboxes(),
-          this.state.dateStart(),
-          this.state.dateEnd()
-        );
-        const resp = await fetch(url);
-        if (resp.ok && (resp.headers.get('content-type') ?? '').includes('csv')) {
-          const blob = await resp.blob();
-          this.triggerBlobDownload(blob, `firms-hotspots_${stamp}.csv`);
-          return;
+    if (!this.data.isCustomDataset()) {
+      if (!this.state.regionBbox() || this.csvExportStatus() === 'working') return;
+      this.csvExportStatus.set('working');
+      const url = this.data.getBackendHotspotsCsvUrl(this.state.regionBboxes(), this.state.dateStart(), this.state.dateEnd());
+      for (let attempt = 0; attempt < CSV_EXPORT_MAX_POLLS; attempt++) {
+        try {
+          const resp = await fetch(url);
+          if (resp.ok && (resp.headers.get('content-type') ?? '').includes('csv')) {
+            this.triggerBlobDownload(await resp.blob(), `firms-hotspots_${stamp}.csv`);
+            this.csvExportStatus.set('idle');
+            return;
+          }
+          if (resp.status !== 202) break;
+        } catch {
+          break;
         }
-      } catch {
-        // fallback below to local client export
+        await new Promise(resolve => setTimeout(resolve, CSV_EXPORT_POLL_MS));
       }
+      this.csvExportStatus.set('error');
+      return;
     }
 
     const records = this.filteredHotspots();

@@ -265,6 +265,8 @@ export interface Dict {
   exportBtn: string;
   exportPopupTitle: string;
   downloadCsvBtn: string;
+  csvExportWorking: string;
+  csvExportError: string;
   downloadJsonBtn: string;
   downloadSvgBtn: string;
   downloadPngBtn: string;
