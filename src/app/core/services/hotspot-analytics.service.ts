@@ -1700,7 +1700,7 @@ export class HotspotAnalyticsService {
     const kpis = [
       { label: t.kpiHarmonizedFires, val: s.harmonizedFires.toLocaleString(), sub: `MODIS ${s.rawModisFires.toLocaleString()} · VIIRS ${s.rawViirsFires.toLocaleString()}` },
       s.anomalyAvailable
-        ? { label: t.kpiMultiYearAnomaly, val: `${s.anomalyZScore >= 0 ? '+' : ''}${s.anomalyZScore}σ`, sub: `${s.anomalyPct >= 0 ? '+' : ''}${s.anomalyPct}% vs avg (${s.multiYearAvgFires.toLocaleString()})` }
+        ? { label: t.kpiMultiYearAnomaly, val: `${s.anomalyZScore >= 0 ? '+' : ''}${s.anomalyZScore}σ`, sub: `${s.anomalyPct >= 0 ? '+' : ''}${s.anomalyPct}% ${t.kpiVsBaseline} (${s.multiYearAvgFires.toLocaleString()})` }
         : { label: t.kpiMultiYearAnomaly, val: '—', sub: t.kpiAnomalyNoHistory },
       { label: t.kpiTotalFrp, val: `${s.totalFrpMw.toLocaleString()} MW`, sub: `${t.kpiMeanFrp}: ${s.meanFrpMw} MW` },
       { label: t.kpiPeakDate, val: s.peakDate ?? '—', sub: `${s.activeFireDays} ${t.kpiActiveDays} · ${this.i18n.formatArea(this.bboxArea().m2)}` }

@@ -737,7 +737,7 @@
                 <span class="mono-tag">{{ t.kpiHarmonizedFires }}: <b>{{ hc.harmonizedCount | number }}</b></span>
                 <span class="mono-tag">MODIS: {{ hc.rawModisCount }} · VIIRS: {{ hc.rawViirsCount }}</span>
                 <span class="mono-tag">FRP: {{ hc.frpMw | number }} MW</span>
-                <span class="mono-tag">Avg: {{ hc.multiYearAvg }} ({{ hc.anomalyZScore >= 0 ? '+' : '' }}{{ hc.anomalyZScore }}σ)</span>
+                <span class="mono-tag">{{ t.calendarOtherYearsAvg }}: {{ hc.multiYearAvg }} ({{ hc.anomalyZScore >= 0 ? '+' : '' }}{{ hc.anomalyZScore }}σ)</span>
               } @else {
                 <span class="hover-readout__hint">{{ t.calendarHoverPlaceholder }}</span>
               }
@@ -790,7 +790,7 @@
 
                   @if (pt.key === '2012' || pt.key === '2012-01') {
                     <line [attr.x1]="bx + barW / 2" y1="12" [attr.x2]="bx + barW / 2" y2="156" class="svg-marker" />
-                    <text [attr.x]="bx + barW / 2" y="10" class="svg-marker-text" text-anchor="middle">VIIRS 2012</text>
+                    <text [attr.x]="bx + barW / 2" y="10" class="svg-marker-text" text-anchor="middle">{{ t.chartViirsStartMarker }}</text>
                   }
 
                   @if (pt.hasData) {
@@ -932,7 +932,7 @@
                   <span class="mono-tag">{{ t.chartNoData }}</span>
                 }
               } @else {
-                <span class="hover-readout__hint">{{ t.legendMultiYearAvg }}: {{ series[0]?.avgCount ?? 0 }} / {{ state.chartGranularity() === 'monthly' ? 'mo' : 'yr' }}</span>
+                <span class="hover-readout__hint">{{ t.legendMultiYearAvg }}: {{ series[0]?.avgCount ?? 0 }} / {{ state.chartGranularity() === 'monthly' ? t.perMonthShort : t.perYearShort }}</span>
               }
             </div>
           </section>

@@ -243,6 +243,10 @@ export interface Dict {
   legendRawModis: string;
   legendMultiYearAvg: string;
   legendInterval90: string;
+  calendarOtherYearsAvg: string;
+  chartViirsStartMarker: string;
+  perMonthShort: string;
+  perYearShort: string;
   chartNoData: string;
   anomalyChartTitle: string;
   anomalyChartSubtitle: string;
