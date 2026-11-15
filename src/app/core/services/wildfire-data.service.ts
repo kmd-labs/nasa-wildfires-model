@@ -1,6 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import {
   BackendCalendarPayload,
+  BackendDailyBucket,
   BackendDownloadProgress,
   BackendSyncStatus,
   BoundingBox,
@@ -222,6 +223,174 @@ export class WildfireDataService {
     this.backendStatus.set('idle');
   }
 
+  private hydrateIncompleteWithDefault(
+    live: BackendCalendarPayload,
+    dateStart: string,
+    dateEnd: string
+  ): BackendCalendarPayload {
+    const prebaked = this.cachedDefaultCalendar;
+    if (!prebaked || !live.metadata?.refreshing) return live;
+
+    const liveReg = live.metadata.cachedRegion;
+    const preReg = prebaked.metadata?.cachedRegion;
+    if (!liveReg || !preReg || liveReg.some((v, idx) => Math.abs(v - preReg[idx]) > 0.05)) {
+      return live;
+    }
+
+    const liveNonzeroYears = live.yearly.filter(y => y.harmonized > 0).length;
+    const preNonzeroYears = prebaked.yearly.filter(y => y.harmonized > 0).length;
+    if (liveNonzeroYears >= 5 || preNonzeroYears < 10) {
+      return live;
+    }
+
+    const preMonthIdx = new Map<string, number>();
+    prebaked.months.forEach((ym, i) => preMonthIdx.set(ym, i));
+
+    const start = dateStart.slice(0, 10);
+    const end = dateEnd.slice(0, 10);
+    const startYm = start.slice(0, 7);
+    const endYm = end.slice(0, 7);
+    const startDay = Number(start.slice(8, 10)) || 1;
+    const endDay = Number(end.slice(8, 10)) || 31;
+
+    const [preToY, preToM] = prebaked.selection.to.split('-').map(Number);
+    const preToDim = new Date(Date.UTC(preToY, preToM, 0)).getUTCDate();
+    const preFromDate = prebaked.selection.fromDate ?? `${prebaked.selection.from}-01`;
+    const preToDate = prebaked.selection.toDate ?? `${prebaked.selection.to}-${String(preToDim).padStart(2, '0')}`;
+
+    const monthScale = new Map<string, number>();
+    for (let i = 0; i < prebaked.months.length; i++) {
+      const h = prebaked.series.harmonized[i];
+      const raw = (prebaked.series.rawModis[i] ?? 0) + (prebaked.series.rawViirs[i] ?? 0);
+      if (h !== null && raw > 0) {
+        monthScale.set(prebaked.months[i], h / raw);
+      }
+    }
+
+    const dailyByYear: Record<string, BackendDailyBucket[]> = {};
+    const preDailyByYear = prebaked.selection.dailyByYear ?? {};
+    const liveDailyByYear = live.selection.dailyByYear ?? {};
+    const allYears = new Set([...Object.keys(preDailyByYear), ...Object.keys(liveDailyByYear)]);
+
+    const mergedDailyByMmDd = new Map<string, BackendDailyBucket>();
+    for (const yrStr of allYears) {
+      const yrBuckets = new Map<string, BackendDailyBucket>();
+      for (const row of liveDailyByYear[yrStr] ?? []) {
+        const iso = `${yrStr}-${row.mmdd}`;
+        if (iso < start || iso > end) continue;
+        const scale = monthScale.get(iso.slice(0, 7));
+        const harm = scale !== undefined ? Number(((row.rawModis + row.rawViirs) * scale).toFixed(1)) : row.harmonized;
+        yrBuckets.set(row.mmdd, { ...row, harmonized: harm });
+      }
+      for (const row of preDailyByYear[yrStr] ?? []) {
+        const iso = `${yrStr}-${row.mmdd}`;
+        if (iso < start || iso > end) continue;
+        if (iso >= preFromDate && iso <= preToDate) {
+          yrBuckets.set(row.mmdd, { ...row });
+        }
+      }
+      const sorted = Array.from(yrBuckets.values()).sort((a, b) => a.mmdd.localeCompare(b.mmdd));
+      if (sorted.length > 0) {
+        dailyByYear[yrStr] = sorted;
+      }
+      for (const row of sorted) {
+        const cur = mergedDailyByMmDd.get(row.mmdd);
+        if (!cur) {
+          mergedDailyByMmDd.set(row.mmdd, { ...row });
+        } else {
+          cur.harmonized = Number((cur.harmonized + row.harmonized).toFixed(1));
+          cur.rawModis += row.rawModis;
+          cur.rawViirs += row.rawViirs;
+          cur.frpMw += row.frpMw;
+        }
+      }
+    }
+
+    const preDailyByMmDd = new Map<string, BackendDailyBucket>();
+    for (const row of prebaked.selection.daily ?? []) {
+      preDailyByMmDd.set(row.mmdd, row);
+    }
+    const mergedDaily = Array.from(mergedDailyByMmDd.values())
+      .map(row => {
+        const p = preDailyByMmDd.get(row.mmdd);
+        return p ? { ...row, baselineAvg: p.baselineAvg } : row;
+      })
+      .sort((a, b) => a.mmdd.localeCompare(b.mmdd));
+
+    let totalHarm = 0;
+    let totalModis = 0;
+    let totalViirs = 0;
+    const [sy, sm] = startYm.split('-').map(Number);
+    const [ey, em] = endYm.split('-').map(Number);
+    const startIdx = sy * 12 + (sm - 1);
+    const endIdx = ey * 12 + (em - 1);
+    for (let idx = startIdx; idx <= endIdx; idx++) {
+      const y = Math.floor(idx / 12);
+      const m = (idx % 12) + 1;
+      const ym = `${y}-${String(m).padStart(2, '0')}`;
+      const dim = new Date(Date.UTC(y, m, 0)).getUTCDate();
+      const isPartial = (ym === startYm && startDay > 1) || (ym === endYm && endDay < dim);
+      const pIdx = preMonthIdx.get(ym);
+      if (!isPartial && pIdx !== undefined && prebaked.series.harmonized[pIdx] !== null) {
+        totalHarm += prebaked.series.harmonized[pIdx] ?? 0;
+        totalModis += prebaked.series.rawModis[pIdx] ?? 0;
+        totalViirs += prebaked.series.rawViirs[pIdx] ?? 0;
+      } else {
+        const mmPrefix = `${String(m).padStart(2, '0')}-`;
+        for (const row of dailyByYear[String(y)] ?? []) {
+          if (!row.mmdd.startsWith(mmPrefix)) continue;
+          const iso = `${y}-${row.mmdd}`;
+          if (iso < start || iso > end) continue;
+          totalHarm += row.harmonized;
+          totalModis += row.rawModis;
+          totalViirs += row.rawViirs;
+        }
+      }
+    }
+
+    const mergedHarm = [...prebaked.series.harmonized];
+    const mergedModis = [...prebaked.series.rawModis];
+    const mergedViirs = [...prebaked.series.rawViirs];
+    for (let i = 0; i < live.months.length; i++) {
+      const pIdx = preMonthIdx.get(live.months[i]);
+      if (pIdx !== undefined && mergedHarm[pIdx] === null && live.series.harmonized[i] !== null) {
+        mergedHarm[pIdx] = live.series.harmonized[i];
+        mergedModis[pIdx] = live.series.rawModis[i];
+        mergedViirs[pIdx] = live.series.rawViirs[i];
+      }
+    }
+
+    return {
+      ...prebaked,
+      metadata: {
+        ...prebaked.metadata,
+        dataThrough: live.metadata.dataThrough || prebaked.metadata.dataThrough,
+        refreshing: live.metadata.refreshing,
+        failedChunks: live.metadata.failedChunks
+      },
+      series: {
+        ...prebaked.series,
+        harmonized: mergedHarm,
+        rawModis: mergedModis,
+        rawViirs: mergedViirs
+      },
+      selection: {
+        ...live.selection,
+        from: startYm,
+        to: endYm,
+        fromDate: start,
+        toDate: end,
+        hotspots: {
+          harmonized: Number(totalHarm.toFixed(1)),
+          rawModis: Math.round(totalModis),
+          rawViirs: Math.round(totalViirs)
+        },
+        daily: mergedDaily,
+        dailyByYear
+      }
+    };
+  }
+
   private cacheCalendarPayload(queryKey: string, payload: BackendCalendarPayload): void {
     if (this.resolvedCalendarCache.size >= 10) {
       const oldestKey = this.resolvedCalendarCache.keys().next().value;
@@ -440,7 +609,7 @@ export class WildfireDataService {
       if (resp.ok && body?.months && body?.selection) {
         this.offlineRetryDelayMs = 5000;
         this.offlineRetryCount = 0;
-        const payload = body as BackendCalendarPayload;
+        const payload = this.hydrateIncompleteWithDefault(body as BackendCalendarPayload, dateStart, dateEnd);
         this.backendCalendar.set(payload);
         this.backendCachedAt.set(null);
         this.backendStatus.set('live');
