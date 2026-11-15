@@ -7,7 +7,7 @@
       <span class="dataset-status__label">{{ t.activeDatasetLabel }}:</span>
       <span class="dataset-status__name">
         @if (analytics.hasLiveBackend() && data.backendCalendar(); as bCal) {
-          {{ t.backendLiveLabel }} (H3-{{ bCal.metadata.h3Resolution }} · {{ bCal.metadata.dataThrough | localeDate }})
+          {{ t.backendLiveLabel }} {{ bCal.metadata.dataThrough | localeDate }} · H3-{{ bCal.metadata.h3Resolution }}
         } @else {
           {{ t.defaultDatasetName }}
         }
