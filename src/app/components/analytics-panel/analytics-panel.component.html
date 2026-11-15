@@ -26,12 +26,9 @@
         <div class="analytics-panel__title-row">
           <h2 class="analytics-panel__title">{{ t.analyticsTitle }}</h2>
         </div>
-        @if (state.hasActiveSelection() && !data.isCustomDataset()) {
-          @let bStatus = data.backendStatus();
+        @let bStatus = data.backendStatus();
+        @if (state.hasActiveSelection() && !data.isCustomDataset() && bStatus !== 'idle') {
           <div class="analytics-panel__subtitle">
-            <span class="backend-pill backend-pill--dataset">
-              {{ t.datasetUsedLabel }}: {{ activeDatasetDisplayLabel() }}
-            </span>
             @if (bStatus === 'live' && data.backendCalendar(); as bCal) {
               <span class="backend-pill backend-pill--live">{{ t.backendLiveLabel }} · {{ bCal.metadata.dataThrough | localeDate }}</span>
             } @else if (bStatus === 'cached' && data.backendCalendar(); as bCal) {

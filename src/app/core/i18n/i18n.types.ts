@@ -137,7 +137,6 @@ export interface Dict {
   calculateBboxBtn: string;
   draftPendingDesc: string;
   datasetLabel: string;
-  datasetUsedLabel: string;
   datasetViirsBtn: string;
   datasetModisBtn: string;
   datasetBothBtn: string;
