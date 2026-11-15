@@ -717,9 +717,58 @@ export class HotspotAnalyticsService {
     if (!this.data.isCustomDataset() && backend) {
       const ratio = this.backendSpatialRatio();
       const sel = backend.selection;
-      const harm = Math.round(sel.hotspots.harmonized * ratio);
-      const modis = Math.round(sel.hotspots.rawModis * ratio);
-      const viirs = Math.round(sel.hotspots.rawViirs * ratio);
+      const start = this.state.dateStart();
+      const end = this.state.dateEnd();
+      const hasDates = this.state.hasDateRange();
+
+      let rawHarmTotal = sel.hotspots.harmonized;
+      let rawModisTotal = sel.hotspots.rawModis;
+      let rawViirsTotal = sel.hotspots.rawViirs;
+      if (hasDates && (!sel.fromDate || !sel.toDate || sel.fromDate < start || sel.toDate > end)) {
+        const startYm = start.slice(0, 7);
+        const endYm = end.slice(0, 7);
+        const startDay = Number(start.slice(8, 10)) || 1;
+        const endDay = Number(end.slice(8, 10)) || 31;
+        const dailyByYear = sel.dailyByYear ?? {};
+        let calcHarm = 0;
+        let calcModis = 0;
+        let calcViirs = 0;
+        for (let i = 0; i < backend.months.length; i++) {
+          const ym = backend.months[i];
+          if (ym < startYm || ym > endYm) continue;
+          const y = Number(ym.slice(0, 4));
+          const m = Number(ym.slice(5, 7));
+          const dim = daysInUtcMonth(y, m);
+          const isPartialStart = ym === startYm && startDay > 1;
+          const isPartialEnd = ym === endYm && endDay < dim;
+          if (isPartialStart || isPartialEnd) {
+            const exact = sumDailyBucketsInMonth(dailyByYear[String(y)], y, m, start, end);
+            if (exact) {
+              calcHarm += exact.harm;
+              calcModis += exact.modis;
+              calcViirs += exact.viirs;
+              continue;
+            }
+            const lo = isPartialStart ? startDay : 1;
+            const hi = isPartialEnd ? Math.min(dim, endDay) : dim;
+            const frac = lo <= hi ? (hi - lo + 1) / dim : 0;
+            calcHarm += (backend.series.harmonized[i] ?? 0) * frac;
+            calcModis += (backend.series.rawModis[i] ?? 0) * frac;
+            calcViirs += (backend.series.rawViirs[i] ?? 0) * frac;
+          } else {
+            calcHarm += backend.series.harmonized[i] ?? 0;
+            calcModis += backend.series.rawModis[i] ?? 0;
+            calcViirs += backend.series.rawViirs[i] ?? 0;
+          }
+        }
+        rawHarmTotal = calcHarm;
+        rawModisTotal = calcModis;
+        rawViirsTotal = calcViirs;
+      }
+
+      const harm = Math.round(rawHarmTotal * ratio);
+      const modis = Math.round(rawModisTotal * ratio);
+      const viirs = Math.round(rawViirsTotal * ratio);
       const totalFrp = Math.round((sel.frp?.totalMw ?? 0) * ratio);
       const meanFrp = sel.frp?.meanMw ?? 0;
       const activeFireDays = sel.frp?.activeFireDays ?? 0;
