@@ -545,7 +545,7 @@
               <span class="kpi-card__label">{{ t.kpiHarmonizedFires }}</span>
               <strong class="kpi-card__val">{{ summary.harmonizedFires | number }}</strong>
               <span class="kpi-card__sub">
-                {{ activeDatasetDisplayLabel() }}: {{ summary.activeDatasetFires | number }} · MODIS {{ summary.rawModisFires | number }} · VIIRS {{ summary.rawViirsFires | number }}
+                {{ t.kpiRawSensors }}: MODIS {{ summary.rawModisFires | number }} · VIIRS {{ summary.rawViirsFires | number }}
               </span>
             </div>
 

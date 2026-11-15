@@ -284,15 +284,6 @@ export class AnalyticsPanelComponent {
     ];
   });
 
-  readonly activeDatasetDisplayLabel = computed<string>(() => {
-    const t = this.i18n.t();
-    const dataset = this.state.activeDataset();
-    if (dataset === 'BOTH') {
-      return this.state.requiresBothSensors() ? t.datasetMixedLabel : t.datasetBothBtn;
-    }
-    return dataset === 'VIIRS' ? t.datasetViirsBtn : t.datasetModisBtn;
-  });
-
   onDatasetOptionClick(opt: SwitcherOption<DatasetSelectionMode>, event: MouseEvent): void {
     if (opt.disabled) {
       event.preventDefault();
