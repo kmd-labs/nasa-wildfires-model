@@ -25,6 +25,17 @@ import { BoundingBox, ColorRampId, MultiPolygonCoords, PolygonCoords, PolygonRin
 import { LonLat, ScreenPt, clipPolygonToTriangle, findNearestEdgePx, findNearestVertexPx } from '../../core/utils/polygon-clip';
 import { USER_LOCATION_PIN_COLOR, drawUserLocationPin } from '../../core/utils/location-pin';
 import { getUnobstructedViewportBounds } from '../../core/utils/viewport-framing';
+import {
+  STATIC_GLOW_LEVEL,
+  hotspotGlowRgb,
+  clusterOutlineEdges,
+  hotspotGlowLevel,
+  prefersReducedMotion
+} from '../../core/utils/hotspot-glow';
+
+/** Glow ribbon width on the globe, as a share of the hotspot cell size (outside / inside the edge). */
+const GLOW_OUTER_CELLS = 0.85;
+const GLOW_INNER_CELLS = 0.25;
 
 const MIN_GLOBE_DISTANCE = 10.25;
 /** Max zoom-out camera distance framing the full Iberian Peninsula and France. */
@@ -71,6 +82,8 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
   private lastTileKey = '';
   private readonly bboxGroup = new THREE.Group();
   private readonly hotspotGroup = new THREE.Group();
+  private hotspotGlowMat: THREE.MeshBasicMaterial | null = null;
+  private hotspotGlowStart = 0;
   private readonly userLocationGroup = new THREE.Group();
 
   // Interactive BBox & N-edge polygon editing state
@@ -805,6 +818,7 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
     rampId: ColorRampId
   ) {
     this.clearGroup(this.hotspotGroup);
+    this.hotspotGlowMat = null;
     if (!squares || squares.length === 0 || !regionMulti || regionMulti.length === 0) return;
 
     interface TriBucket {
@@ -930,6 +944,67 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
     const mesh = new THREE.Mesh(geo, mat);
     mesh.renderOrder = 45;
     this.hotspotGroup.add(mesh);
+
+    this.addHotspotGlow(squares, regionMulti, R * 1.0013, rampId);
+  }
+
+  /**
+   * Red glow ribbon along the outer edge of hotspot clusters: a strip fading out from each
+   * outer edge (and slightly inwards), drawn with additive blending. Its opacity pulses in
+   * `animate` (two quick beats, then one every 3 s; static with prefers-reduced-motion).
+   */
+  private addHotspotGlow(squares: GlobePixelSquare[], regionMulti: MultiPolygonCoords, rSurf: number, rampId: ColorRampId) {
+    this.hotspotGlowMat = null;
+    const edges = clusterOutlineEdges(squares, regionMulti);
+    if (edges.length === 0) return;
+
+    const [r8, g8, b8] = hotspotGlowRgb(rampId);
+    const cr = r8 / 255;
+    const cg = g8 / 255;
+    const cb = b8 / 255;
+    const positions: number[] = [];
+    const colors: number[] = [];
+    const v = this.pv;
+    const push = (lon: number, lat: number, alpha: number) => {
+      this.math.pos(lon, lat, rSurf, v);
+      positions.push(v.x, v.y, v.z);
+      colors.push(cr, cg, cb, alpha);
+    };
+    // quad between edge (a0,a1 at alpha aIn) and edge shifted by (dx,dy) (alpha aOut), as two triangles
+    const quad = (e: (typeof edges)[number], dx: number, dy: number, aIn: number, aOut: number) => {
+      push(e.lon0, e.lat0, aIn);
+      push(e.lon1, e.lat1, aIn);
+      push(e.lon1 + dx, e.lat1 + dy, aOut);
+      push(e.lon0, e.lat0, aIn);
+      push(e.lon1 + dx, e.lat1 + dy, aOut);
+      push(e.lon0 + dx, e.lat0 + dy, aOut);
+    };
+    for (const e of edges) {
+      const ox = e.nx * e.wLon;
+      const oy = e.ny * e.wLat;
+      quad(e, ox * GLOW_OUTER_CELLS, oy * GLOW_OUTER_CELLS, 1, 0);
+      quad(e, -ox * GLOW_INNER_CELLS, -oy * GLOW_INNER_CELLS, 1, 0);
+    }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 4));
+    const mat = new THREE.MeshBasicMaterial({
+      vertexColors: true,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: STATIC_GLOW_LEVEL,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -5,
+      polygonOffsetUnits: -5
+    });
+    const glow = new THREE.Mesh(geo, mat);
+    glow.renderOrder = 46;
+    this.hotspotGroup.add(glow);
+    this.hotspotGlowMat = mat;
+    this.hotspotGlowStart = performance.now();
   }
 
   private raycastSphereDir(clientX: number, clientY: number, outDir: THREE.Vector3): boolean {
@@ -1158,6 +1233,12 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
     }
 
     this.syncSlippyTiles(false, now);
+
+    if (this.hotspotGlowMat) {
+      this.hotspotGlowMat.opacity = prefersReducedMotion()
+        ? STATIC_GLOW_LEVEL
+        : hotspotGlowLevel(now - this.hotspotGlowStart);
+    }
 
     this.controls.update();
     this.updateBboxHandleScales();

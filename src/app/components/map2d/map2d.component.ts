@@ -21,6 +21,15 @@ import { BoundingBox, MultiPolygonCoords, PolygonCoords, PolygonRing } from '../
 import { ScreenPt, findNearestEdgePx, findNearestVertexPx } from '../../core/utils/polygon-clip';
 import { USER_LOCATION_PIN_COLOR, drawUserLocationPin } from '../../core/utils/location-pin';
 import { getUnobstructedViewportBounds } from '../../core/utils/viewport-framing';
+import {
+  GlowEdge,
+  STATIC_GLOW_LEVEL,
+  hotspotGlowRgb,
+  clusterOutlineEdges,
+  hotspotGlowIsResting,
+  hotspotGlowLevel,
+  prefersReducedMotion
+} from '../../core/utils/hotspot-glow';
 
 interface CachedTile {
   status: 'loading' | 'ready' | 'error';
@@ -53,6 +62,7 @@ const MAX_CACHED_TILES = 320;
 })
 export class Map2dComponent implements AfterViewInit, OnDestroy {
   @ViewChild('mapCanvas', { static: true }) canvasRef!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('glowCanvas', { static: true }) glowCanvasRef!: ElementRef<HTMLCanvasElement>;
 
   readonly i18n = inject(I18nService);
   private readonly ngZone = inject(NgZone);
@@ -64,6 +74,12 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
   private readonly tiles = inject(GlobeTileService);
 
   private ctx: CanvasRenderingContext2D | null = null;
+  private glowCtx: CanvasRenderingContext2D | null = null;
+  private glowEdges: GlowEdge[] = [];
+  private glowStart = 0;
+  private glowRaf: number | null = null;
+  private glowLastLevel = -1;
+  private glowLastDraw = 0;
   private width = 1280;
   private height = 800;
   private dpr = 1;
@@ -112,6 +128,19 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
       this.state.showUserLocation();
       this.state.userLocation();
       untracked(() => this.requestRender());
+    });
+
+    // Cluster outline for the pulsing glow: rebuilt when hotspots or the region change,
+    // and the pulse restarts (two quick beats, then one every 3 s).
+    effect(() => {
+      const squares = this.analytics.globePixelSquares();
+      const multi = this.state.regionMultiPolygon();
+      untracked(() => {
+        this.glowEdges = squares.length && multi.length ? clusterOutlineEdges(squares, multi) : [];
+        this.glowStart = performance.now();
+        this.glowLastLevel = -1;
+        this.startGlowLoop();
+      });
     });
 
     let focusInitialized = false;
@@ -191,6 +220,7 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
   ngAfterViewInit(): void {
     const canvas = this.canvasRef.nativeElement;
     this.ctx = canvas.getContext('2d');
+    this.glowCtx = this.glowCanvasRef.nativeElement.getContext('2d');
     this.updateCanvasSize();
 
     const saved = this.state.userCamera2d();
@@ -225,6 +255,8 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
     window.removeEventListener('resize', this.onResize);
     this.resizeObserver?.disconnect();
     this.tileCache.clear();
+    if (this.glowRaf !== null) cancelAnimationFrame(this.glowRaf);
+    this.glowRaf = null;
   }
 
   private readonly onResize = () => {
@@ -250,6 +282,11 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
     this.dpr = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = Math.round(this.width * this.dpr);
     canvas.height = Math.round(this.height * this.dpr);
+    const glow = this.glowCanvasRef?.nativeElement;
+    if (glow) {
+      glow.width = canvas.width;
+      glow.height = canvas.height;
+    }
   }
 
   private requestRender(): void {
@@ -632,6 +669,97 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
     this.renderUserLocationPin(ctx, ws, cx, cy);
 
     ctx.restore();
+
+    // 6. Keep the glow overlay in step with the camera
+    this.drawGlow(this.currentGlowLevel());
+    this.startGlowLoop();
+  }
+
+  private currentGlowLevel(): number {
+    return prefersReducedMotion() ? STATIC_GLOW_LEVEL : hotspotGlowLevel(performance.now() - this.glowStart);
+  }
+
+  /**
+   * Animation loop of the glow overlay only (the basemap is not repainted). It skips frames
+   * while the glow rests between pulses, runs at most ~30 fps, and stops when there is
+   * nothing to glow or the user prefers reduced motion (a static glow is drawn instead).
+   */
+  private startGlowLoop(): void {
+    if (this.glowRaf !== null) return;
+    this.ngZone.runOutsideAngular(() => {
+      const tick = (now: number) => {
+        this.glowRaf = null;
+        if (!this.glowCtx) return;
+        if (!this.glowEdges.length || !this.state.showHotspotsOnGlobe() || prefersReducedMotion()) {
+          this.drawGlow(this.currentGlowLevel());
+          return;
+        }
+        const elapsed = now - this.glowStart;
+        const resting = hotspotGlowIsResting(elapsed) && this.glowLastLevel >= 0;
+        if (!resting && now - this.glowLastDraw >= 33) {
+          this.drawGlow(hotspotGlowLevel(elapsed));
+        }
+        this.glowRaf = requestAnimationFrame(tick);
+      };
+      this.glowRaf = requestAnimationFrame(tick);
+    });
+  }
+
+  private drawGlow(level: number): void {
+    const g = this.glowCtx;
+    if (!g) return;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, g.canvas.width, g.canvas.height);
+    this.glowLastLevel = level;
+    this.glowLastDraw = performance.now();
+    const multi = this.state.regionMultiPolygon();
+    if (!this.glowEdges.length || !this.state.showHotspotsOnGlobe() || multi.length === 0) return;
+
+    const ws = this.worldSize();
+    const cx = this.lonToWorldX(this.centerLon, ws);
+    const cy = this.latToWorldY(this.centerLat, ws);
+    g.save();
+    g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    g.beginPath();
+    for (const poly of multi) this.tracePolygonPath(g, poly, ws, cx, cy);
+    g.clip('evenodd');
+
+    const path = new Path2D();
+    let any = false;
+    const pad = 24;
+    for (const e of this.glowEdges) {
+      const [x0, y0] = this.lonLatToScreen(e.lon0, e.lat0, ws, cx, cy);
+      const [x1, y1] = this.lonLatToScreen(e.lon1, e.lat1, ws, cx, cy);
+      if (Math.max(x0, x1) < -pad || Math.min(x0, x1) > this.width + pad) continue;
+      if (Math.max(y0, y1) < -pad || Math.min(y0, y1) > this.height + pad) continue;
+      path.moveTo(x0, y0);
+      path.lineTo(x1, y1);
+      any = true;
+    }
+    if (any) {
+      // Zoomed out, a cell is only a few px wide: thin and soften the glow so it frames the
+      // squares instead of repainting them red.
+      const e0 = this.glowEdges[0];
+      const [ax] = this.lonLatToScreen(0, 0, ws, cx, cy);
+      const [bx] = this.lonLatToScreen(e0.wLon, 0, ws, cx, cy);
+      const cellPx = Math.abs(bx - ax);
+      const k = Math.max(0.3, Math.min(1, (cellPx - 1) / 6));
+      const [r, gr, b] = hotspotGlowRgb(this.state.colorRamp());
+      g.lineCap = 'round';
+      g.lineJoin = 'round';
+      // soft halo
+      g.shadowColor = `rgba(${r}, ${gr}, ${b}, ${Math.min(1, level + 0.1).toFixed(3)})`;
+      g.shadowBlur = (4 + 14 * level) * k;
+      g.strokeStyle = `rgba(${r}, ${gr}, ${b}, ${(0.55 * level * k).toFixed(3)})`;
+      g.lineWidth = 1 + 2 * k;
+      g.stroke(path);
+      // crisp rim
+      g.shadowBlur = 0;
+      g.strokeStyle = `rgba(${r}, ${Math.min(255, gr + 50)}, ${Math.min(255, b + 30)}, ${(0.9 * level * k).toFixed(3)})`;
+      g.lineWidth = 0.75 + 0.5 * k;
+      g.stroke(path);
+    }
+    g.restore();
   }
 
   private renderUserLocationPin(
