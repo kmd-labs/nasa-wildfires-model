@@ -17,7 +17,7 @@ Environment:
     FIRMS_URL            default https://firms.modaps.eosdis.nasa.gov
     FIRMS_CACHE_DIR      default <repo>/data/cache/firms
     FIRMS_CHUNK_DAYS     default 5 (the notebook's value; the API documents a maximum of 10)
-    FIRMS_WORKERS        parallel requests, default 4
+    FIRMS_WORKERS        parallel requests, default 8
     FIRMS_REFRESH_HOURS  default 6
 """
 from __future__ import annotations
@@ -44,7 +44,7 @@ REPO = Path(__file__).resolve().parents[1]
 FIRMS_URL = os.getenv("FIRMS_URL", "https://firms.modaps.eosdis.nasa.gov")
 CACHE_DIR = Path(os.getenv("FIRMS_CACHE_DIR", REPO / "data" / "cache" / "firms"))
 CHUNK_DAYS = int(os.getenv("FIRMS_CHUNK_DAYS", "5"))
-WORKERS = int(os.getenv("FIRMS_WORKERS", "4"))
+WORKERS = int(os.getenv("FIRMS_WORKERS", "8"))
 REFRESH_HOURS = float(os.getenv("FIRMS_REFRESH_HOURS", "6"))
 
 # sensor -> first day of its chunk grid. The grid is fixed so that cache keys never move.
