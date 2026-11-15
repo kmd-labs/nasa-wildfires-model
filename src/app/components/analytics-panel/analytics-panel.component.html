@@ -69,6 +69,27 @@
       </div>
     </header>
 
+    <!-- Sensor Dataset Switcher (pinned below title & status lozenges) -->
+    <div class="analytics-panel__dataset-bar">
+      <div class="dataset-switcher" role="radiogroup" [attr.aria-label]="t.datasetLabel">
+        @for (opt of datasetOptions(); track opt.value) {
+          <button
+            type="button"
+            role="radio"
+            class="dataset-switcher__option"
+            [class.dataset-switcher__option--active]="state.activeDataset() === opt.value"
+            [class.dataset-switcher__option--disabled]="opt.disabled"
+            [attr.aria-checked]="state.activeDataset() === opt.value"
+            [attr.aria-disabled]="opt.disabled ? 'true' : null"
+            [appTooltip]="opt.tooltip"
+            tooltipPlacement="bottom"
+            (click)="onDatasetOptionClick(opt, $event)">
+            {{ opt.label }}
+          </button>
+        }
+      </div>
+    </div>
+
     <!-- Unified Scrollable Panel Container with Sticky Section Headers -->
     <div class="analytics-panel__scroll" #scrollContainer>
       <!-- Separate Collapsible Layers & Preferences Section (First, collapsed by default) -->
@@ -419,27 +440,6 @@
           @if (state.missingDateStart() || state.missingDateEnd()) {
             <p class="missing-inputs-hint" role="alert">{{ t.missingInputsHint }}</p>
           }
-
-          <div class="region-form__dataset">
-            <span class="region-form__dataset-label">{{ t.datasetLabel }}:</span>
-            <div class="dataset-switcher" role="radiogroup" [attr.aria-label]="t.datasetLabel">
-              @for (opt of datasetOptions(); track opt.value) {
-                <button
-                  type="button"
-                  role="radio"
-                  class="dataset-switcher__option"
-                  [class.dataset-switcher__option--active]="state.activeDataset() === opt.value"
-                  [class.dataset-switcher__option--disabled]="opt.disabled"
-                  [attr.aria-checked]="state.activeDataset() === opt.value"
-                  [attr.aria-disabled]="opt.disabled ? 'true' : null"
-                  [appTooltip]="opt.tooltip"
-                  tooltipPlacement="top"
-                  (click)="onDatasetOptionClick(opt, $event)">
-                  {{ opt.label }}
-                </button>
-              }
-            </div>
-          </div>
         </section>
       }
 

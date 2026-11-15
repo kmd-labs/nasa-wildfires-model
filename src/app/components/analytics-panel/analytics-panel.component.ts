@@ -303,8 +303,8 @@ export class AnalyticsPanelComponent {
         this.tooltipService.show(
           opt.tooltip,
           rect.left + rect.width / 2,
-          rect.top,
-          'top',
+          rect.bottom,
+          'bottom',
           2800
         );
       }
