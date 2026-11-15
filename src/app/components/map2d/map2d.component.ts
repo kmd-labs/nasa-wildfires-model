@@ -36,8 +36,10 @@ interface BorderRingBbox {
 }
 
 const TILE_SIZE = 256;
-const MIN_ZOOM = 2.5;
+const MIN_ZOOM = 4.0;
 const MAX_ZOOM = 14;
+/** Max zoom-out framing reference covering the full Iberian Peninsula and France. */
+const MAX_ZOOM_OUT_BBOX: BoundingBox = [-9.6, 35.8, 9.6, 51.2];
 const MAX_MERCATOR_LAT = 85.05112878;
 const MAX_CACHED_TILES = 320;
 
@@ -314,8 +316,21 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
     return [Number(lon.toFixed(4)), Number(lat.toFixed(4))];
   }
 
+  private zoomForBbox(bbox: BoundingBox, fillRatio: number, availW: number, availH: number): number {
+    const [w, s, e, n] = bbox;
+    const ws1 = TILE_SIZE;
+    const spanX = Math.max(1e-5, (e - w) / 360) * ws1;
+    const spanY = Math.max(1e-5, this.latToWorldY(s, ws1) - this.latToWorldY(n, ws1));
+    const zoomX = Math.log2((availW * fillRatio) / spanX);
+    const zoomY = Math.log2((availH * fillRatio) / spanY);
+    return Math.min(zoomX, zoomY);
+  }
+
   private effectiveMinZoom(): number {
-    return Math.max(MIN_ZOOM, Math.log2(Math.max(this.width, this.height) / TILE_SIZE));
+    const framing = getUnobstructedViewportBounds(this.width, this.height, false, false);
+    const regionMinZoom = this.zoomForBbox(MAX_ZOOM_OUT_BBOX, 0.85, framing.availW, framing.availH);
+    const worldFloor = Math.log2(Math.max(this.width, this.height) / TILE_SIZE);
+    return Math.max(MIN_ZOOM, worldFloor, regionMinZoom);
   }
 
   private setCameraCenterFromWorld(wx: number, wy: number, ws = this.worldSize()): void {
@@ -356,13 +371,9 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
       this.state.isAnalyticsExpanded()
     );
 
-    const ws1 = TILE_SIZE;
-    const spanX = Math.max(1e-5, (e - w) / 360) * ws1;
-    const spanY = Math.max(1e-5, this.latToWorldY(s, ws1) - this.latToWorldY(n, ws1));
-    const zoomX = Math.log2((framing.availW * 0.72) / spanX);
-    const zoomY = Math.log2((framing.availH * 0.72) / spanY);
+    const fitZoom = this.zoomForBbox(bbox, 0.72, framing.availW, framing.availH);
     const minZoom = this.effectiveMinZoom();
-    this.zoom = Math.max(minZoom, Math.min(Math.min(12.5, MAX_ZOOM), Math.min(zoomX, zoomY)));
+    this.zoom = Math.max(minZoom, Math.min(Math.min(12.5, MAX_ZOOM), fitZoom));
 
     const ws = this.worldSize();
     const bboxMidWx = this.lonToWorldX((w + e) * 0.5, ws);

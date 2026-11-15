@@ -27,8 +27,9 @@ import { USER_LOCATION_PIN_COLOR, drawUserLocationPin } from '../../core/utils/l
 import { getUnobstructedViewportBounds } from '../../core/utils/viewport-framing';
 
 const MIN_GLOBE_DISTANCE = 10.25;
-const MAX_GLOBE_DISTANCE_DESKTOP = 32.0;
-const MAX_GLOBE_DISTANCE_PORTRAIT = 44.0;
+/** Max zoom-out camera distance framing the full Iberian Peninsula and France. */
+const MAX_GLOBE_DISTANCE_DESKTOP = 19.5;
+const MAX_GLOBE_DISTANCE_PORTRAIT = 22.0;
 const MAX_GLOBE_TILE_ZOOM = 14;
 
 @Component({
@@ -326,8 +327,8 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
       const hasInitialBbox = this.state.regionBbox() !== null;
       const initialDist = this.math.clamp(
         hasInitialBbox
-          ? (portrait ? 24 : isLand ? 16.5 : 18.5)
-          : (portrait ? 29 : isLand ? 21 : 23.5),
+          ? (portrait ? 20.5 : isLand ? 16.5 : 17.5)
+          : (portrait ? 21.5 : isLand ? 17.5 : 19.0),
         MIN_GLOBE_DISTANCE,
         maxDist
       );
