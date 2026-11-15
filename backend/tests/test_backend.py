@@ -312,6 +312,10 @@ def test_http_500_preserves_cors_header(monkeypatch):
     assert res.status_code == 500
     assert res.headers.get("access-control-allow-origin") == "http://localhost:4200"
 
+    prod_res = api.get("/api/health", headers={"Origin": "https://harmonization.kmd-labs.org"})
+    assert prod_res.status_code == 200
+    assert prod_res.headers.get("access-control-allow-origin") == "https://harmonization.kmd-labs.org"
+
 
 def test_partial_boundary_dates_exclude_out_of_range_days(tmp_path):
     avail_csv = (

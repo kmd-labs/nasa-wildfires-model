@@ -71,9 +71,9 @@ warto pobrać wcześniej poleceniem `fetch`, a Iberię wczytać poleceniem `seed
 | `FIRMS_MAP_KEY` | brak | klucz FIRMS; zostaje po stronie serwera. Bez klucza API działa tylko na danych z cache |
 | `FIRMS_CACHE_DIR` | `data/cache/firms` | katalog cache |
 | `FIRMS_CHUNK_DAYS` | `5` | długość kawałka; dokumentacja Area API podaje maksimum 10 |
-| `FIRMS_WORKERS` | `4` | liczba równoległych zapytań |
+| `FIRMS_WORKERS` | `8` | liczba równoległych zapytań |
 | `FIRMS_REFRESH_HOURS` | `6` | po ilu godzinach odświeżać dane bieżące |
-| `CORS_ORIGINS` | `http://localhost:4200` | adresy aplikacji, po przecinku |
+| `CORS_ORIGINS` | `https://harmonization.kmd-labs.org,http://localhost:4200` | adresy aplikacji, po przecinku |
 | `EARTHDATA_TOKEN` | brak | token NASA Earthdata (Bearer) do pobierania MCD64A1 / VNP64A1 z LP DAAC |
 | `BURNED_AREA_CACHE_DIR` | `data/cache/burned_area` | cache spalonych pikseli (tylko piksele spalone, plik HDF jest usuwany) |
 | `BURNED_AREA_WORKERS` | `4` | liczba równoległych pobrań kafli |
