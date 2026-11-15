@@ -284,7 +284,7 @@ export const EN: Dict = {
   downloadSvgBtn: 'Charts SVG',
   downloadPngBtn: 'Report PNG',
   recordsCountLabel: 'matched records',
-  backendLiveLabel: 'Live NASA FIRMS',
+  backendLiveLabel: 'Live connection to NASA FIRMS',
   backendCachedLabel: 'Offline cache',
   backendCachedTooltip: 'Loaded from local browser IndexedDB cache while offline or unreachable.',
   backendLoadingLabel: 'Calculating fire activity…',
