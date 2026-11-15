@@ -305,6 +305,12 @@ def _forward(version: str, mod, cube) -> dict:
     return out
 
 
+def validate_region_isolated(cache: str, region: tuple, versions: list[str]) -> dict:
+    """Run one region in a fresh process, so a crash or out-of-memory kill costs only that region."""
+    with ProcessPoolExecutor(max_workers=1) as ex:
+        return ex.submit(validate_region, cache, region, versions).result()
+
+
 def validate_region(cache: str, region: tuple, versions: list[str]) -> dict:
     name, country, biome, bbox, note = region
     raw = load_region(Path(cache), name)
@@ -620,8 +626,8 @@ def main() -> int:
     parser.add_argument("--cache", default=str(REPO / "data" / "cache" / "global_validation"))
     parser.add_argument("--regions", default="all", help="comma-separated names (see --list) or 'all'")
     parser.add_argument("--versions", default="v4,v3", help="v4 is the version under test; the others are references")
-    parser.add_argument("--workers", type=int, default=2, help="regions validated in parallel (CPU and memory heavy)")
-    parser.add_argument("--download-workers", type=int, default=4)
+    parser.add_argument("--workers", type=int, default=1, help="regions validated in parallel (each needs 1-3 GB of RAM)")
+    parser.add_argument("--download-workers", type=int, default=2)
     parser.add_argument("--witness", default="MCD64A1", help="MCD64A1, VNP64A1, both or none")
     parser.add_argument("--witness-from", type=int, default=2008, help="first year of burned area (2008 gives 4 years before the 2012 seam)")
     parser.add_argument("--no-noaa21", action="store_true", help="skip NOAA-21 from the Area API")
@@ -660,9 +666,9 @@ def main() -> int:
 
     if args.stage in ("all", "validate"):
         todo = [r for r in regions if args.force or not (out / "regions" / f"{r[0]}.json").exists()]
-        log(f"validation: {len(todo)} regions to run ({args.workers} in parallel)")
-        with ProcessPoolExecutor(max_workers=max(1, args.workers)) as pool:
-            futures = {pool.submit(validate_region, str(cache), r, versions): r[0] for r in todo}
+        log(f"validation: {len(todo)} regions to run ({args.workers} in parallel, one fresh process per region)")
+        with ThreadPoolExecutor(max_workers=max(1, args.workers)) as pool:
+            futures = {pool.submit(validate_region_isolated, str(cache), r, versions): r[0] for r in todo}
             for i, fut in enumerate(as_completed(futures), 1):
                 name = futures[fut]
                 try:
