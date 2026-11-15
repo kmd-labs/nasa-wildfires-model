@@ -62,6 +62,8 @@ export interface BurningCalendarCell {
   anomalyZScore: number;
   intensity: number; // 0..1 normalized
   inRange: boolean;
+  /** Share (0-100) of the other years with data whose same calendar month had fewer hotspots (backend). */
+  percentile?: number | null;
 }
 
 export interface YearlyComparisonPoint {
@@ -341,6 +343,7 @@ export interface BackendCalendarPayload {
     harmonizedLo90: (number | null)[];
     harmonizedHi90: (number | null)[];
     anomalyZ: (number | null)[];
+    /** Share (0-100) of other years with data whose same calendar month had fewer hotspots. */
     percentile: (number | null)[];
     /** Share of each month's days downloaded; 0 = never downloaded (values are null, not zero). */
     dataCoverage?: (number | null)[];

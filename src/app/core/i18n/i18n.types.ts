@@ -176,6 +176,8 @@ export interface Dict {
   legendSmallFires: string;
   legendSmallFiresHint: string;
   calendarOtherYearsAvg: string;
+  calendarPercentile: string;
+  calendarPercentileHint: string;
   chartViirsStartMarker: string;
   perMonthShort: string;
   perYearShort: string;

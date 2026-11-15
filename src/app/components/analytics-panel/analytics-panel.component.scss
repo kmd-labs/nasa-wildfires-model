@@ -1090,14 +1090,14 @@
 // Small fires seen only by VIIRS (explanatory layer, per VIIRS satellite)
 .svg-small-line {
   fill: none;
-  stroke: #0e7490;
+  stroke: color("info");
   stroke-width: 1.4;
   stroke-dasharray: 4, 2;
   pointer-events: none;
 }
 
 .svg-small-dot {
-  fill: #0e7490;
+  fill: color("info");
   pointer-events: none;
 }
 
@@ -1105,7 +1105,7 @@
   width: 14px;
   height: 0;
   border-radius: 0;
-  border-top: 2px dashed #0e7490;
+  border-top: 2px dashed color("info");
   background: none;
 }
 

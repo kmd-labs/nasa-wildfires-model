@@ -1090,13 +1090,14 @@ export class HotspotAnalyticsService {
       const years = backend.calendar.years.filter(y => y >= displayStartYear && y <= displayEndYear);
       const finalYears = years.length > 0 ? years : backend.calendar.years;
 
-      const byYm = new Map<string, { harm: number; modis: number; viirs: number; z: number }>();
+      const byYm = new Map<string, { harm: number; modis: number; viirs: number; z: number; pct: number | null }>();
       for (let i = 0; i < backend.months.length; i++) {
         byYm.set(backend.months[i], {
           harm: Math.round((backend.series.harmonized[i] ?? 0) * ratio),
           modis: Math.round((backend.series.rawModis[i] ?? 0) * ratio),
           viirs: Math.round((backend.series.rawViirs[i] ?? 0) * ratio),
-          z: backend.series.anomalyZ[i] ?? 0
+          z: backend.series.anomalyZ[i] ?? 0,
+          pct: backend.series.percentile?.[i] ?? null
         });
       }
 
@@ -1132,7 +1133,8 @@ export class HotspotAnalyticsService {
             multiYearAvg: Number(avg.toFixed(1)),
             anomalyZScore: Number(z.toFixed(2)),
             intensity: inRange && harm > 0 ? Math.min(1, Math.pow(harm / maxCount, 0.72)) : 0,
-            inRange
+            inRange,
+            percentile: b?.pct ?? null
           });
         }
       }

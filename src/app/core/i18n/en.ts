@@ -188,6 +188,8 @@ export const EN: Dict = {
   legendSmallFires: 'VIIRS small fires (per satellite)',
   legendSmallFiresHint: 'VIIRS detections weaker than 8.8 MW by day and 7.5 MW at night, per VIIRS satellite. MODIS misses them; they explain the 2012 jump of raw sums and are not part of the harmonized value.',
   calendarOtherYearsAvg: 'Multi-year avg',
+  calendarPercentile: 'Percentile',
+  calendarPercentileHint: 'Share of the other years with data whose same month had fewer harmonized hotspots (0–100). Needs at least 4 years of that month.',
   chartViirsStartMarker: 'VIIRS start 2012',
   perMonthShort: 'mo',
   perYearShort: 'yr',

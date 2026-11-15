@@ -188,6 +188,8 @@ export const PL: Dict = {
   legendSmallFires: 'Małe ogniska VIIRS (na satelitę)',
   legendSmallFiresHint: 'Detekcje VIIRS słabsze niż 8,8 MW w dzień i 7,5 MW w nocy, na jednego satelitę VIIRS. MODIS ich nie widzi; wyjaśniają skok sumy detekcji w 2012 r. i nie wchodzą do wyniku zharmonizowanego.',
   calendarOtherYearsAvg: 'Średnia wieloletnia',
+  calendarPercentile: 'Percentyl',
+  calendarPercentileHint: 'Odsetek innych lat z danymi, w których ten sam miesiąc miał mniej zharmonizowanych hotspotów (0–100). Wymaga co najmniej 4 lat tego miesiąca.',
   chartViirsStartMarker: 'Start VIIRS 2012',
   perMonthShort: 'mies.',
   perYearShort: 'rok',
