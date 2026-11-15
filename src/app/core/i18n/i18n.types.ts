@@ -113,8 +113,9 @@ export interface Dict {
   glossaryTermAnomalyDesc: string;
   legalTitle: string;
   legalNasa: string;
-  legalCopernicus: string;
-  legalNoaa: string;
+  legalGibs: string;
+  reportAttribution: string;
+  legalNaturalEarth: string;
   legalOsm: string;
 
   // Data Sources Popup
@@ -303,4 +304,5 @@ export interface Dict {
   layerRoads: string;
   layerGraticule: string;
   osmAttribution: string;
+  gibsAttribution: string;
 }

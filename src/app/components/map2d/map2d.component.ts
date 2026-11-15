@@ -16,7 +16,7 @@ import { WildfireDataService } from '../../core/services/wildfire-data.service';
 import { WildfireStateService, ringToClosedPolygonCoords } from '../../core/services/wildfire-state.service';
 import { HotspotAnalyticsService } from '../../core/services/hotspot-analytics.service';
 import { ColorRampService } from '../../core/services/color-ramp.service';
-import { GlobeTileService, TileProviderId } from '../../core/services/globe-tile.service';
+import { GlobeTileService, SAT_MAX_ZOOM, TileProviderId } from '../../core/services/globe-tile.service';
 import { BoundingBox, MultiPolygonCoords, PolygonCoords, PolygonRing } from '../../core/models/wildfire.model';
 import { ScreenPt, findNearestEdgePx, findNearestVertexPx } from '../../core/utils/polygon-clip';
 import { USER_LOCATION_PIN_COLOR, drawUserLocationPin } from '../../core/utils/location-pin';
@@ -625,7 +625,7 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
     const cx = this.lonToWorldX(this.centerLon, ws);
     const cy = this.latToWorldY(this.centerLat, ws);
 
-    const maxProviderZoom = provider === 'sat' ? 17 : 18;
+    const maxProviderZoom = provider === 'sat' ? SAT_MAX_ZOOM : 18;
     const tileZ = Math.max(Math.floor(MIN_ZOOM), Math.min(maxProviderZoom, Math.round(this.zoom)));
     const tilesCount = 1 << tileZ;
     const scale = Math.pow(2, this.zoom - tileZ);

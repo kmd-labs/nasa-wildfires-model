@@ -99,50 +99,39 @@ export const EN: Dict = {
   glossaryTermAnomalyTitle: 'Multi-year anomaly and “No history”',
   glossaryTermAnomalyDesc: 'Compares the selected period with the same period in other years, in standard deviations (σ). Data is downloaded only for the selected date range, so the anomaly appears once at least 3 other years have been downloaded.',
   legalTitle: 'Required Open-Data Attributions',
-  legalNasa: 'NASA FIRMS (MCD14ML, VNP14IMGML), NASA/USGS SRTM 30m, and NASA EOSDIS MODIS NDVI (MOD13Q1) — US Government Public Domain.',
-  legalCopernicus: 'Contains modified Copernicus Climate Change Service (C3S ERA5-Land) and Copernicus Marine Service (CMEMS) information [2026].',
-  legalNoaa: 'Sea Surface Temperature (OISST v2.1) and ENSO ONI / NAO teleconnection indices provided by NOAA NCEI & Climate Prediction Center.',
-  legalOsm: 'Evacuation road network & municipal boundaries: © OpenStreetMap contributors (ODbL).',
+  legalNasa: 'NASA FIRMS: MODIS Collection 6.1 (MCD14ML / MCD14DL) and VIIRS 375 m (VNP14IMGML, VJ114IMGML, VJ214IMGML) active fire products. We acknowledge the use of data and imagery from NASA’s Fire Information for Resource Management System (FIRMS), part of NASA’s Earth Science Data and Information System (ESDIS) — US Public Domain.',
+  reportAttribution: 'Data: NASA FIRMS (MODIS Collection 6.1, VIIRS 375 m), US public domain. Harmonized to MODIS-equivalent hotspots by KMD Labs.',
+  legalGibs: 'We acknowledge the use of imagery provided by services from NASA’s Global Imagery Browse Services (GIBS), part of NASA’s Earth Science Data and Information System (ESDIS): Blue Marble and Landsat WELD.',
+  legalNaturalEarth: 'Borders: Natural Earth (public domain).',
+  legalOsm: 'Street basemap: © OpenStreetMap contributors (ODbL).',
 
   // Data Sources Popup
   sourcesBtn: 'Data Sources',
   sourcesTitle: 'Scientific Data Sources & Licenses',
   sourcesList: [
     {
-      name: 'NASA FIRMS (MODIS MCD14ML & VIIRS VNP14IMGML)',
+      name: 'NASA FIRMS — MODIS & VIIRS active fires',
       url: 'https://firms.modaps.eosdis.nasa.gov/',
-      license: 'US Gov Public Domain',
-      desc: '26-year active fire hotspots and Fire Radiative Power (FRP) detections across the Iberian Peninsula.'
+      license: 'US Public Domain',
+      desc: 'Hotspots and fire radiative power (FRP): MODIS Collection 6.1 (Terra, Aqua; MCD14ML / MCD14DL NRT) since 2000 and VIIRS 375 m (Suomi NPP VNP14IMGML, NOAA-20 VJ114IMGML, NOAA-21 VJ214IMGML and NRT) since 2012, downloaded for the selected area and date range.'
     },
     {
-      name: 'NASA / USGS SRTM 30m & MODIS NDVI (MOD13Q1)',
-      url: 'https://lpdaac.usgs.gov/',
-      license: 'US Gov Public Domain',
-      desc: 'Topographic slope/aspect and 16-day vegetation fuel dryness indices.'
+      name: 'NASA GIBS — Blue Marble & Landsat WELD',
+      url: 'https://www.earthdata.nasa.gov/gibs',
+      license: 'NASA open data (no restrictions)',
+      desc: 'Satellite basemap: Blue Marble shaded relief and bathymetry (500 m) and the cloud-free Landsat WELD true-colour annual composite (~30 m, year 2000).'
     },
     {
-      name: 'NOAA OISST v2.1 & CPC ENSO (ONI)',
-      url: 'https://www.ncei.noaa.gov/products/optimum-interpolation-sst',
-      license: 'US Gov Public Domain',
-      desc: 'Global 0.25° Sea Surface Temperature fields and historical El Niño / La Niña ONI time series.'
-    },
-    {
-      name: 'Copernicus C3S (ERA5-Land) & CMEMS',
-      url: 'https://cds.climate.copernicus.eu/',
-      license: 'Copernicus License (CC-BY 4.0)',
-      desc: 'Hourly 10m wind vectors, gusts, 2m air temperature, and North Atlantic / Gulf Stream marine reanalysis.'
-    },
-    {
-      name: 'Natural Earth 10m & 50m Vectors',
-      url: 'https://www.naturalearthdata.com/',
-      license: 'Public Domain',
-      desc: 'High-resolution vector coastlines, Iberian provincial borders, urban footprints, and major highway networks.'
-    },
-    {
-      name: 'OpenStreetMap Contributors',
+      name: 'OpenStreetMap contributors',
       url: 'https://www.openstreetmap.org/copyright',
       license: 'ODbL',
-      desc: 'Forest/woodland vector polygons, evacuation road corridors, and municipal boundaries across Spain and Portugal.'
+      desc: 'Street basemap tiles (tile.openstreetmap.org).'
+    },
+    {
+      name: 'Natural Earth',
+      url: 'https://www.naturalearthdata.com/',
+      license: 'Public Domain',
+      desc: 'Country and province borders, and the outlines of predefined areas.'
     }
   ],
 
@@ -326,5 +315,6 @@ export const EN: Dict = {
   layerBorders: 'Administrative Borders',
   layerRoads: 'Road Network',
   layerGraticule: 'Coordinate Graticule',
-  osmAttribution: '© OpenStreetMap contributors'
+  osmAttribution: '© OpenStreetMap contributors',
+  gibsAttribution: 'Imagery: NASA GIBS (Blue Marble, Landsat WELD)'
 };

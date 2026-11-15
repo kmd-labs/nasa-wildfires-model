@@ -99,50 +99,39 @@ export const PL: Dict = {
   glossaryTermAnomalyTitle: 'Anomalia wieloletnia i „Brak historii”',
   glossaryTermAnomalyDesc: 'Porównuje wybrany okres z tym samym okresem w innych latach, w odchyleniach standardowych (σ). Dane pobierane są tylko dla wybranego zakresu dat, więc anomalia pojawia się, gdy pobrano co najmniej 3 inne lata.',
   legalTitle: 'Wymagane Atrybucje Otwartych Danych',
-  legalNasa: 'NASA FIRMS (MCD14ML, VNP14IMGML), NASA/USGS SRTM 30m oraz NASA EOSDIS MODIS NDVI (MOD13Q1) — Domena Publiczna Rządu USA.',
-  legalCopernicus: 'Zawiera zmodyfikowane informacje Copernicus Climate Change Service (C3S ERA5-Land) i Copernicus Marine Service (CMEMS) [2026].',
-  legalNoaa: 'Temperatura powierzchni morza (OISST v2.1) oraz indeksy ENSO ONI / NAO udostępnione przez NOAA NCEI i Climate Prediction Center.',
-  legalOsm: 'Sieć dróg ewakuacyjnych i granice gmin: © OpenStreetMap contributors (ODbL).',
+  legalNasa: 'NASA FIRMS: produkty aktywnych pożarów MODIS Collection 6.1 (MCD14ML / MCD14DL) i VIIRS 375 m (VNP14IMGML, VJ114IMGML, VJ214IMGML). We acknowledge the use of data and imagery from NASA’s Fire Information for Resource Management System (FIRMS), part of NASA’s Earth Science Data and Information System (ESDIS) — Domena Publiczna USA.',
+  reportAttribution: 'Dane: NASA FIRMS (MODIS Collection 6.1, VIIRS 375 m), domena publiczna USA. Harmonizacja do hotspotów w ekwiwalencie MODIS: KMD Labs.',
+  legalGibs: 'We acknowledge the use of imagery provided by services from NASA’s Global Imagery Browse Services (GIBS), part of NASA’s Earth Science Data and Information System (ESDIS): Blue Marble i Landsat WELD.',
+  legalNaturalEarth: 'Granice: Natural Earth (domena publiczna).',
+  legalOsm: 'Mapa ulic: © OpenStreetMap contributors (ODbL).',
 
   // Data Sources Popup
   sourcesBtn: 'Źródła danych',
   sourcesTitle: 'Źródła Danych Naukowych i Licencje',
   sourcesList: [
     {
-      name: 'NASA FIRMS (MODIS MCD14ML & VIIRS VNP14IMGML)',
+      name: 'NASA FIRMS — aktywne pożary MODIS i VIIRS',
       url: 'https://firms.modaps.eosdis.nasa.gov/',
       license: 'Domena Publiczna USA',
-      desc: '26-letnie detekcje aktywnych pożarów i mocy promieniowania ognia (FRP) na Półwyspie Iberyjskim.'
+      desc: 'Hotspoty i moc promieniowania ognia (FRP): MODIS Collection 6.1 (Terra, Aqua; MCD14ML / MCD14DL NRT) od 2000 r. oraz VIIRS 375 m (Suomi NPP VNP14IMGML, NOAA-20 VJ114IMGML, NOAA-21 VJ214IMGML i NRT) od 2012 r., pobierane dla wybranego obszaru i zakresu dat.'
     },
     {
-      name: 'NASA / USGS SRTM 30m & MODIS NDVI (MOD13Q1)',
-      url: 'https://lpdaac.usgs.gov/',
-      license: 'Domena Publiczna USA',
-      desc: 'Dane topograficzne nachylenia terenu oraz 16-dniowe wskaźniki przesuszenia roślinności NDVI.'
+      name: 'NASA GIBS — Blue Marble i Landsat WELD',
+      url: 'https://www.earthdata.nasa.gov/gibs',
+      license: 'Otwarte dane NASA (bez ograniczeń)',
+      desc: 'Podkład satelitarny: Blue Marble z cieniowaniem rzeźby i batymetrią (500 m) oraz bezchmurna roczna kompozycja Landsat WELD w barwach naturalnych (~30 m, rok 2000).'
     },
     {
-      name: 'NOAA OISST v2.1 & CPC ENSO (ONI)',
-      url: 'https://www.ncei.noaa.gov/products/optimum-interpolation-sst',
-      license: 'Domena Publiczna USA',
-      desc: 'Globalne pola temperatury powierzchni morza (0.25°) oraz historyczny szereg indeksu El Niño ONI.'
-    },
-    {
-      name: 'Copernicus C3S (ERA5-Land) & CMEMS',
-      url: 'https://cds.climate.copernicus.eu/',
-      license: 'Licencja Copernicus (CC-BY 4.0)',
-      desc: 'Godzinowe wektory wiatru na 10 m, porywy, temperatura powietrza na 2 m oraz reanaliza północnego Atlantyku.'
-    },
-    {
-      name: 'Natural Earth 10m & 50m Wektory',
-      url: 'https://www.naturalearthdata.com/',
-      license: 'Domena Publiczna',
-      desc: 'Wektorowe linie brzegowe, granice prowincji Półwyspu Iberyjskiego, obszary miejskie i sieć głównych dróg.'
-    },
-    {
-      name: 'OpenStreetMap Contributors',
+      name: 'OpenStreetMap contributors',
       url: 'https://www.openstreetmap.org/copyright',
       license: 'ODbL',
-      desc: 'Wektorowe poligony lasów i terenów zalesionych, korytarze dróg ewakuacyjnych oraz granice gmin w Hiszpanii i Portugalii.'
+      desc: 'Kafle mapy ulic (tile.openstreetmap.org).'
+    },
+    {
+      name: 'Natural Earth',
+      url: 'https://www.naturalearthdata.com/',
+      license: 'Domena Publiczna',
+      desc: 'Granice państw i prowincji oraz obrysy predefiniowanych obszarów.'
     }
   ],
 
@@ -326,5 +315,6 @@ export const PL: Dict = {
   layerBorders: 'Granice Administracyjne',
   layerRoads: 'Sieć Drogowa',
   layerGraticule: 'Siatka Współrzędnych',
-  osmAttribution: '© OpenStreetMap contributors'
+  osmAttribution: '© OpenStreetMap contributors',
+  gibsAttribution: 'Zdjęcia: NASA GIBS (Blue Marble, Landsat WELD)'
 };

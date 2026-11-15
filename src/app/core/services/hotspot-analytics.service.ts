@@ -1826,8 +1826,7 @@ export class HotspotAnalyticsService {
   <line x1="630" y1="${zeroY}" x2="1146" y2="${zeroY}" stroke="#64748b" stroke-width="1"/>
   ${anomBarsSvg}
 
-  <text x="44" y="880" font-size="11" fill="#64748b">${esc(t.legalNasa)}</text>
-  <text x="44" y="898" font-size="11" fill="#64748b">${esc(t.legalCopernicus)} · ${esc(t.legalNoaa)}</text>
+  <text x="44" y="880" font-size="11" fill="#64748b">${esc(t.reportAttribution)}</text>
 </svg>`;
   }
 
