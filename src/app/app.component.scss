@@ -57,6 +57,50 @@
     transition: opacity transition("fast"), visibility transition("fast");
   }
 
+  &__action-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: $control-height;
+    min-height: $control-height;
+    padding: 6px 12px;
+    border: 1px solid transparent;
+    border-radius: radius("control");
+    background: transparent;
+    color: color("text-dim");
+    font: inherit;
+    font-size: font-size("xs");
+    font-weight: font-weight("medium");
+    line-height: 1.25;
+    text-decoration: none;
+    white-space: nowrap;
+    user-select: none;
+    transition:
+      background transition("fast"),
+      border-color transition("fast"),
+      color transition("fast"),
+      transform transition("fast");
+
+    &:hover {
+      background: color("btn-hover");
+      color: color("text-bright");
+    }
+
+    &:active {
+      transform: scale(0.97);
+    }
+
+    &--icon {
+      width: 28px;
+      min-width: 28px;
+      height: 28px;
+      min-height: 28px;
+      padding: 0;
+      font-size: font-size("xxs");
+    }
+  }
+
   &__view {
     width: auto;
   }
@@ -139,7 +183,7 @@
     border: none;
     border-radius: radius("pill");
     background: color("accent");
-    color: #ffffff;
+    color: color("on-accent");
     font: inherit;
     font-size: font-size("xxs");
     font-weight: font-weight("semibold");

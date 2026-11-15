@@ -35,6 +35,7 @@ import {
   TooltipDirective,
   TooltipService
 } from '@kmd/design-system';
+import { ThemeService } from '@kmd/design-system/services/theme.service';
 import { openExportPopup } from '../data-popup/data-popup.component';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { DEFAULT_PREFILL_BBOX, WildfireStateService } from '../../core/services/wildfire-state.service';
@@ -75,6 +76,7 @@ export class AnalyticsPanelComponent {
   readonly data = inject(WildfireDataService);
   readonly analytics = inject(HotspotAnalyticsService);
   readonly ramps = inject(ColorRampService);
+  private readonly theme = inject(ThemeService);
   private readonly popup = inject(PopupService);
   private readonly tooltipService = inject(TooltipService);
   readonly Math = Math;
@@ -569,10 +571,15 @@ export class AnalyticsPanelComponent {
   }
 
   cellFill(cell: BurningCalendarCell): string {
+    this.theme.mode(); // Track active theme so Angular updates cell fills on switch
     if (!cell.inRange) {
-      return cell.harmonizedCount > 0 ? '#dbe2ea' : '#f1f5f9';
+      return cell.harmonizedCount > 0
+        ? this.theme.getTokenColor('surface-muted-strong', '#dbe2ea')
+        : this.theme.getTokenColor('surface-muted', '#f1f5f9');
     }
-    if (cell.harmonizedCount <= 0) return '#eef2f7';
+    if (cell.harmonizedCount <= 0) {
+      return this.theme.getTokenColor('surface-muted', '#eef2f7');
+    }
     return this.ramps.sampleHex(this.state.colorRamp(), cell.intensity);
   }
 

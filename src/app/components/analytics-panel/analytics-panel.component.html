@@ -787,7 +787,7 @@
                     [attr.width]="barW"
                     [attr.height]="Math.max(1, hHarm)"
                     rx="2"
-                    [attr.fill]="pt.inSelectedRange ? '#d37400' : '#94a3b8'"
+                    [style.fill]="pt.inSelectedRange ? 'var(--color-accent)' : 'var(--color-text-dim)'"
                     [attr.opacity]="pt.inSelectedRange ? 0.92 : 0.42"
                     class="chart-bar"
                     (mouseenter)="hoveredChartPoint.set(pt)"
@@ -798,7 +798,7 @@
                     [attr.width]="barW * 0.56"
                     [attr.height]="Math.max(0.5, hModis)"
                     rx="1"
-                    fill="#0f172a"
+                    style="fill: var(--color-text-bright)"
                     opacity="0.32"
                     pointer-events="none" />
 

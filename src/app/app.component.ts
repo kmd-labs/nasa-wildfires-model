@@ -10,7 +10,8 @@ import {
   BoxSelect,
   Check,
   X,
-  Settings
+  Settings,
+  Github
 } from 'lucide-angular';
 import {
   BrandComponent,
@@ -23,11 +24,13 @@ import {
   SwitcherComponent,
   SwitcherOption,
   TooltipComponent,
+  TooltipDirective,
   BreakpointService,
   SeoService
 } from '@kmd/design-system';
 import { breakpointPx, isAtMost } from '@kmd/design-system/utils/breakpoints';
 import { I18nService } from './core/i18n/i18n.service';
+import { ThemePrefService } from './core/services/theme-pref.service';
 import { MapRenderMode } from './core/models/wildfire.model';
 import { WildfireStateService } from './core/services/wildfire-state.service';
 import { WildfireDataService } from './core/services/wildfire-data.service';
@@ -52,6 +55,7 @@ import { AnalyticsPanelComponent } from './components/analytics-panel/analytics-
     SplashComponent,
     SwitcherComponent,
     TooltipComponent,
+    TooltipDirective,
     GlobeComponent,
     Map2dComponent,
     AnalyticsPanelComponent
@@ -61,6 +65,7 @@ import { AnalyticsPanelComponent } from './components/analytics-panel/analytics-
 })
 export class AppComponent implements OnDestroy {
   readonly i18n = inject(I18nService);
+  private readonly themePref = inject(ThemePrefService);
   readonly bp = inject(BreakpointService);
   private readonly ngZone = inject(NgZone);
   readonly popup = inject(PopupService);
@@ -98,6 +103,8 @@ export class AppComponent implements OnDestroy {
   readonly checkIcon = Check;
   readonly closeIcon = X;
   readonly settingsIcon = Settings;
+  readonly githubIcon = Github;
+  readonly githubUrl = 'https://github.com/kmd-labs/nasa-wildfires-model';
 
   readonly bannerDismissed = signal(false);
   readonly showRecalculateBanner = computed(

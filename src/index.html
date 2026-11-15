@@ -7,6 +7,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="KMD Labs interactive scientific visualization: Wildfire Data Harmonization across MODIS and VIIRS active fire hotspots with a harmonized burning activity calendar.">
   <meta name="theme-color" content="#f5f7fb">
+  <script>
+    (function () {
+      try {
+        var p = localStorage.getItem('nasa-wildfires-model.theme') || 'auto';
+        var dark = p === 'dark' || (p === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+        if (dark) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+          document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#0b1526');
+        }
+      } catch (e) {}
+    })();
+  </script>
   <link rel="icon" type="image/svg+xml" href="assets/design-system/favicon.svg">
   <link rel="alternate icon" type="image/x-icon" href="assets/design-system/favicon.ico">
 
