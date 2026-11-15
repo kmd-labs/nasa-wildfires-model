@@ -290,7 +290,7 @@ export class WildfireDataService {
     if (!firstBox) return false;
     const matchesBox = DEFAULT_CACHED_IBERIA_BBOX.every((val, idx) => Math.abs(firstBox[idx] - val) <= 0.02);
     if (!matchesBox) return false;
-    return dateStart.slice(0, 7) === DEFAULT_CACHED_FROM_YM && dateEnd.slice(0, 7) === DEFAULT_CACHED_TO_YM;
+    return dateStart.slice(0, 10) === `${DEFAULT_CACHED_FROM_YM}-01` && dateEnd.slice(0, 10) === `${DEFAULT_CACHED_TO_YM}-30`;
   }
 
   async syncCalendarFromBackend(
@@ -321,9 +321,9 @@ export class WildfireDataService {
     }
 
     const { bboxStr, fallbackStr, primaryBox } = this.formatBboxesParam(bboxOrList);
-    const fromYm = dateStart.slice(0, 7);
-    const toYm = dateEnd.slice(0, 7);
-    const queryKey = `${bboxStr}|${fromYm}|${toYm}`;
+    const fromParam = dateStart.length >= 10 ? dateStart.slice(0, 10) : dateStart.slice(0, 7);
+    const toParam = dateEnd.length >= 10 ? dateEnd.slice(0, 10) : dateEnd.slice(0, 7);
+    const queryKey = `${bboxStr}|${fromParam}|${toParam}`;
     const isSameQuery = this.activeApiQuery === queryKey;
     this.activeApiQuery = queryKey;
 
@@ -369,7 +369,7 @@ export class WildfireDataService {
     this.backendError.set(null);
 
     const buildApiPath = (bParam: string) =>
-      `/api/calendar?bbox=${encodeURIComponent(bParam)}&from=${encodeURIComponent(fromYm)}&to=${encodeURIComponent(toYm)}`;
+      `/api/calendar?bbox=${encodeURIComponent(bParam)}&from=${encodeURIComponent(fromParam)}&to=${encodeURIComponent(toParam)}`;
     const apiPath = buildApiPath(bboxStr);
 
     try {

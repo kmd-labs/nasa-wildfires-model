@@ -399,3 +399,59 @@ def test_failed_priority_chunk_does_not_loop_202(tmp_path):
     res2 = svc.calendar("16.76,50.87,17.4,51.24", "2026-07", "2026-07")
     assert res2["selection"]["hotspots"]["rawModis"] >= 1
     assert area_calls == calls_after_first
+
+
+def test_partial_boundary_dates_exclude_out_of_range_days(tmp_path):
+    avail_csv = (
+        "data_id,min_date,max_date\n"
+        "MODIS_SP,2024-06-01,2025-10-31\n"
+        "VIIRS_SNPP_SP,2024-06-01,2025-10-31\n"
+    )
+    rows_modis = [
+        "51.05,17.05,320.0,0.4,0.4,2024-07-10,1200,T,n,6.1,290.0,15.0,D",
+        "51.05,17.05,320.0,0.4,0.4,2025-07-10,1200,T,n,6.1,290.0,15.0,D",
+    ]
+    rows_viirs = [
+        "51.05,17.05,330.0,0.4,0.4,2024-07-10,1205,N,n,2,295.0,20.0,D",
+        "51.06,17.06,330.0,0.4,0.4,2024-10-01,1210,N,n,2,295.0,12.0,D",
+        *[f"51.{10 + i},17.10,330.0,0.4,0.4,2024-10-20,1210,N,n,2,295.0,12.0,D" for i in range(5)],
+        "51.05,17.05,330.0,0.4,0.4,2025-07-10,1205,N,n,2,295.0,20.0,D",
+        "51.06,17.06,330.0,0.4,0.4,2025-10-01,1210,N,n,2,295.0,14.0,D",
+        *[f"51.{20 + i},17.20,330.0,0.4,0.4,2025-10-15,1210,N,n,2,295.0,14.0,D" for i in range(10)],
+    ]
+    header = "latitude,longitude,brightness,scan,track,acq_date,acq_time,satellite,confidence,version,bright_t31,frp,daynight"
+
+    def fake_http(url: str, timeout: float) -> tuple[int, str]:
+        if "/data_availability/" in url:
+            return 200, avail_csv
+        m = re.search(r"/csv/[^/]+/([^/]+)/[^/]+/\d+/(\d{4}-\d{2}-\d{2})$", url)
+        assert m, url
+        sensor, end_s = m.group(1), m.group(2)
+        end_d = dt.date.fromisoformat(end_s)
+        span_m = re.search(r"/(\d+)/\d{4}-\d{2}-\d{2}$", url)
+        days = int(span_m.group(1))
+        start_d = end_d - dt.timedelta(days=days - 1)
+        src = rows_modis if sensor == "MODIS_SP" else rows_viirs
+        picked = [r for r in src if start_d <= dt.date.fromisoformat(r.split(",")[5]) <= end_d]
+        return 200, "\n".join([header, *picked])
+
+    svc = CalendarService(RegionStore(tmp_path), FirmsClient(map_key="TESTKEY", http_get=fake_http))
+    bbox = "16.76,50.87,17.4,51.35"
+    part = svc.calendar(bbox, "2025-06-01", "2025-10-01", wait=True)
+    full = svc.calendar(bbox, "2025-06-01", "2025-10-31", wait=True)
+
+    assert part["selection"]["fromDate"] == "2025-06-01"
+    assert part["selection"]["toDate"] == "2025-10-01"
+    assert part["selection"]["hotspots"]["rawViirs"] == 2  # July 10 + Oct 1 only
+    assert full["selection"]["hotspots"]["rawViirs"] == 12  # includes 10 detections on Oct 15
+    assert part["selection"]["hotspots"]["harmonized"] < full["selection"]["hotspots"]["harmonized"]
+
+    mmdds = {b["mmdd"] for b in part["selection"]["daily"]}
+    assert mmdds == {"07-10", "10-01"}
+    assert sum(c["rawViirs"] for c in part["selection"]["cells"]) == part["selection"]["hotspots"]["rawViirs"]
+
+    part_top = {r["year"]: r["harmonized"] for r in part["selection"]["comparedWithSameMonthsInOtherYears"]["top5"]}
+    full_top = {r["year"]: r["harmonized"] for r in full["selection"]["comparedWithSameMonthsInOtherYears"]["top5"]}
+    assert part_top[2024] < full_top[2024]
+    assert part_top[2025] < full_top[2025]
+
