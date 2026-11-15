@@ -109,6 +109,31 @@
           <p class="data-popup__meta">{{ t.mqIntervalMultiplier }}: <b class="mono">{{ c.intervalMultiplier | number:'1.2-2' }}</b></p>
         }
       }
+
+      <h4 class="mq-subtitle">{{ t.seamTitle }}</h4>
+      @if (seamTests().length) {
+        <p class="data-popup__meta">{{ t.seamDesc }}</p>
+        @for (st of seamTests(); track st.product) {
+          <table class="mq-table">
+            <tr><th>{{ st.product }}</th><th>{{ t.seamSeries }}</th><th>{{ t.seamStep }}</th><th>{{ t.seamVerdict }}</th></tr>
+            @for (r of st.rows; track r.seam + r.series) {
+              <tr>
+                <td>{{ r.seamName }} ({{ r.month }})</td>
+                <td>{{ r.series === 'harmonized' ? t.legendHarmonized : t.seamNaiveSum }}</td>
+                <td class="mono">
+                  @if (r.stepPct !== null) {
+                    {{ r.stepPct >= 0 ? '+' : '' }}{{ r.stepPct | number:'1.0-0' }}%
+                    @if (r.ci95Pct) { ({{ r.ci95Pct[0] | number:'1.0-0' }}…{{ r.ci95Pct[1] | number:'1.0-0' }}%) }
+                  } @else { — }
+                </td>
+                <td>{{ r.verdict === 'noSeam' ? t.seamNoSeam : r.verdict === 'seamUp' ? t.seamUp : r.verdict === 'seamDown' ? t.seamDown : t.seamInsufficient }}</td>
+              </tr>
+            }
+          </table>
+        }
+      } @else {
+        <p class="data-popup__meta">{{ t.seamUnavailable }}</p>
+      }
     </section>
   }
 </div>

@@ -213,6 +213,17 @@ export interface Dict {
   mqDriftFactor: string;
   mqFromPrior: string;
   mqIntervalMultiplier: string;
+  seamTitle: string;
+  seamDesc: string;
+  seamSeries: string;
+  seamStep: string;
+  seamVerdict: string;
+  seamNaiveSum: string;
+  seamNoSeam: string;
+  seamUp: string;
+  seamDown: string;
+  seamInsufficient: string;
+  seamUnavailable: string;
   downloadJsonBtn: string;
   downloadSvgBtn: string;
   downloadPngBtn: string;

@@ -76,6 +76,33 @@ export class DataPopupComponent {
       intervalMultiplier: model.intervalMultiplier ?? null
     };
   });
+
+  /**
+   * Seam test against burned area (#88): does the harmonized series step when a satellite joins,
+   * relative to an independent witness (MODIS / VIIRS burned area)? Only the harmonized and the
+   * naive-sum rows are shown, one block per witness product.
+   */
+  readonly seamTests = computed(() => {
+    const seam = this.data.backendCalendar()?.seamTest as Record<string, { witness?: string; rows?: SeamRow[] }> | null | undefined;
+    if (!seam) return [];
+    return Object.entries(seam)
+      .map(([product, test]) => ({
+        product,
+        rows: (test.rows ?? [])
+          .filter(r => r.series === 'harmonized' || r.series === 'naiveSum')
+          .map(r => ({ ...r, seamName: PLATFORM_NAMES[r.seam] ?? r.seam }))
+      }))
+      .filter(t => t.rows.length > 0);
+  });
+}
+
+interface SeamRow {
+  seam: string;
+  month: string;
+  series: string;
+  stepPct: number | null;
+  ci95Pct: [number, number] | null;
+  verdict: 'noSeam' | 'seamUp' | 'seamDown' | 'insufficient';
 }
 
 const PLATFORM_NAMES: Record<string, string> = {
