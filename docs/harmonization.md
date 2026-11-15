@@ -178,6 +178,15 @@ Wnioski:
 
 Hostowane API używa v4 (`ENV HARMONIZATION=v4` w [`backend/Dockerfile`](../backend/Dockerfile)).
 
+### Walidacja globalna v4
+
+[`scripts/validation/global_validation.py`](../scripts/validation/global_validation.py) sprawdza v4 (z v3 jako punktem odniesienia) na 22 regionach pożarowych w różnych biomach: od Kalifornii i Kanady przez Amazonię, sawanny Afryki, Pendżab i Kalimantan po Australię. Dane: roczne pliki krajowe FIRMS (bez klucza), NOAA-21 z Area API (z `FIRMS_MAP_KEY`), świadek MCD64A1 (z `EARTHDATA_TOKEN`). Dla każdego regionu: k-fold po erach, test w przód 2024–2025, skok 2012, zmierzony dryf Terry i Aqua oraz test szwu na powierzchni spalonej. Wynik: `data/cache/global_validation/results/report.md` i `summary.csv`. Skrypt można przerwać i wznowić; pełny bieg to kilka godzin.
+
+```bash
+python scripts/validation/global_validation.py            # całość, na noc
+python scripts/validation/global_validation.py --list     # regiony
+```
+
 ## Jak włączyć
 
 ```bash
