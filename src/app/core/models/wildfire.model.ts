@@ -101,6 +101,9 @@ export interface HotspotAnalyticsSummary {
   rawModisFires: number;
   rawViirsFires: number;
   totalFrpMw: number;
+  /** Raw FRP per sensor family (not harmonized); null without backend data. */
+  totalFrpModisMw: number | null;
+  totalFrpViirsMw: number | null;
   meanFrpMw: number;
   activeFireDays: number;
   peakDate: string | null;
@@ -358,6 +361,9 @@ export interface BackendCalendarPayload {
       activeFireDays: number;
       peakDate: string | null;
       peakCount: number;
+      totalMwModis?: number;
+      totalMwViirs?: number;
+      peakRawDetections?: number;
     };
     daily?: BackendDailyBucket[];
     dailyByYear?: Record<string, BackendDailyBucket[]>;

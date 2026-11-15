@@ -222,6 +222,8 @@ export interface Dict {
   kpiAnomalyNoHistoryHint: string;
   kpiTotalFrp: string;
   kpiMeanFrp: string;
+  kpiTotalFrpHint: string;
+  kpiPeakDateHint: string;
   kpiPeakDate: string;
   kpiActiveDays: string;
   kpiRegionArea: string;

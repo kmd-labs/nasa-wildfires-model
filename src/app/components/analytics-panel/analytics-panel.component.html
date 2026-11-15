@@ -568,13 +568,19 @@
             </div>
 
             <div class="kpi-card">
-              <span class="kpi-card__label">{{ t.kpiTotalFrp }}</span>
+              <span class="kpi-card__label" [attr.title]="t.kpiTotalFrpHint">{{ t.kpiTotalFrp }}</span>
               <strong class="kpi-card__val">{{ summary.totalFrpMw | number }} MW</strong>
-              <span class="kpi-card__sub">{{ t.kpiMeanFrp }}: {{ summary.meanFrpMw }} MW</span>
+              <span class="kpi-card__sub" [attr.title]="t.kpiTotalFrpHint">
+                @if (summary.totalFrpModisMw !== null && summary.totalFrpViirsMw !== null) {
+                  MODIS {{ summary.totalFrpModisMw | number }} MW · VIIRS {{ summary.totalFrpViirsMw | number }} MW
+                } @else {
+                  {{ t.kpiMeanFrp }}: {{ summary.meanFrpMw }} MW
+                }
+              </span>
             </div>
 
             <div class="kpi-card">
-              <span class="kpi-card__label">{{ t.kpiPeakDate }}</span>
+              <span class="kpi-card__label" [attr.title]="t.kpiPeakDateHint">{{ t.kpiPeakDate }}</span>
               <strong class="kpi-card__val">{{ summary.peakDate ? (summary.peakDate | localeDate) : '—' }}</strong>
               <span class="kpi-card__sub" [title]="i18n.formatSquareMetersExact(analytics.bboxArea().m2)">{{ summary.activeFireDays }} {{ t.kpiActiveDays }} · {{ i18n.formatArea(analytics.bboxArea().m2) }}</span>
             </div>

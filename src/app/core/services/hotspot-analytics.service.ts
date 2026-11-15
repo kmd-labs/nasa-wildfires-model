@@ -817,6 +817,8 @@ export class HotspotAnalyticsService {
       const modis = Math.round(rawModisTotal * ratio);
       const viirs = Math.round(rawViirsTotal * ratio);
       const totalFrp = Math.round((sel.frp?.totalMw ?? 0) * ratio);
+      const totalFrpModis = sel.frp?.totalMwModis !== undefined ? Math.round(sel.frp.totalMwModis * ratio) : null;
+      const totalFrpViirs = sel.frp?.totalMwViirs !== undefined ? Math.round(sel.frp.totalMwViirs * ratio) : null;
       const meanFrp = sel.frp?.meanMw ?? 0;
       const activeFireDays = sel.frp?.activeFireDays ?? 0;
       const peakDate = sel.frp?.peakDate ?? null;
@@ -865,6 +867,8 @@ export class HotspotAnalyticsService {
         rawModisFires: modis,
         rawViirsFires: viirs,
         totalFrpMw: totalFrp,
+        totalFrpModisMw: totalFrpModis,
+        totalFrpViirsMw: totalFrpViirs,
         meanFrpMw: meanFrp,
         activeFireDays,
         peakDate,
@@ -941,6 +945,8 @@ export class HotspotAnalyticsService {
       rawModisFires: modis,
       rawViirsFires: viirs,
       totalFrpMw: Math.round(frp),
+      totalFrpModisMw: null,
+      totalFrpViirsMw: null,
       meanFrpMw: records.length > 0 ? Number((frp / records.length).toFixed(1)) : 0,
       activeFireDays: dayTotals.size,
       peakDate,

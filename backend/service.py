@@ -367,13 +367,15 @@ class CalendarService:
         # Exact selection stats for FRP, active fire days, peak day, daily buckets, and partial boundary months
         sel_df = h["df"]
         in_win = sel_df[(sel_df.date >= first) & (sel_df.date <= last)]
+        # FRP is a raw, all-satellite figure: one fire seen by several satellites counts several times.
+        # It is reported per sensor family so the UI can say so; it is not harmonized.
         frp_vals = in_win.frp.dropna()
         total_frp = float(frp_vals.sum()) if len(frp_vals) else 0.0
         mean_frp = float(frp_vals.mean()) if len(frp_vals) else 0.0
+        total_frp_modis = float(in_win.frp[in_win.platform.isin(hz.MODIS)].sum()) if len(in_win) else 0.0
+        total_frp_viirs = float(in_win.frp[in_win.platform.isin(hz.VIIRS)].sum()) if len(in_win) else 0.0
         day_counts = in_win.acq_date.value_counts() if len(in_win) else pd.Series(dtype=int)
         active_days = int(len(day_counts))
-        peak_date = str(day_counts.index[0]) if len(day_counts) else None
-        peak_count = int(day_counts.iloc[0]) if len(day_counts) else 0
         frp_by_year = sel_df.groupby(sel_df.date.dt.year)["frp"].sum().to_dict() if len(sel_df) else {}
 
         raw_tot_arr = modis + viirs
@@ -381,6 +383,14 @@ class CalendarService:
             months[i]: float(total[i] / raw_tot_arr[i]) if (not np.isnan(total[i]) and raw_tot_arr[i] > 0) else 1.0
             for i in range(len(months))
         }
+
+        # peak day = the day with the most harmonized (MODIS-equivalent) hotspots, not raw detections
+        peak_date, peak_count, peak_raw = None, 0.0, 0
+        if len(in_win):
+            day_harm = in_win.acq_date.str.slice(0, 7).map(scale_by_ym).fillna(1.0).groupby(in_win.acq_date).sum()
+            peak_date = str(day_harm.idxmax())
+            peak_count = float(day_harm.max())
+            peak_raw = int(day_counts.get(peak_date, 0))
 
         value = float(np.nansum(total[full_window])) if len(full_window) else 0.0
         raw_modis = int(np.nansum(modis[full_window])) if len(full_window) else 0
@@ -578,10 +588,13 @@ class CalendarService:
                 "hotspots": {"harmonized": round(value, 1), "rawModis": raw_modis, "rawViirs": raw_viirs},
                 "frp": {
                     "totalMw": round(total_frp),
+                    "totalMwModis": round(total_frp_modis),
+                    "totalMwViirs": round(total_frp_viirs),
                     "meanMw": round(mean_frp, 1),
                     "activeFireDays": active_days,
                     "peakDate": peak_date,
-                    "peakCount": peak_count,
+                    "peakCount": round(peak_count, 1),
+                    "peakRawDetections": peak_raw,
                 },
                 "daily": daily_buckets,
                 "dailyByYear": daily_by_year,
