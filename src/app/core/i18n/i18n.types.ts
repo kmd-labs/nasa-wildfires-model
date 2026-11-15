@@ -101,14 +101,16 @@ export interface Dict {
 
   // Glossary & Legal Attribution Popup
   glossaryIntro: string;
-  glossaryTermInertiaTitle: string;
-  glossaryTermInertiaDesc: string;
+  glossaryTermHotspotTitle: string;
+  glossaryTermHotspotDesc: string;
   glossaryTermHarmonizationTitle: string;
   glossaryTermHarmonizationDesc: string;
-  glossaryTermWindShearTitle: string;
-  glossaryTermWindShearDesc: string;
-  glossaryTermChokePointsTitle: string;
-  glossaryTermChokePointsDesc: string;
+  glossaryTermSmallFiresTitle: string;
+  glossaryTermSmallFiresDesc: string;
+  glossaryTermIntervalTitle: string;
+  glossaryTermIntervalDesc: string;
+  glossaryTermAnomalyTitle: string;
+  glossaryTermAnomalyDesc: string;
   legalTitle: string;
   legalNasa: string;
   legalCopernicus: string;
