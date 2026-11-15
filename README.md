@@ -36,7 +36,7 @@ The harmonization pipeline expresses multi-satellite hotspot observations in con
 
    $$H_{\text{cell},\text{month}} = \frac{\sum_p N_{p,\text{cell},\text{month}}}{\sum_p \left(e_{p,\text{cell},\text{month}} \cdot \text{exposure}_{p,\text{month}}\right)}$$
 
-   Selectable harmonization engines (`HARMONIZATION=v1|v2|v3` in `backend/harmonization_select.py`) extend the baseline model (`harmonization.py`) with day/night stratification, orbit-drift eras, Fire Radiative Power (FRP) intensity classes (`harmonization2.py`), and a separated small-fire explanatory layer (`harmonization3.py`).
+   Selectable harmonization engines (`HARMONIZATION=v1|v2|v3|v4` in `backend/harmonization_select.py`) extend the baseline model (`harmonization.py`) with day/night stratification, orbit-drift eras, Fire Radiative Power (FRP) intensity classes (`harmonization2.py`), a separated small-fire explanatory layer (`harmonization3.py`), and a physical MODIS orbit-drift model (`harmonization4.py`, used by the hosted API): the unit is fixed to Terra + Aqua on their nominal orbits, each month's overpass time is measured from `acq_time` (Terra now passes about 1.7 h earlier and Aqua 1.8 h later than in 2012–2020), and NOAA-20/NOAA-21 are chained to Suomi NPP so the record continues after Suomi NPP stopped on 2 Nov 2026.
 4. **Uncertainty, Anomalies & Validation:** Computes 90% quasi-Poisson confidence intervals, leave-one-out multi-year seasonal baselines (anomaly Z-scores, percentiles, % of median), blocked $k$-fold out-of-sample cross-validation, and optional burned-area seam tests against NASA LP DAAC products (`MCD64A1` / `VNP64A1`).
 
 ### Part 2: Interactive Burning Activity Calendar (`src/`)

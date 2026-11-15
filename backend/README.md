@@ -112,7 +112,7 @@ dowolnym hostingu), a aplikacja musi znać jego adres. Cache powinien leżeć na
 
 ## Harmonization version
 
-`HARMONIZATION=v1|v2|v3` picks the module (default `v1`). v3 counts exactly like v2 and adds the small-fire layer, a weight per hot spot (`weight` column in the CSV), median stats and calibrated intervals; see [`docs/harmonization.md`](../docs/harmonization.md).
+`HARMONIZATION=v1|v2|v3|v4` picks the module (default `v1`; the Docker image sets `v4`). v4 fixes the unit to MODIS on nominal orbits and models the Terra/Aqua orbit drift from the measured overpass time. v3 counts exactly like v2 and adds the small-fire layer, a weight per hot spot (`weight` column in the CSV), median stats and calibrated intervals; see [`docs/harmonization.md`](../docs/harmonization.md).
 
 ### Seam test
 

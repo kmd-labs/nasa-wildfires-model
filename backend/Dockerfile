@@ -5,5 +5,7 @@ COPY requirements.txt backend/requirements.txt
 RUN pip install --no-cache-dir -r backend/requirements.txt
 COPY . backend
 ENV FIRMS_CACHE_DIR=/cache
+# v4: fixed nominal-MODIS unit with the orbit-drift law (docs/harmonization.md); v1 stays the code default
+ENV HARMONIZATION=v4
 EXPOSE 8000
 CMD ["sh", "-c", "uvicorn backend.server:app --host 0.0.0.0 --port ${PORT:-8000}"]

@@ -129,10 +129,59 @@ python -m backend burned-area --bbox=-9.6,36.8,-6.0,42.2 --product MCD64A1
 python -m backend burned-area --bbox=-9.6,36.8,-6.0,42.2 --product VNP64A1
 ```
 
+## v4: dryf orbit MODIS
+
+Terra i Aqua skończyły paliwo do korekt orbity, więc ich godzina przelotu się przesuwa. Zmierzyliśmy to z naszych danych FIRMS (godzina UTC z `acq_time` plus długość geograficzna):
+
+| Rok | Terra, przelot dzienny | Aqua, przelot dzienny | Terra ÷ S-NPP (dzień) |
+|---|---|---|---|
+| 2012–2020 | ok. 11:00 | ok. 13:05 | 0,21 |
+| 2023 | 10:35 (−0,4 h) | 13:20 (+0,2 h) | 0,21 |
+| 2024 | 10:18 (−0,7 h) | 13:37 (+0,5 h) | 0,18 |
+| 2025 | 9:52 (−1,1 h) | 14:20 (+1,1 h) | 0,16 |
+| 2026 | 9:20 (−1,7 h) | 14:53 (+1,8 h) | 0,14 |
+
+VIIRS stoi w miejscu (ok. 12:55). Ogień pali się najmocniej po południu, więc Terra, która przelatuje coraz wcześniej, widzi go coraz mniej. v2 i v3 liczą w jednostkach „MODIS z tego samego miesiąca”, więc seria powoli dryfuje razem z MODIS. v4 ([`backend/harmonization4.py`](../backend/harmonization4.py)) zmienia to tak:
+
+1. **Stała jednostka:** Terra + Aqua na orbitach nominalnych. Wydajności dopasowujemy tylko na latach przed 2020.
+2. **Zegar satelitów:** dla każdego miesiąca przesunięcie godziny przelotu względem mediany sprzed 2020. Mały obszar bez własnych detekcji bierze przesunięcie zmierzone nad Iberią.
+3. **Prawo dryfu:** wydajność MODIS = wydajność nominalna × `exp(b1·Δt + b2·Δt²)`, osobno dla Terry i Aqua, dnia i nocy. Dopasowujemy je regresją quasi-Poissona liczby detekcji MODIS względem tego, co wynika z VIIRS (który nie dryfuje). Prior to prawo dopasowane nad Iberią; człon kwadratowy zostaje tylko wtedy, gdy prawo jest monotoniczne w zakresie obserwowanego przesunięcia.
+4. **Łańcuch VIIRS:** NOAA-20 i NOAA-21 kalibrujemy do Suomi NPP, a dopiero Suomi NPP do nominalnego MODIS. NOAA-21 nigdy nie widział MODIS sprzed dryfu, a Suomi NPP przestał nadawać 2.11.2026, więc rekord idzie dalej na NOAA-20 i NOAA-21 bez skoku.
+
+Prawo dopasowane nad Iberią (współczynnik w 2026):
+
+| | Dzień | Noc |
+|---|---|---|
+| Terra (przelot wcześniej) | 0,79 | 0,92 |
+| Aqua (przelot później) | 0,90 | 0,66 |
+
+### Walidacja v3 i v4
+
+Walidacja przewiduje surowy MODIS z samego VIIRS przez prawo dryfu, poza próbą: dryfujący sensor pozostaje sprawdzianem, a nie czymś, co model może dopasować. Dwa testy:
+- **k-fold po latach:** model uczy się na pozostałych latach;
+- **„w przód”:** model uczy się na latach do 2023 i przewiduje 2024–2026, kiedy dryf jest największy.
+
+| Region | Obciążenie 2023+ (k-fold) v3 → v4 | Test w przód 2025 / 2026, v3 | Test w przód 2025 / 2026, v4 |
+|---|---|---|---|
+| Norte | +7,8% → +2,7% | −7,6% / −16,1% | −5,1% / −12,4% |
+| Centro | +14,2% → −0,3% | +21,9% / +29,7% | −5,6% / +1,8% |
+| Lisboa e Vale do Tejo | za mało danych | −21,5% / −8,9% | −10,3% / +3,6% |
+| Alentejo e Algarve | −1,2% → +0,8% | −24,6% / −17,1% | −25,0% / −13,9% |
+| Portugal | +4,2% → +0,1% | −4,3% / −7,9% | −4,2% / −0,4% |
+
+Wnioski:
+- **v4 usuwa zawyżanie po 2023** opisane wyżej przy walidacji v1–v3 i dużo lepiej przewiduje lata największego dryfu.
+- **Koszt:** błąd miesięczny po 2023 rośnie (Portugalia z 17% do 24%), bo prawo dryfu nie zależy od pory roku.
+- **Rok 2024 obie wersje przeszacowują** (Portugalia: v3 +21%, v4 +43%); przyczyny nie wyjaśniliśmy.
+- **Poziom po 2023:** v4 podnosi lata 2024–2026 o 11–14% względem v3. Test szwu na powierzchni spalonej tego nie potwierdza ani nie wyklucza: skok v4 względem VNP64A1 to +18%, t = 1,3, przy progu wykrywalności ok. 25%.
+- **Opcja `BASE_YEARS = "corrected"`** dopasowuje bazę na wszystkich latach z MODIS skorygowanym o dryf. Ma mniejszy błąd miesięczny, ale część dryfu wraca do jednostki (Centro: obciążenie 2023+ +9%).
+
+Hostowane API używa v4 (`ENV HARMONIZATION=v4` w [`backend/Dockerfile`](../backend/Dockerfile)).
+
 ## Jak włączyć
 
 ```bash
-HARMONIZATION=v3 python -m backend serve      # v1 (domyślne) | v2 | v3
+HARMONIZATION=v4 python -m backend serve      # v1 (domyślne w kodzie) | v2 | v3 | v4 (hostowane API)
 ```
 
 Przy `v3` odpowiedź `/api/calendar` ma dodatkowo serie `smallFiresPerViirsSatellite`, `otherYearsMedian`, `pctOfMedian`, `withinNormal`, a `/api/hotspots.csv` kolumny `weight` i `small_fire`. Bez zmiennej backend działa jak dotąd.
