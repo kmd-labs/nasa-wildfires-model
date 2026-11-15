@@ -97,7 +97,7 @@ export const EN: Dict = {
   glossaryTermIntervalTitle: '90% interval',
   glossaryTermIntervalDesc: 'The range that holds the true number of MODIS-equivalent hotspots with 90% confidence. With only a few detections in a month it is wide; a difference smaller than the interval is not meaningful.',
   glossaryTermAnomalyTitle: 'Multi-year anomaly and “No history”',
-  glossaryTermAnomalyDesc: 'Compares the selected period with the same period in other years, in standard deviations (σ). Data is downloaded only for the selected date range, so the anomaly appears once at least 3 other years have been downloaded.',
+  glossaryTermAnomalyDesc: 'Compares the selected period with the same period in other years, in standard deviations (σ). Data is downloaded only for the selected date range, so the anomaly appears once at least 3 other years have been downloaded. In the burning calendar the cell tooltip (σ) compares a month with the same month in other years; the “Deviation from the Period Average” chart compares with the average of the period shown.',
   legalTitle: 'Required Open-Data Attributions',
   legalNasa: 'NASA FIRMS: MODIS Collection 6.1 (MCD14ML / MCD14DL) and VIIRS 375 m (VNP14IMGML, VJ114IMGML, VJ214IMGML) active fire products. We acknowledge the use of data and imagery from NASA’s Fire Information for Resource Management System (FIRMS), part of NASA’s Earth Science Data and Information System (ESDIS) — US Public Domain.',
   reportAttribution: 'Data: NASA FIRMS (MODIS Collection 6.1, VIIRS 375 m), US public domain. Harmonized to MODIS-equivalent hotspots by KMD Labs.',
@@ -256,10 +256,10 @@ export const EN: Dict = {
   legendMultiYearAvg: 'Average',
   legendInterval90: '90% interval',
   chartNoData: 'No data (not downloaded)',
-  anomalyChartTitle: 'Anomaly vs Average (Z-Score)',
-  anomalyChartSubtitle: 'Standardized departure from period average (colorblind-safe diverging scale).',
-  anomalyAboveAvg: 'Above Avg (+σ)',
-  anomalyBelowAvg: 'Below Avg (−σ)',
+  anomalyChartTitle: 'Deviation from the Period Average (Z-Score)',
+  anomalyChartSubtitle: 'How far each bar is from the average of the period shown, in standard deviations (σ). This is not a comparison with other years – the “Multi-Year Anomaly” tile shows that.',
+  anomalyAboveAvg: 'Above period avg (+σ)',
+  anomalyBelowAvg: 'Below period avg (−σ)',
 
   // Data Input & Downloads
   inputDataTitle: 'Harmonized Hotspot Data Input',

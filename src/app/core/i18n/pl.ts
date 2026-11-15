@@ -97,7 +97,7 @@ export const PL: Dict = {
   glossaryTermIntervalTitle: 'Przedział 90%',
   glossaryTermIntervalDesc: 'Zakres, w którym z 90% pewnością leży prawdziwa liczba hotspotów w ekwiwalencie MODIS. Przy kilku detekcjach w miesiącu jest szeroki; różnica mniejsza niż przedział nie jest istotna.',
   glossaryTermAnomalyTitle: 'Anomalia wieloletnia i „Brak historii”',
-  glossaryTermAnomalyDesc: 'Porównuje wybrany okres z tym samym okresem w innych latach, w odchyleniach standardowych (σ). Dane pobierane są tylko dla wybranego zakresu dat, więc anomalia pojawia się, gdy pobrano co najmniej 3 inne lata.',
+  glossaryTermAnomalyDesc: 'Porównuje wybrany okres z tym samym okresem w innych latach, w odchyleniach standardowych (σ). Dane pobierane są tylko dla wybranego zakresu dat, więc anomalia pojawia się, gdy pobrano co najmniej 3 inne lata. W kalendarzu podpowiedź komórki (σ) porównuje miesiąc z tym samym miesiącem w innych latach, a wykres „Odchylenie od średniej okresu” – z średnią pokazanego okresu.',
   legalTitle: 'Wymagane Atrybucje Otwartych Danych',
   legalNasa: 'NASA FIRMS: produkty aktywnych pożarów MODIS Collection 6.1 (MCD14ML / MCD14DL) i VIIRS 375 m (VNP14IMGML, VJ114IMGML, VJ214IMGML). We acknowledge the use of data and imagery from NASA’s Fire Information for Resource Management System (FIRMS), part of NASA’s Earth Science Data and Information System (ESDIS) — Domena Publiczna USA.',
   reportAttribution: 'Dane: NASA FIRMS (MODIS Collection 6.1, VIIRS 375 m), domena publiczna USA. Harmonizacja do hotspotów w ekwiwalencie MODIS: KMD Labs.',
@@ -256,10 +256,10 @@ export const PL: Dict = {
   legendMultiYearAvg: 'Średnia',
   legendInterval90: 'Przedział 90%',
   chartNoData: 'Brak danych (nie pobrano)',
-  anomalyChartTitle: 'Anomalia względem Średniej (Z-Score)',
-  anomalyChartSubtitle: 'Standaryzowane odchylenie od średniej z okresu (paleta przyjazna daltonistom).',
-  anomalyAboveAvg: 'Powyżej średniej (+σ)',
-  anomalyBelowAvg: 'Poniżej średniej (−σ)',
+  anomalyChartTitle: 'Odchylenie od Średniej Okresu (Z-Score)',
+  anomalyChartSubtitle: 'Odchylenie każdego słupka od średniej pokazanego okresu, w odchyleniach standardowych (σ). To nie porównanie z innymi latami – to pokazuje kafelek „Anomalia wieloletnia”.',
+  anomalyAboveAvg: 'Powyżej średniej okresu (+σ)',
+  anomalyBelowAvg: 'Poniżej średniej okresu (−σ)',
 
   // Data Input & Downloads
   inputDataTitle: 'Wejście Zharmonizowanych Danych Hotspotów',
