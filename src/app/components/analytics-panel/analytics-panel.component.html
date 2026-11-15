@@ -27,11 +27,9 @@
           <h2 class="analytics-panel__title">{{ t.analyticsTitle }}</h2>
         </div>
         @let bStatus = data.backendStatus();
-        @if (state.hasActiveSelection() && !data.isCustomDataset() && bStatus !== 'idle') {
+        @if (state.hasActiveSelection() && !data.isCustomDataset() && bStatus !== 'idle' && bStatus !== 'live') {
           <div class="analytics-panel__subtitle">
-            @if (bStatus === 'live' && data.backendCalendar(); as bCal) {
-              <span class="backend-pill backend-pill--live">{{ t.backendLiveLabel }} · {{ bCal.metadata.dataThrough | localeDate }}</span>
-            } @else if (bStatus === 'cached' && data.backendCalendar(); as bCal) {
+            @if (bStatus === 'cached' && data.backendCalendar(); as bCal) {
               <span
                 class="backend-pill backend-pill--cached"
                 [title]="t.backendCachedTooltip">
