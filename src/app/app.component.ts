@@ -26,7 +26,7 @@ import {
   BreakpointService,
   SeoService
 } from '@kmd/design-system';
-import { breakpointPx } from '@kmd/design-system/utils/breakpoints';
+import { breakpointPx, isAtMost } from '@kmd/design-system/utils/breakpoints';
 import { I18nService } from './core/i18n/i18n.service';
 import { MapRenderMode } from './core/models/wildfire.model';
 import { WildfireStateService } from './core/services/wildfire-state.service';
@@ -73,10 +73,21 @@ export class AppComponent implements OnDestroy {
 
   readonly isMobileView = signal(false);
   readonly brandHovered = signal(false);
+  readonly brandMountKey = computed(
+    () => `${this.isMobileView()}:${this.bp.mobile()}:${this.bp.mobileLandscape()}`
+  );
   private compactMql: MediaQueryList | null = null;
-  private readonly onCompactMqlChange = (e: MediaQueryListEvent) => {
-    this.ngZone.run(() => this.isMobileView.set(e.matches));
+  private readonly syncViewportMode = () => {
+    const next = this.compactMql ? this.compactMql.matches : isAtMost('desktop');
+    if (next !== this.isMobileView()) {
+      this.ngZone.run(() => {
+        this.isMobileView.set(next);
+        this.brandHovered.set(false);
+      });
+    }
   };
+  private readonly onCompactMqlChange = () => this.syncViewportMode();
+  private readonly onWindowResize = () => this.syncViewportMode();
 
   readonly globeIcon = Globe;
   readonly mapIcon = MapIcon;
@@ -101,6 +112,7 @@ export class AppComponent implements OnDestroy {
       this.compactMql = window.matchMedia(`(max-width: ${breakpointPx('desktop')}px)`);
       this.isMobileView.set(this.compactMql.matches);
       this.compactMql.addEventListener('change', this.onCompactMqlChange);
+      window.addEventListener('resize', this.onWindowResize);
     }
 
     this.seo.update({
@@ -120,6 +132,9 @@ export class AppComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.compactMql?.removeEventListener('change', this.onCompactMqlChange);
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('resize', this.onWindowResize);
+    }
   }
 
   dismissDrawBanner(): void {
