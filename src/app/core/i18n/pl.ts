@@ -161,7 +161,6 @@ export const PL: Dict = {
   calculateBboxBtn: 'Oblicz Obszar',
   draftPendingDesc: 'Szkic poligonu gotowy — kliknij krawędzie na globusie (5, 6+ krawędzi) lub kliknij Akceptuj i Oblicz.',
   datasetLabel: 'Zbiór Danych',
-  datasetUsedLabel: 'Użyty Zbiór',
   datasetViirsBtn: 'VIIRS 375m',
   datasetModisBtn: 'MODIS 1km',
   datasetBothBtn: 'VIIRS + MODIS',

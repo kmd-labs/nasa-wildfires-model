@@ -161,7 +161,6 @@ export const EN: Dict = {
   calculateBboxBtn: 'Calculate Bounding Box',
   draftPendingDesc: 'Polygon draft ready — click edges on the globe to reshape (5, 6+ edges) or click Accept & Calculate.',
   datasetLabel: 'Dataset',
-  datasetUsedLabel: 'Dataset Used',
   datasetViirsBtn: 'VIIRS 375m',
   datasetModisBtn: 'MODIS 1km',
   datasetBothBtn: 'VIIRS + MODIS',
