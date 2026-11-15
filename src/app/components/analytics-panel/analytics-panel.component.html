@@ -26,15 +26,10 @@
         <div class="analytics-panel__title-row">
           <h2 class="analytics-panel__title">{{ t.analyticsTitle }}</h2>
         </div>
-        @if (state.hasActiveSelection() && !data.isCustomDataset()) {
-          @let bStatus = data.backendStatus();
+        @let bStatus = data.backendStatus();
+        @if (state.hasActiveSelection() && !data.isCustomDataset() && bStatus !== 'idle' && bStatus !== 'live') {
           <div class="analytics-panel__subtitle">
-            <span class="backend-pill backend-pill--dataset">
-              {{ t.datasetUsedLabel }}: {{ activeDatasetDisplayLabel() }}
-            </span>
-            @if (bStatus === 'live' && data.backendCalendar(); as bCal) {
-              <span class="backend-pill backend-pill--live">{{ t.backendLiveLabel }} · {{ bCal.metadata.dataThrough | localeDate }}</span>
-            } @else if (bStatus === 'cached' && data.backendCalendar(); as bCal) {
+            @if (bStatus === 'cached' && data.backendCalendar(); as bCal) {
               <span
                 class="backend-pill backend-pill--cached"
                 [title]="t.backendCachedTooltip">
@@ -71,6 +66,27 @@
         </button>
       </div>
     </header>
+
+    <!-- Sensor Dataset Switcher (pinned below title & status lozenges) -->
+    <div class="analytics-panel__dataset-bar">
+      <div class="dataset-switcher" role="radiogroup" [attr.aria-label]="t.datasetLabel">
+        @for (opt of datasetOptions(); track opt.value) {
+          <button
+            type="button"
+            role="radio"
+            class="dataset-switcher__option"
+            [class.dataset-switcher__option--active]="state.activeDataset() === opt.value"
+            [class.dataset-switcher__option--disabled]="opt.disabled"
+            [attr.aria-checked]="state.activeDataset() === opt.value"
+            [attr.aria-disabled]="opt.disabled ? 'true' : null"
+            [appTooltip]="opt.tooltip"
+            tooltipPlacement="bottom"
+            (click)="onDatasetOptionClick(opt, $event)">
+            {{ opt.label }}
+          </button>
+        }
+      </div>
+    </div>
 
     <!-- Unified Scrollable Panel Container with Sticky Section Headers -->
     <div class="analytics-panel__scroll" #scrollContainer>
@@ -422,27 +438,6 @@
           @if (state.missingDateStart() || state.missingDateEnd()) {
             <p class="missing-inputs-hint" role="alert">{{ t.missingInputsHint }}</p>
           }
-
-          <div class="region-form__dataset">
-            <span class="region-form__dataset-label">{{ t.datasetLabel }}:</span>
-            <div class="dataset-switcher" role="radiogroup" [attr.aria-label]="t.datasetLabel">
-              @for (opt of datasetOptions(); track opt.value) {
-                <button
-                  type="button"
-                  role="radio"
-                  class="dataset-switcher__option"
-                  [class.dataset-switcher__option--active]="state.activeDataset() === opt.value"
-                  [class.dataset-switcher__option--disabled]="opt.disabled"
-                  [attr.aria-checked]="state.activeDataset() === opt.value"
-                  [attr.aria-disabled]="opt.disabled ? 'true' : null"
-                  [appTooltip]="opt.tooltip"
-                  tooltipPlacement="top"
-                  (click)="onDatasetOptionClick(opt, $event)">
-                  {{ opt.label }}
-                </button>
-              }
-            </div>
-          </div>
         </section>
       }
 

@@ -10,14 +10,16 @@
     [class.header--brand-hovered]="isMobileView() && !bp.mobileLandscape() && brandHovered()"
     [class.header--mobile-landscape]="bp.mobileLandscape()">
     <div class="header__left">
-      <app-brand
-        [appName]="t.appName"
-        [lang]="i18n.lang()"
-        [expanded]="isMobileView() && !bp.mobile() ? (brandHovered() || isPopupOpen()) : undefined"
-        (mouseenter)="brandHovered.set(true)"
-        (mouseleave)="brandHovered.set(false)"
-        (btnClick)="brandHovered.set(false); about.open({ lang: i18n.lang() })">
-      </app-brand>
+      @for (key of [brandMountKey()]; track key) {
+        <app-brand
+          [appName]="t.appName"
+          [lang]="i18n.lang()"
+          [expanded]="isMobileView() && !bp.mobile() ? (brandHovered() || isPopupOpen()) : undefined"
+          (mouseenter)="brandHovered.set(true)"
+          (mouseleave)="brandHovered.set(false)"
+          (btnClick)="brandHovered.set(false); about.open({ lang: i18n.lang() })">
+        </app-brand>
+      }
 
       <div class="header__settings glass-panel">
         <app-button

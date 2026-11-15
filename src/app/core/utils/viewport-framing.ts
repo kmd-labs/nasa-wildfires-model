@@ -29,13 +29,15 @@ export function getUnobstructedViewportBounds(
   const tabletMax = breakpointPx('tablet');
   const desktopMax = breakpointPx('desktop');
   const isMobile = safeW <= mobileMax;
+  // On mobile and tablet viewports the analytics panel overlays the stage rather than sitting beside it.
+  const isOverlayPanel = safeW <= tabletMax;
 
   let leftReserve = 24;
   const rightReserve = 24;
   const topReserve = isMobile ? 68 : 80;
   const bottomReserve = isMobile ? 40 : 48;
 
-  if (!isMobile && !panelMinimized) {
+  if (!isOverlayPanel && !panelMinimized) {
     let panelRight = 0;
     if (typeof document !== 'undefined') {
       const panelEl = document.querySelector('.analytics-panel') as HTMLElement | null;
@@ -72,7 +74,7 @@ export function getUnobstructedViewportBounds(
     bottomReserve,
     availW,
     availH,
-    desiredCenterX: isMobile ? safeW * 0.5 : leftReserve + availW * 0.5,
+    desiredCenterX: isOverlayPanel ? safeW * 0.5 : leftReserve + availW * 0.5,
     desiredCenterY: topReserve + availH * 0.5
   };
 }

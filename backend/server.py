@@ -13,7 +13,7 @@ GET /api/burned-area?bbox=W,S,E,N&product=MCD64A1|VNP64A1&from=YYYY-MM&to=YYYY-M
     200  monthly burned area (NASA LP DAAC) and the seam test of the calendar against it
     202  while the tiles are downloaded for the first time (needs EARTHDATA_TOKEN)
 
-`CORS_ORIGINS` (comma-separated, default http://localhost:4200) lists the origins of the web app.
+`CORS_ORIGINS` (comma-separated, default https://harmonization.kmd-labs.org,http://localhost:4200) lists the origins of the web app.
 """
 from __future__ import annotations
 
@@ -35,9 +35,14 @@ from .burned_area import BurnedAreaError
 from .firms import FirmsError
 from .service import BadRequest, CalendarService, NotReady
 
+DEFAULT_CORS_ORIGINS = "https://harmonization.kmd-labs.org,http://localhost:4200"
 app = FastAPI(title="KMD Labs burning-activity calendar", version="1.0")
-app.add_middleware(CORSMiddleware, allow_origins=os.getenv("CORS_ORIGINS", "http://localhost:4200").split(","),
-                   allow_methods=["GET"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[origin.strip() for origin in os.getenv("CORS_ORIGINS", DEFAULT_CORS_ORIGINS).split(",") if origin.strip()],
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
 service = CalendarService()
 
 BBOX = Query(..., description="W,S,E,N in decimal degrees", examples=["-8.11,40.00,-7.62,40.43"])

@@ -1,138 +1,141 @@
 # NASA Wildfires Model — Harmonized MODIS & VIIRS Burning Activity Calendar
 
-> **2026 NASA Space Apps Challenge:** *15 — Harmonization of MODIS and VIIRS Hot Spots*  
-> Built by **KMD Labs** (`kmd-labs`)
+> **Live Application:** [harmonization.kmd-labs.org](https://harmonization.kmd-labs.org/)  
+> **Hackathon Challenge:** **2026 NASA Space Apps Challenge** — [Challenge 15: Harmonization of MODIS and VIIRS Hot Spots](https://www.spaceappschallenge.org/2026/challenges/modis-and-viirs-hot-spots/)  
+> **Built by:** **KMD Labs** ([kmd-labs.org](https://kmd-labs.org))
 
-An interactive **Burning Activity Calendar** and Earth Observation analytics web application that harmonizes more than two decades of active fire hotspot detections across **MODIS (Terra & Aqua, 1 km)** and **VIIRS (Suomi NPP, NOAA-20 & NOAA-21, 375 m)** into a single, consistent time series from **November 2000 to the present**.
+A scientifically validated **Burning Activity Calendar** and Earth Observation analytics platform that reconciles over 25 years of active-fire detections across **MODIS (Terra & Aqua, 1 km)** and **VIIRS (Suomi NPP, NOAA-20 & NOAA-21, 375 m)** into one consistent, drift-corrected time series from **November 2000 to the present**.
+
+---
+
+## Key Results at a Glance
+
+- **26+ Years on a Single Scale:** Seamless monthly and daily fire activity from `2000-11` onward, chained across Terra, Aqua, Suomi NPP, NOAA-20, and NOAA-21.
+- **Zero 2012 Sensor-Entry Jump:** Naive summation jumps **4.64×** when VIIRS launches; harmonization **v4** reduces the median jump to **1.0×**.
+- **Globally Validated (22 Regions, 8 Biomes, 0 Errors):** Predicting raw MODIS strictly from VIIRS in blocked $k$-fold validation achieves **1.1%** median $|\text{bias}|$ (2012–2019) and **2.7%** (2023+ — within 10% in **19/22** regions and within 20% in **22/22**), with **0.9** calibrated 90% interval coverage. See the full [Global v4 Validation Report](docs/validation/global-v4/report.md).
+- **Orbit-Drift & End-of-Mission Ready:** Explicitly models MODIS orbital drift directly from `acq_time` (Terra `-1.36 h`, Aqua `+1.39 h` median shift) and chains NOAA-20/NOAA-21 to Suomi NPP for continuity beyond Suomi NPP's November 2026 end.
 
 ---
 
 ## Table of Contents
 
-- [The Challenge & Our Approach](#the-challenge--our-approach)
-  - [Part 1: Cross-Sensor MODIS & VIIRS Harmonization (`backend/`)](#part-1-cross-sensor-modis--viirs-harmonization-backend)
-  - [Part 2: Interactive Burning Activity Calendar (`src/`)](#part-2-interactive-burning-activity-calendar-src)
-- [System Architecture (GitHub Pages + GCP Cloud Run)](#system-architecture-github-pages--gcp-cloud-run)
-  - [Security & Public Architecture Considerations](#security--public-architecture-considerations)
-- [Multi-Layer Caching & Offline Strategy](#multi-layer-caching--offline-strategy)
-- [API Endpoints](#api-endpoints)
+- [The Challenge & Our Solution](#the-challenge--our-solution)
+  - [1. Cross-Sensor Harmonization Engine (`backend/`)](#1-cross-sensor-harmonization-engine-backend)
+  - [2. Global Validation Summary](#2-global-validation-summary)
+  - [3. Interactive Burning Activity Calendar (`src/`)](#3-interactive-burning-activity-calendar-src)
+- [Architecture & Performance](#architecture--performance)
+- [API Reference](#api-reference)
 - [Local Development & Verification](#local-development--verification)
+- [Team](#team)
 
 ---
 
-## The Challenge & Our Approach
+## The Challenge & Our Solution
 
-Active-fire satellites have observed global burning for over 25 years, but **MODIS** (approaching end of operational life) and **VIIRS** cannot be compared directly: VIIRS operates at finer spatial resolution (`375 m` vs `1 km`), detects smaller/cooler fires, and flies on different orbital schedules with three satellites (`S-NPP`, `NOAA-20`, `NOAA-21`). A raw sum of detections creates an artificial step change whenever a new sensor joins.
+This repository is our solution to [Challenge 15 — Harmonization of MODIS and VIIRS Hot Spots](https://www.spaceappschallenge.org/2026/challenges/modis-and-viirs-hot-spots/) in the **2026 NASA Space Apps Challenge**.
 
-Following the challenge's two-part structure, our system cleanly separates **statistical cross-sensor harmonization** from **interactive spatiotemporal exploration**:
+**The Problem:** As MODIS approaches the end of its operational life, long-term wildfire monitoring depends on bridging MODIS (`1 km`) with higher-resolution VIIRS instruments (`375 m` across `S-NPP`, `NOAA-20`, and `NOAA-21`). Directly summing detections produces an artificial 4–5× spike in 2012 and distorts historical trends due to differing sensitivity, pixel resolution, and drifting satellite overpass schedules.
 
-### Part 1: Cross-Sensor MODIS & VIIRS Harmonization (`backend/`)
+**Our Solution:** We pair a physical-statistical harmonization engine with an immediate, full-viewport interactive calendar and 2D/3D globe experience:
 
-The harmonization pipeline expresses multi-satellite hotspot observations in consistent **MODIS-equivalent units** so historical patterns, seasonal regimes, and anomalies remain comparable from `2000-11` onward:
+### 1. Cross-Sensor Harmonization Engine (`backend/`)
 
-1. **Quality Assurance & Static Heat Masking:** Filters NASA FIRMS detections to presumed vegetation fires (`type == 0`), excludes low-confidence retrievals, and masks persistent industrial/gas-flare/volcanic heat sources (including 1-pixel spatial dilation for NRT geolocation jitter).
-2. **Spatial & Temporal Aggregation:** Bins detections across all five platforms (`TERRA`, `AQUA`, `SNPP`, `NOAA20`, `NOAA21`) into **H3 hexagonal cells** and calendar months while tracking satellite overpass availability (`outage` detection).
-3. **Sensing-Power Efficiency Model:** Models each platform's detection efficiency $e_{p,\text{cell},\text{month}}$ relative to MODIS using hierarchical shrinkage (`cell -> region & calendar month -> prior`) and divides observed counts by total active orbital sensing power:
+The backend converts multi-satellite NASA FIRMS hotspot counts into consistent **MODIS-equivalent units** (Terra + Aqua on their nominal orbits):
+
+1. **QA Filtering & Static Heat Masking:** Retains presumed vegetation fires (`type == 0`), drops low-confidence retrievals, and masks persistent industrial, gas-flare, and volcanic sources (including 1-pixel spatial dilation for NRT geolocation jitter).
+2. **H3 Spatiotemporal Cube & Overpass Tracking:** Bins detections across all five platforms (`TERRA`, `AQUA`, `SNPP`, `NOAA20`, `NOAA21`) into **H3 hexagonal cells** and calendar months while accounting for day/night regimes and satellite outage exposure.
+3. **Sensing-Power Efficiency & Drift Law (`harmonization4.py`):** Estimates each platform's relative detection efficiency $e_{p,\text{cell},\text{month}}$ with hierarchical shrinkage (`cell -> region & calendar month -> prior`) and corrects for measured MODIS orbital drift and VIIRS inter-satellite chaining:
 
    $$H_{\text{cell},\text{month}} = \frac{\sum_p N_{p,\text{cell},\text{month}}}{\sum_p \left(e_{p,\text{cell},\text{month}} \cdot \text{exposure}_{p,\text{month}}\right)}$$
 
-   Selectable harmonization engines (`HARMONIZATION=v1|v2|v3|v4` in `backend/harmonization_select.py`) extend the baseline model (`harmonization.py`) with day/night stratification, orbit-drift eras, Fire Radiative Power (FRP) intensity classes (`harmonization2.py`), a separated small-fire explanatory layer (`harmonization3.py`), and a physical MODIS orbit-drift model (`harmonization4.py`, used by the hosted API): the unit is fixed to Terra + Aqua on their nominal orbits, each month's overpass time is measured from `acq_time` (Terra now passes about 1.7 h earlier and Aqua 1.8 h later than in 2012–2020), and NOAA-20/NOAA-21 are chained to Suomi NPP so the record continues after Suomi NPP stopped on 2 Nov 2026.
-4. **Uncertainty, Anomalies & Validation:** Computes 90% quasi-Poisson confidence intervals, leave-one-out multi-year seasonal baselines (anomaly Z-scores, percentiles, % of median), blocked $k$-fold out-of-sample cross-validation, and optional burned-area seam tests against NASA LP DAAC products (`MCD64A1` / `VNP64A1`).
+   Selectable engine versions (`HARMONIZATION=v1|v2|v3|v4` in [`backend/harmonization_select.py`](backend/harmonization_select.py)) span the baseline model through day/night + FRP stratification (`v2`), separated small-fire attribution (`v3`), and the production MODIS orbit-drift model (`v4`). Methodology notes are documented in [`docs/harmonization.md`](docs/harmonization.md).
+4. **Uncertainty, Anomalies & External Witness Checks:** Delivers calibrated 90% quasi-Poisson confidence intervals, leave-one-out multi-year baselines (Z-scores, percentiles, % of median), blocked $k$-fold cross-validation, and burned-area seam tests against NASA LP DAAC (`MCD64A1` / `VNP64A1`).
 
-### Part 2: Interactive Burning Activity Calendar (`src/`)
+### 2. Global Validation Summary
 
-Built with **Angular 21**, **Three.js**, **D3-geo / TopoJSON**, and `@kmd/design-system`, the frontend provides an immediate full-viewport (`100vw × 100vh`) map/globe workspace:
+Across **22 fire-prone regions** spanning boreal forests, tropical forests, savannas, temperate zones, grasslands, croplands, Mediterranean shrublands, and peatlands ([full report](docs/validation/global-v4/report.md)):
 
-- **Interactive Area of Interest (AOI) Selection:** Draw custom polygons/rectangles directly on the map/globe, enter exact `W / S / E / N` latitude-longitude bounds, or search pre-configured countries and seeded demo regions (defaulting to the Iberian Peninsula).
-- **Sensor-Aware Date Range & 3-Way Switcher:** Query any range from `2000-11-01` onward with locale-aware date formatting. Switch between **VIIRS 375m**, **MODIS 1km**, and **VIIRS + MODIS**—automatically locking to **VIIRS + MODIS** (with explanatory tooltips) whenever a selected range spans the `2012-01-20` VIIRS launch.
-- **Burning Activity Calendar:** Interactive Year × Month and Daily matrices alongside comparative time-series charts, top-year rankings, and multi-year anomaly readouts.
-- **Accessible Visualization:** CVD-safe, high-contrast color ramps (Inferno, Viridis, Cividis, Plasma, Ember) driving both 2D/3D hotspot pixel heatmaps and calendar matrices.
-- **Client Exports:** Export filtered/harmonized hotspots as **CSV**, full analytics payloads as **JSON**, and calendar graphics as **SVG** / **PNG**.
+| Metric (Median Across 22 Regions) | Naive Sum (`MODIS + VIIRS`) | Harmonized `v3` | Harmonized `v4` (Production) |
+|---|---|---|---|
+| **2012 VIIRS-Entry Jump** (`1.0×` = seamless) | `4.64×` | `1.0×` | **`1.0×`** |
+| **k-fold $\|\text{Bias}\|$ (2012–2019, VIIRS → MODIS)** | — | `2.8%` | **`1.1%`** *(better in 19/22)* |
+| **k-fold $\|\text{Bias}\|$ (2023+, VIIRS → MODIS)** | — | `4.0%` | **`2.7%`** *(better in 13/22)* |
+| **Forward $\|\text{Bias}\|$ (fit $\le 2023 \rightarrow 2025$)** | — | `11.5%` | **`8.3%`** *(better in 13/22)* |
+| **Calibrated 90% Interval Coverage** | — | `0.9` | **`0.9`** |
+
+### 3. Interactive Burning Activity Calendar (`src/`)
+
+Built with **Angular 21**, **Three.js**, **D3-geo / TopoJSON**, and `@kmd/design-system`, [`harmonization.kmd-labs.org`](https://harmonization.kmd-labs.org/) opens straight into a `100vw × 100vh` map and 3D globe workspace with zero modal friction:
+
+- **Flexible Area of Interest (AOI):** Draw custom polygons or rectangles directly on the map/globe, enter exact `W / S / E / N` coordinates, or select countries and curated demo regions.
+- **Sensor-Aware 3-Way Switcher:** Query any range from `2000-11-01` onward across **VIIRS 375m**, **MODIS 1km**, or **VIIRS + MODIS** (automatically locking to **VIIRS + MODIS** when spanning the `2012-01-20` VIIRS launch).
+- **Multi-Scale Analytics:** Explore interactive Year × Month and Daily Burning Activity Calendars, comparative annual curves, top-year rankings, and multi-year seasonal anomalies.
+- **Accessible & Export-Ready:** CVD-safe color ramps (`Inferno`, `Viridis`, `Cividis`, `Plasma`, `Ember`) across 2D/3D heatmaps and calendars, with one-click **CSV**, **JSON**, **SVG**, and **PNG** exports.
 
 ---
 
-## System Architecture (GitHub Pages + GCP Cloud Run)
+## Architecture & Performance
 
-The application uses a split static-frontend / stateful-cache-backend architecture so public users get fast static delivery without exposing any NASA credentials:
+A split static-frontend / stateful-cache-backend architecture delivers fast global loading, offline resilience, and strict server-side credential isolation:
 
 ```mermaid
 flowchart LR
-    U["Browser (Angular 21 SPA)"] -->|Static assets| GHP["GitHub Pages"]
+    U["Browser (Angular 21 SPA)"] -->|"harmonization.kmd-labs.org"| WEB["Static Frontend (GitHub Pages)"]
     U -->|"GET /api/calendar, /api/hotspots.csv"| CR["GCP Cloud Run (FastAPI / Uvicorn)"]
-    CR -->|Read / Write cached chunks| DISK["Chunk Cache (FIRMS_CACHE_DIR)"]
+    CR -->|"Read / Write snapped chunks"| DISK["Chunk Cache (FIRMS_CACHE_DIR)"]
     CR -->|"FIRMS Area API (FIRMS_MAP_KEY)"| FIRMS["NASA Earthdata FIRMS"]
     CR -->|"Optional LP DAAC (EARTHDATA_TOKEN)"| LP["NASA Earthdata"]
 ```
 
-- **Frontend (`GitHub Pages`):**
-  - Built and deployed automatically on pushes to `main` (plus scheduled rebuilds) via [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) running `npm run build:gh-pages` (`ng build --base-href /nasa-wildfires-model/`).
-  - Communicates over HTTPS `GET` requests with the backend URL configured in [`src/app/core/services/wildfire-data.service.ts`](src/app/core/services/wildfire-data.service.ts) (with `localStorage` / window override support for local development).
-- **Backend (`Google Cloud Run`):**
-  - Packaged via [`backend/Dockerfile`](backend/Dockerfile) (`python:3.12-slim` + `uvicorn backend.server:app`) and hosted in `europe-west1`.
-  - Queries for new regions are split by satellite epoch into 5-day FIRMS Area API chunks (`FIRMS_CHUNK_DAYS=5`) aligned to a `0.5°` cache grid (`FIRMS_CACHE_DIR`): immutable science-quality chunks (`*_SP`) are cached permanently, while recent near-real-time chunks (`*_NRT`) refresh after `FIRMS_REFRESH_HOURS=6`.
-  - Long initial historical downloads run asynchronously on the server and return **HTTP `202`** with `{ done, total }` progress until ready for **HTTP `200`** harmonization and analytics delivery.
-
-### Security & Public Architecture Considerations
-
-- **Server-Only Credentials:** Sensitive credentials (`FIRMS_MAP_KEY`, `EARTHDATA_TOKEN`) are injected exclusively into the Cloud Run runtime environment and never bundled into the Angular build or GitHub repository.
-- **Abuse Guardrails:** The API exposes read-only `GET` endpoints, enforces bounding-box area caps (`MAX_BBOX_DEG2 = 8000` deg² for FIRMS, `BURNED_AREA_MAX_DEG2 = 400` deg² for tile downloads), and validates CORS origins via `CORS_ORIGINS`.
+- **Frontend ([harmonization.kmd-labs.org](https://harmonization.kmd-labs.org/)):** Built from `src/` and configured to talk to the Cloud Run API in [`src/app/core/services/wildfire-data.service.ts`](src/app/core/services/wildfire-data.service.ts) (with local override support during development).
+- **Backend (`GCP Cloud Run` · `europe-west1`):** Containerized via [`backend/Dockerfile`](backend/Dockerfile) (`python:3.12-slim` + `uvicorn backend.server:app`). Incoming queries are split by satellite epoch into 5-day FIRMS chunks (`FIRMS_CHUNK_DAYS=5`) on a `0.5°` cache grid—immutable science-quality chunks (`*_SP`) are cached permanently while near-real-time chunks (`*_NRT`) refresh every `6h`. Long historical fetches run asynchronously via HTTP `202` progress updates before serving HTTP `200` results.
+- **Three-Layer Caching & Instant Paint:** Combines a bundled Iberia fallback snapshot for immediate first paint, browser `IndexedDB` + Service Worker caching (`OfflineCacheService` & `src/sw.js`) for offline continuity, and server-side `0.5°` regional chunk reuse so sub-queries avoid redundant NASA FIRMS API calls.
+- **Production Guardrails:** `FIRMS_MAP_KEY` and `EARTHDATA_TOKEN` remain strictly server-side in Cloud Run. Public endpoints are read-only `GET` routes enforcing `CORS_ORIGINS` allowlisting and bounding-box area caps (`MAX_BBOX_DEG2 = 8000` deg² for FIRMS, `BURNED_AREA_MAX_DEG2 = 400` deg² for LP DAAC tiles).
 
 ---
 
-## Multi-Layer Caching & Offline Strategy
-
-Because 20+ years of FIRMS requests would otherwise trigger hundreds of upstream API calls and exceed rate limits, the application uses three complementary caching layers across backend and browser:
-
-| Layer | Storage / Technology | What It Caches | Eviction / Freshness Rule |
-|---|---|---|---|
-| **1. Server FIRMS Chunk Cache** | Local filesystem (`FIRMS_CACHE_DIR/regions/<snapped_bbox>/`) in [`backend/firms.py`](backend/firms.py) | 5-day FIRMS sensor chunks (`FIRMS_CHUNK_DAYS=5`) aligned to an outwards `0.5°` grid (`snap_bbox`) | `*_SP` science-quality past chunks are **immutable/final** (`final=true`); recent `*_NRT` chunks refresh after `FIRMS_REFRESH_HOURS=6`. |
-| **2. Browser Query & Upload Cache** | `IndexedDB` (`kmd-wildfires-offline`) in [`OfflineCacheService`](src/app/core/services/offline-cache.service.ts) | Harmonized `/api/calendar` JSON responses & user-uploaded custom CSV datasets | Up to `40` calendar queries (`MAX_CACHED_CALENDARS=40`) managed with `cachedAt` LRU eviction; custom CSV persists across reloads. |
-| **3. Browser Shell & Basemap Tile Cache** | Service Worker `CacheStorage` in [`src/sw.js`](src/sw.js) | App shell (`kmd-wildfires-shell-v1`: HTML, bundled TopoJSON/default Iberia JSON) + slippy map tiles (`kmd-wildfires-tiles-v1`) | Up to `450` map tiles (`MAX_CACHED_TILES=450`) from `tile.openstreetmap.org` and `server.arcgisonline.com` evicted FIFO/LRU. |
-
-How a request flows through the layers:
-
-1. **Instant First Paint & Bundled Demo Snapshot:** Static bundled fallback JSON (`src/assets/data/default-iberia-calendar.json`) renders immediately while checking IndexedDB and live backend connectivity—meaning even zero-connectivity reloads remain functional.
-2. **In-Memory + IndexedDB Lookup (`WildfireDataService`):** Query keys track bbox, date range, and `activeDataset`. Identical session requests hit the in-memory `Map` cache first; subsequent visits or offline sessions read cleanly from IndexedDB and surface an **"Offline cache"** indicator in the UI header.
-3. **Snapped Regional Reuse on the Backend (`RegionCache`):** Any query contained inside an already-cached `0.5°`-snapped region satisfies sub-queries locally without hitting NASA FIRMS again. Live request traffic is favored over speculative global prewarming so background jobs never contend with user requests on the upstream FIRMS rate limiter; demo deployments can run `python -m backend seed` offline without an API key.
-
----
-
-## API Endpoints
+## API Reference
 
 | Endpoint | Description |
 |---|---|
-| `GET /api/health` | Service health, cached regions list, and upstream key readiness |
-| `GET /api/calendar?bbox=W,S,E,N&from=YYYY-MM&to=YYYY-MM` | `200` harmonized time series, calendar matrix, H3 cells, pixels, climatology, and validation metrics; `202` while chunk downloads are in progress |
-| `GET /api/hotspots.csv?bbox=W,S,E,N&from=YYYY-MM-DD&to=YYYY-MM-DD` | Downloadable hotspot CSV (including `used_in_calendar` QA flag) |
-| `GET /api/burned-area?bbox=W,S,E,N&product=MCD64A1&from=YYYY-MM&to=YYYY-MM` | Monthly burned area (km²) and cross-sensor seam check (requires server-side `EARTHDATA_TOKEN`) |
+| `GET /api/health` | Service health, cached region inventory, and upstream credential readiness |
+| `GET /api/calendar?bbox=W,S,E,N&from=YYYY-MM&to=YYYY-MM` | `200` harmonized time series, calendar matrices, H3 cells, pixels, climatology, and validation metrics; `202` while chunk downloads are in progress |
+| `GET /api/hotspots.csv?bbox=W,S,E,N&from=YYYY-MM-DD&to=YYYY-MM-DD` | Downloadable hotspot CSV including `used_in_calendar` QA and harmonization weights |
+| `GET /api/burned-area?bbox=W,S,E,N&product=MCD64A1&from=YYYY-MM&to=YYYY-MM` | Monthly burned area (`km²`) and cross-sensor seam comparison (requires server-side `EARTHDATA_TOKEN`) |
 
 ---
 
 ## Local Development & Verification
 
-### 1. Backend Setup (Python 3.12+)
+### 1. Backend (Python 3.12+)
 
 ```bash
 pip install -r backend/requirements.txt
 
-# Optional: seed cached Iberian Peninsula FIRMS data (offline, no key needed)
+# Optional: seed offline Iberian Peninsula FIRMS cache (no API key required)
 python -m backend seed
 
-# Start FastAPI server at http://127.0.0.1:8000 (Swagger docs at /docs)
+# Start FastAPI server at http://127.0.0.1:8000 (Swagger UI at /docs)
 python -m backend serve --port 8000
 
-# Run backend unit tests
+# Run backend test suite
 python -m pytest backend/tests -q
 ```
 
-### 2. Frontend Setup (Node.js 22+)
+### 2. Frontend (Node.js 22+)
 
 ```bash
 npm install --legacy-peer-deps
 
-# Start Angular dev server (or `npm run dev` to run backend + frontend together)
+# Start Angular dev server (or `npm run dev` to launch backend + frontend together)
 npm start
 
 # Production build
 npm run build
 ```
+
+---
+
+## Team
+
+Built by **KMD Labs** ([kmd-labs.org](https://kmd-labs.org) · [hello@kmd-labs.org](mailto:hello@kmd-labs.org)) for the **2026 NASA Space Apps Challenge**.

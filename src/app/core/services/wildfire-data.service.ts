@@ -187,10 +187,6 @@ export class WildfireDataService {
   private offlineRetryDelayMs = 5000;
   private bgRefreshCount = 0;
   private offlineRetryCount = 0;
-  private downloadPollCount = 0;
-  private zeroTotalPolls = 0;
-  private lastDownloadDone = -1;
-  private stalledOrResetPolls = 0;
   private readonly resolvedCalendarCache = new Map<string, BackendCalendarPayload>();
 
   resolveApiUrl(apiPath: string): string {
@@ -500,10 +496,6 @@ export class WildfireDataService {
       this.bgRefreshCount = 0;
       this.offlineRetryCount = 0;
       this.offlineRetryDelayMs = 5000;
-      this.downloadPollCount = 0;
-      this.zeroTotalPolls = 0;
-      this.lastDownloadDone = -1;
-      this.stalledOrResetPolls = 0;
       const cached = this.resolvedCalendarCache.get(queryKey);
       if (cached) {
         this.cancelBackendSync();
@@ -565,29 +557,7 @@ export class WildfireDataService {
       if (resp.status === 202 && body?.status === 'downloading') {
         this.offlineRetryDelayMs = 5000;
         this.offlineRetryCount = 0;
-        this.downloadPollCount += 1;
         const rawProg: BackendDownloadProgress = body.progress ?? { done: 0, total: 0 };
-        if (rawProg.total > 0) {
-          this.zeroTotalPolls = 0;
-          if (rawProg.done > this.lastDownloadDone) {
-            this.stalledOrResetPolls = 0;
-          } else {
-            this.stalledOrResetPolls += 1;
-          }
-        } else {
-          this.zeroTotalPolls += 1;
-          this.stalledOrResetPolls += 1;
-        }
-        this.lastDownloadDone = rawProg.done;
-
-        // Break out of endless 202 download loops if the backend restarts jobs repeatedly or stalls
-        if (this.zeroTotalPolls >= 8 || this.stalledOrResetPolls >= 12 || this.downloadPollCount >= 80) {
-          this.backendProgress.set(null);
-          if (!(await this.tryRestoreOfflineCalendar(queryKey))) {
-            this.backendStatus.set(this.backendCalendar() ? 'cached' : 'offline');
-          }
-          return;
-        }
 
         if (!this.isInsideCachedRegion(primaryBox)) {
           this.backendCalendar.set(null);
@@ -597,12 +567,11 @@ export class WildfireDataService {
           done: rawProg.total > 0 ? Math.min(rawProg.done, rawProg.total) : 0,
           total: Math.max(0, rawProg.total)
         });
-        const pollDelayMs = Math.min(12000, 3000 + Math.floor(this.stalledOrResetPolls / 2) * 1500);
         this.apiPollTimer = setTimeout(() => {
           if (this.activeApiQuery === queryKey && !this.isCustomDataset()) {
             void this.syncCalendarFromBackend(bboxOrList, dateStart, dateEnd, true);
           }
-        }, pollDelayMs);
+        }, 3000);
         return;
       }
 
