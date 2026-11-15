@@ -63,7 +63,11 @@ Region w cache to BBOX zaokrąglony na zewnątrz do 0,5°. Zapytanie mieszczące
 z niego bez pobierania, więc jeden duży region obsługuje każdy BBOX w jego środku.
 
 Pobieranie jest na żądanie: zapytanie z `from` / `to` pobiera tylko kawałki, które zachodzą na ten zakres dat w tym
-BBOX-ie. Innych lat nie pobieramy w tle. Dopóki brakuje kawałków zakresu, API odpowiada `202` z postępem (`done` /
+BBOX-ie. Innych lat nie pobieramy w tle. Razem z zapytaniem pobieramy **okna kalibracyjne**: ten sam okres
+kalendarzowy (najwyżej `FIRMS_CALIBRATION_MAX_DAYS` = 62 dni od początku zapytania) w latach
+`FIRMS_CALIBRATION_YEARS` (domyślnie 2016, 2018, 2021, 2024; pusta wartość wyłącza). Lata sprzed 2020 dają v4
+nominalne wydajności (MODIS przed dryfem), lata po 2020 prawo dryfu i łańcuch NOAA-20/21 → Suomi NPP, a razem
+porównanie wieloletnie. Lata nachodzące na zapytanie i przyszłe są pomijane. Dopóki brakuje kawałków zakresu, API odpowiada `202` z postępem (`done` /
 `total` dotyczy tylko tego zakresu); kawałki istniejące, ale do odświeżenia (`*_NRT`), odświeżają się w tle, a API od
 razu zwraca dane. Kawałki, które się nie pobrały, nie są ponawiane przez `FAILED_WINDOW_RETRY_S` (120 s): w tym czasie
 API zwraca to, co przyszło, a brakujące dni są oznaczone jako brak danych.

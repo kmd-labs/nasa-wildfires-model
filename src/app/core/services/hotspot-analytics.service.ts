@@ -491,7 +491,10 @@ export class HotspotAnalyticsService {
             }
             const lo = isStartM ? startDay : 1;
             const hi = isEndM ? Math.min(dim, endDay) : dim;
-            const frac = lo <= hi ? (hi - lo + 1) / dim : 0;
+            // A partly downloaded month (calibration window of another year) already holds only the
+            // queried days, so it is not scaled down a second time.
+            const partlyDownloaded = (backend.series.dataCoverage?.[i] ?? 1) < 0.999;
+            const frac = partlyDownloaded ? 1 : lo <= hi ? (hi - lo + 1) / dim : 0;
             b.modis += Math.round((backend.series.rawModis[i] ?? 0) * ratio * frac);
             b.viirs += Math.round((backend.series.rawViirs[i] ?? 0) * ratio * frac);
             b.harm += (backend.series.harmonized[i] ?? 0) * ratio * frac;

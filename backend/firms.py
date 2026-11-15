@@ -184,16 +184,18 @@ class Region:
         availability: dict[str, tuple[dt.date, dt.date]],
         today: dt.date,
         chunk_days: int = CHUNK_DAYS,
-        window: tuple[dt.date, dt.date] | None = None,
+        window: tuple[dt.date, dt.date] | list[tuple[dt.date, dt.date]] | None = None,
         include_stale: bool = True,
     ) -> list[Task]:
         """Chunks that are missing or stale. Final chunks and chunks covered by the seed are skipped.
 
-        With `window`, only chunks overlapping those days (the user's query) are planned, so nothing
+        With `window` (one (first, last) day range or a list of them), only chunks overlapping those
+        days (the user's query and its calibration windows) are planned, so nothing
         outside the request is downloaded. `include_stale=False` leaves out chunks that exist but are
         due for a refresh (recent near-real-time days), i.e. returns only what is really missing.
         """
         tasks, now = [], time.time()
+        windows = None if window is None else ([window] if isinstance(window, tuple) else list(window))
         chunks, seeded = self.manifest["chunks"], self.manifest.get("seeded", {})
         for sensor, epoch in SENSOR_EPOCH.items():
             sp, nrt = availability.get(f"{sensor}_SP"), availability.get(f"{sensor}_NRT")
@@ -223,7 +225,8 @@ class Region:
                 fresh = entry is not None and (entry["final"] or now - entry["fetched"] < REFRESH_HOURS * 3600)
                 if not include_stale and entry is not None:
                     fresh = True
-                in_window = window is None or (start <= window[1] and start + dt.timedelta(days=chunk_days - 1) >= window[0])
+                chunk_end = start + dt.timedelta(days=chunk_days - 1)
+                in_window = windows is None or any(start <= b and chunk_end >= a for a, b in windows)
                 if runs and in_window and not in_seed and not fresh:
                     tasks.append(Task(sensor, start, runs, final))
                 start += dt.timedelta(days=chunk_days)
@@ -236,7 +239,7 @@ class Region:
         client: FirmsClient,
         progress: Callable[[int, int], None] | None = None,
         workers: int = WORKERS,
-        window: tuple[dt.date, dt.date] | None = None,
+        window: tuple[dt.date, dt.date] | list[tuple[dt.date, dt.date]] | None = None,
     ) -> dict:
         """Download what `plan` asks for (only `window` when given), then rebuild the consolidated file.
 

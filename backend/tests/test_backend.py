@@ -188,7 +188,8 @@ def test_download_cache_and_refresh(fake, frozen_today, tmp_path):
 
 
 @needs_raw
-def test_download_and_seed_give_the_same_calendar(fake, frozen_today, tmp_path):
+def test_download_and_seed_give_the_same_calendar(fake, frozen_today, tmp_path, monkeypatch):
+    monkeypatch.setattr("backend.service.CALIBRATION_YEARS", ())  # the query window only
     downloaded = CalendarService(RegionStore(tmp_path / "a"), FirmsClient(map_key="TESTKEY", http_get=fake))
     a = downloaded.calendar(BBOX_TEXT, "2017-06", "2017-10", wait=True)
 
@@ -324,7 +325,8 @@ def test_http_500_preserves_cors_header(monkeypatch):
     assert prod_res.headers.get("access-control-allow-origin") == "https://harmonization.kmd-labs.org"
 
 
-def test_partial_boundary_dates_exclude_out_of_range_days(tmp_path):
+def test_partial_boundary_dates_exclude_out_of_range_days(tmp_path, monkeypatch):
+    monkeypatch.setattr("backend.service.CALIBRATION_YEARS", ())
     avail_csv = (
         "data_id,min_date,max_date\n"
         "MODIS_SP,2024-06-01,2025-10-31\n"
@@ -381,7 +383,8 @@ def test_partial_boundary_dates_exclude_out_of_range_days(tmp_path):
     assert part_top[2025] < full_top[2025]
 
 
-def test_downloads_only_the_queried_window_and_marks_the_rest_missing(tmp_path):
+def test_downloads_only_the_queried_window_and_marks_the_rest_missing(tmp_path, monkeypatch):
+    monkeypatch.setattr("backend.service.CALIBRATION_YEARS", ())
     avail_csv = "data_id,min_date,max_date\nMODIS_SP,2020-01-01,2025-12-31\nVIIRS_SNPP_SP,2020-01-01,2025-12-31\n"
     header = "latitude,longitude,brightness,scan,track,acq_date,acq_time,satellite,confidence,version,bright_t31,frp,daynight"
     requested: list[tuple[dt.date, dt.date]] = []
@@ -414,3 +417,33 @@ def test_downloads_only_the_queried_window_and_marks_the_rest_missing(tmp_path):
     n = len(requested)
     svc.calendar(bbox, "2025-07-05", "2025-07-20", wait=True)  # inside the downloaded window: no new requests
     assert len(requested) == n
+
+
+def test_calibration_windows_are_downloaded_with_the_query(tmp_path, monkeypatch):
+    """#83: the same calendar span in the calibration years comes with every query."""
+    from backend.service import calibration_windows
+    monkeypatch.setattr("backend.service.CALIBRATION_YEARS", (2018, 2021, 2025))
+    monkeypatch.setattr("backend.service.CALIBRATION_MAX_DAYS", 31)
+    wins = calibration_windows((dt.date(2025, 7, 10), dt.date(2025, 12, 31)))
+    assert wins == [(dt.date(2018, 7, 10), dt.date(2018, 8, 9)), (dt.date(2021, 7, 10), dt.date(2021, 8, 9))]  # 2025 overlaps the query
+    assert calibration_windows(None) == []
+    assert calibration_windows((dt.date(2024, 2, 29), dt.date(2024, 3, 2)), years=(2023,)) == [(dt.date(2023, 2, 28), dt.date(2023, 3, 2))]
+
+    avail_csv = "data_id,min_date,max_date\nMODIS_SP,2017-01-01,2025-12-31\nVIIRS_SNPP_SP,2017-01-01,2025-12-31\n"
+    header = "latitude,longitude,brightness,scan,track,acq_date,acq_time,satellite,confidence,version,bright_t31,frp,daynight"
+    requested: list[dt.date] = []
+
+    def fake_http(url: str, timeout: float) -> tuple[int, str]:
+        if "/data_availability/" in url:
+            return 200, avail_csv
+        m = re.search(r"/(\d+)/(\d{4}-\d{2}-\d{2})$", url)
+        requested.append(dt.date.fromisoformat(m.group(2)))
+        return 200, header
+
+    svc = CalendarService(RegionStore(tmp_path), FirmsClient(map_key="TESTKEY", http_get=fake_http))
+    res = svc.calendar("16.76,50.87,17.4,51.35", "2025-07-10", "2025-07-20", wait=True)
+    years = {d.year for d in requested}
+    assert years == {2018, 2021, 2025}
+    cov = dict(zip(res["months"], res["series"]["dataCoverage"]))
+    assert cov["2018-07"] > 0 and cov["2021-07"] > 0 and cov["2019-07"] == 0
+    assert "2018, 2021, 2025" in res["metadata"]["downloadPolicy"]

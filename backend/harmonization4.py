@@ -468,15 +468,25 @@ def _folds(cube: Cube, k: int = K_FOLDS) -> dict | None:
     return out
 
 
+# Interval multiplier guards (#83). With on-demand download a fit may see only a few months per
+# year, and the 90 % quantile of a handful of k-fold residuals is unstable (values of 5-9 were seen).
+# Below MIN_CALIBRATION_MONTHS test months the typical multiplier of fits on the full Iberian
+# record (2.48-2.78 in three regions, 2026-11-15) is used instead, and the result is capped.
+MIN_CALIBRATION_MONTHS = 24
+TYPICAL_INTERVAL_MULTIPLIER = 2.6
+MAX_INTERVAL_MULTIPLIER = 3.5
+
+
 def interval_multiplier(cube: Cube, k: int = K_FOLDS, level: float = LEVEL) -> float:
     folds = _folds(cube, k)
     if folds is None:
-        return _Z
+        return TYPICAL_INTERVAL_MULTIPLIER
     truth, est, var = v3._monthly(folds, folds["test"])
     use = (truth > 0) & (var > 0)
-    if use.sum() < 10:
-        return _Z
-    return float(max(_Z, np.quantile(np.abs(truth[use] - est[use]) / np.sqrt(var[use]), level)))
+    if use.sum() < MIN_CALIBRATION_MONTHS:
+        return TYPICAL_INTERVAL_MULTIPLIER
+    z = float(np.quantile(np.abs(truth[use] - est[use]) / np.sqrt(var[use]), level))
+    return float(min(MAX_INTERVAL_MULTIPLIER, max(_Z, z)))
 
 
 def validate(cube: Cube, k: int = K_FOLDS) -> dict | None:

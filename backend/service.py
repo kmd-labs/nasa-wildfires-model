@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import os
 import threading
 import time
 
@@ -26,6 +27,12 @@ BURNED_AREA_RETRY_S = 600       # a burned-area job with failed tiles is retried
 # Chunks of a query window that failed are not re-requested for this long; meanwhile the data that did
 # arrive is served and the failed days are reported as missing (prevents an endless 202 loop).
 FAILED_WINDOW_RETRY_S = 120
+# Calibration windows (#83): with every query the same calendar span is also downloaded in these
+# reference years, so the harmonization has nominal pre-2020 years (v4 base efficiencies), post-2020
+# overlap (MODIS drift law, NOAA-20/21 chain), several years for the interval calibration and the
+# multi-year anomaly. The span is capped; years overlapping the query are skipped. Empty = off.
+CALIBRATION_YEARS = tuple(int(y) for y in os.getenv("FIRMS_CALIBRATION_YEARS", "2016,2018,2021,2024").replace(" ", "").split(",") if y)
+CALIBRATION_MAX_DAYS = int(os.getenv("FIRMS_CALIBRATION_MAX_DAYS", "62"))
 
 
 class NotReady(Exception):
@@ -99,6 +106,34 @@ def query_window(date_from: str | None, date_to: str | None) -> tuple[dt.date, d
     return first, min(last, today_utc())
 
 
+def calibration_windows(window: tuple[dt.date, dt.date] | None, years: tuple[int, ...] | None = None,
+                        max_days: int | None = None) -> list[tuple[dt.date, dt.date]]:
+    """The query's calendar span (capped at `max_days`, from its first day) in each calibration year.
+
+    Years whose span would overlap the query or lie in the future are skipped.
+    """
+    if window is None:
+        return []
+    years = CALIBRATION_YEARS if years is None else years
+    max_days = CALIBRATION_MAX_DAYS if max_days is None else max_days
+    first, last = window
+    span = dt.timedelta(days=max(0, min((last - first).days, max_days - 1)))
+    today = today_utc()
+    out = []
+    for year in years:
+        try:
+            a = first.replace(year=year)
+        except ValueError:  # 29 February
+            a = first.replace(year=year, day=28)
+        b = a + span
+        if b >= first and a <= last:
+            continue
+        if b > today:
+            continue
+        out.append((a, b))
+    return out
+
+
 def _clean(values, digits: int = 2) -> list:
     return [None if np.isnan(v) else (int(v) if digits == 0 else round(float(v), digits)) for v in values]
 
@@ -144,31 +179,33 @@ class CalendarService:
         running = bool(job and not job["finished"])
         availability = self.client.availability()
         today = today_utc()
-        missing = region.plan(availability, today, window=window, include_stale=False)
+        # the query plus its calibration windows; None (CLI) means the whole record
+        windows = None if window is None else [window, *calibration_windows(window)]
+        missing = region.plan(availability, today, window=windows, include_stale=False)
         if missing:
             if not running:
                 recently_failed = bool(
-                    job and job["failed"] and job.get("window") == window
+                    job and job["failed"] and job.get("window") == windows
                     and time.time() - job.get("finishedAt", 0.0) < FAILED_WINDOW_RETRY_S
                 )
                 if recently_failed and region.has_data:
                     return region  # serve what arrived; the failed days read as missing data
                 if recently_failed:
                     raise FirmsError(job["failed"][0])
-                job = self._start(region, window)
+                job = self._start(region, windows)
             if wait:
                 job["thread"].join()
                 if job["error"] and not region.has_data:
                     raise FirmsError(job["error"])
                 return region
             raise NotReady({"done": job["done"], "total": job["total"]})
-        if not running and region.plan(availability, today, window=window):
-            self._start(region, window)  # refresh recent days of the window in the background
+        if not running and region.plan(availability, today, window=windows):
+            self._start(region, windows)  # refresh recent days of the window in the background
         if not region.has_data:
             raise NotReady({"done": 0, "total": 0})
         return region
 
-    def _start(self, region: Region, window: tuple[dt.date, dt.date] | None = None) -> dict:
+    def _start(self, region: Region, window: list[tuple[dt.date, dt.date]] | None = None) -> dict:
         job = {"done": 0, "total": 0, "finished": False, "finishedAt": 0.0, "error": None, "failed": [], "window": window}
 
         def work() -> None:
@@ -555,7 +592,8 @@ class CalendarService:
                 "monthInProgress": None if complete[-1] else months[-1],
                 "refreshing": bool(job and not job["finished"]),
                 "failedChunks": len(job["failed"]) if job else 0,
-                "downloadPolicy": "on-demand: only the days of the requested window are downloaded; "
+                "downloadPolicy": "on-demand: the requested window plus calibration windows (the same span in "
+                                  f"{', '.join(map(str, CALIBRATION_YEARS)) or 'no'} reference years) are downloaded; "
                                   "months never downloaded are null (missing), not zero",
                 "historyYears": int(sum(1 for y in years if np.mean(tot["coverage"][cube.years == y]) >= 0.999)),
                 "metric": "hotspotCount",
