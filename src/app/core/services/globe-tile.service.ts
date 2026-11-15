@@ -4,6 +4,19 @@ import { GlobeMathService } from './globe-math.service';
 
 export type TileProviderId = 'sat' | 'osm';
 
+/**
+ * Satellite basemap from NASA GIBS (no key, NASA imagery without use restrictions; acknowledgement
+ * requested): Blue Marble shaded relief + bathymetry (500 m) up to zoom 8, then the cloud-free
+ * Landsat WELD true-colour annual composite (~30 m, year 2000) up to zoom 12. Deeper zooms
+ * upscale the zoom-12 tiles.
+ */
+const GIBS_WMTS = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best';
+const GIBS_BLUE_MARBLE = 'BlueMarble_ShadedRelief_Bathymetry/default/default/GoogleMapsCompatible_Level8';
+const GIBS_LANDSAT = 'Landsat_WELD_CorrectedReflectance_TrueColor_Global_Annual/default/2000-12-01/GoogleMapsCompatible_Level12';
+const GIBS_BLUE_MARBLE_MAX_ZOOM = 8;
+/** Deepest zoom the satellite basemap has tiles for. */
+export const SAT_MAX_ZOOM = 12;
+
 interface CachedTile {
   key: string;
   provider: TileProviderId;
@@ -83,13 +96,13 @@ export class GlobeTileService {
       group,
       provider,
       enabled,
-      z,
       centerLon,
       centerLat,
       baseRadiusFactor,
       renderOrderBase,
       onTileLoaded
     } = params;
+    let z = params.z;
 
     if (!enabled) {
       group.visible = false;
@@ -111,6 +124,9 @@ export class GlobeTileService {
       }
     }
 
+    if (provider === 'sat' && z > SAT_MAX_ZOOM) {
+      z = SAT_MAX_ZOOM;
+    }
     const n = 1 << z;
     const { tx: centerX, ty: centerY } = this.lonLatToTile(centerLon, centerLat, z);
     const radiusX = z <= 3 ? 4 : z <= 6 ? 5 : 4;
@@ -207,7 +223,8 @@ export class GlobeTileService {
     if (provider === 'osm') {
       return `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
     }
-    return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+    const layer = z <= GIBS_BLUE_MARBLE_MAX_ZOOM ? GIBS_BLUE_MARBLE : GIBS_LANDSAT;
+    return `${GIBS_WMTS}/${layer}/${z}/${y}/${x}.jpg`;
   }
 
   private createTileEntry(

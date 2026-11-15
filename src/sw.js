@@ -1,10 +1,10 @@
 const SHELL_CACHE = 'kmd-wildfires-shell-v2';
-const TILE_CACHE = 'kmd-wildfires-tiles-v1';
+const TILE_CACHE = 'kmd-wildfires-tiles-v2';
 const MAX_CACHED_TILES = 450;
 
 const TILE_HOSTS = new Set([
   'tile.openstreetmap.org',
-  'server.arcgisonline.com'
+  'gibs.earthdata.nasa.gov'
 ]);
 
 const PRECACHE_REL_URLS = [

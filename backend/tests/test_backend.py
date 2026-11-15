@@ -197,15 +197,22 @@ def test_download_and_seed_give_the_same_calendar(fake, frozen_today, tmp_path):
     seeded = CalendarService(store, FirmsClient(map_key=""))  # no key: offline, served from the seed
     b = seeded.calendar(BBOX_TEXT, "2017-06", "2017-10")
 
-    assert a["series"]["rawModis"] == b["series"]["rawModis"]
-    assert a["series"]["rawViirs"] == b["series"]["rawViirs"]
-    # v2 outage detection & region-wide FRP/static quantiles run on the full seeded peninsula,
-    # whereas the small bbox download sees too few detections per day to detect outages.
-    assert np.allclose(np.array(a["series"]["harmonized"], dtype=float), np.array(b["series"]["harmonized"], dtype=float), rtol=0.25, atol=2.0, equal_nan=True)
+    # on-demand download: only the queried months exist in `a`; they match the seed exactly,
+    # every other month is missing (None), never zero
+    win = [i for i, m in enumerate(a["months"]) if "2017-06" <= m <= "2017-10"]
+    assert win and [a["series"]["rawModis"][i] for i in win] == [b["series"]["rawModis"][i] for i in win]
+    assert [a["series"]["rawViirs"][i] for i in win] == [b["series"]["rawViirs"][i] for i in win]
+    outside = [i for i, m in enumerate(a["months"]) if not ("2017-05" <= m <= "2017-11")]  # 5-day chunks reach into May / Nov
+    assert all(a["series"]["rawModis"][i] is None and a["series"]["harmonized"][i] is None for i in outside)
+    assert all(a["series"]["dataCoverage"][i] == 0 for i in outside)
+    assert all(a["series"]["dataCoverage"][i] == 1.0 for i in win)
+    assert all(a["series"]["anomalyZ"][i] is None for i in win)  # no history downloaded, no anomaly
+    assert a["metadata"]["historyYears"] == 0
+    assert all(a["series"]["harmonized"][i] is not None for i in win)
     assert a["selection"]["hotspots"]["rawModis"] > 0
     assert any(p["sensor"] == "MODIS" for p in a["selection"]["pixels"])
     assert any(p["sensor"] == "VIIRS" for p in a["selection"]["pixels"])
-    assert a["selection"]["comparedWithSameMonthsInOtherYears"]["rank"] == b["selection"]["comparedWithSameMonthsInOtherYears"]["rank"]
+    assert a["selection"]["comparedWithSameMonthsInOtherYears"]["years"] == 0
     assert len(a["calendar"]["harmonized"]) == len(a["calendar"]["years"]) and len(a["calendar"]["harmonized"][0]) == 12
     assert "2017" in a["selection"]["dailyByYear"] and len(a["selection"]["dailyByYear"]["2017"]) > 0
 
@@ -353,6 +360,8 @@ def test_partial_boundary_dates_exclude_out_of_range_days(tmp_path):
 
     svc = CalendarService(RegionStore(tmp_path), FirmsClient(map_key="TESTKEY", http_get=fake_http))
     bbox = "16.76,50.87,17.4,51.35"
+    # on-demand download: 2024 is fetched only because a query asks for it
+    svc.calendar(bbox, "2024-06-01", "2025-10-31", wait=True)
     part = svc.calendar(bbox, "2025-06-01", "2025-10-01", wait=True)
     full = svc.calendar(bbox, "2025-06-01", "2025-10-31", wait=True)
 
@@ -371,3 +380,37 @@ def test_partial_boundary_dates_exclude_out_of_range_days(tmp_path):
     assert part_top[2024] < full_top[2024]
     assert part_top[2025] < full_top[2025]
 
+
+def test_downloads_only_the_queried_window_and_marks_the_rest_missing(tmp_path):
+    avail_csv = "data_id,min_date,max_date\nMODIS_SP,2020-01-01,2025-12-31\nVIIRS_SNPP_SP,2020-01-01,2025-12-31\n"
+    header = "latitude,longitude,brightness,scan,track,acq_date,acq_time,satellite,confidence,version,bright_t31,frp,daynight"
+    requested: list[tuple[dt.date, dt.date]] = []
+
+    def fake_http(url: str, timeout: float) -> tuple[int, str]:
+        if "/data_availability/" in url:
+            return 200, avail_csv
+        m = re.search(r"/(\d+)/(\d{4}-\d{2}-\d{2})$", url)
+        first = dt.date.fromisoformat(m.group(2))
+        requested.append((first, first + dt.timedelta(days=int(m.group(1)) - 1)))
+        if "MODIS" in url:
+            rows = ["51.05,17.05,320.0,0.4,0.4,2025-07-10,1200,T,n,6.1,290.0,15.0,D"]
+        else:
+            rows = ["51.05,17.05,330.0,0.4,0.4,2025-07-10,1205,N,n,2,295.0,20.0,D"]
+        keep = [r for r in rows if first <= dt.date.fromisoformat(r.split(",")[5]) <= requested[-1][1]]
+        return 200, "\n".join([header, *keep])
+
+    svc = CalendarService(RegionStore(tmp_path), FirmsClient(map_key="TESTKEY", http_get=fake_http))
+    bbox = "16.76,50.87,17.4,51.35"
+    with pytest.raises(NotReady):
+        svc.calendar(bbox, "2025-07-01", "2025-07-31")  # first call starts the window download only
+    res = svc.calendar(bbox, "2025-07-01", "2025-07-31", wait=True)
+    lo, hi = dt.date(2025, 7, 1), dt.date(2025, 7, 31)
+    assert requested and all(a <= hi and b >= lo for a, b in requested)  # nothing outside the query
+    idx = res["months"].index("2025-07")
+    assert res["series"]["rawModis"][idx] == 1 and res["series"]["dataCoverage"][idx] == 1.0
+    assert res["series"]["rawModis"][res["months"].index("2025-03")] is None  # never downloaded: missing
+    assert res["series"]["harmonized"][res["months"].index("2024-07")] is None
+    assert all(y["harmonized"] == 0 for y in res["yearly"] if y["dataCoverage"] == 0)
+    n = len(requested)
+    svc.calendar(bbox, "2025-07-05", "2025-07-20", wait=True)  # inside the downloaded window: no new requests
+    assert len(requested) == n

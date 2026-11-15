@@ -35,6 +35,7 @@ from pathlib import Path
 from typing import Callable
 
 import h3
+import numpy as np
 import pandas as pd
 import requests
 
@@ -178,8 +179,20 @@ class Region:
 
     # -- planning ------------------------------------------------------------------------------
 
-    def plan(self, availability: dict[str, tuple[dt.date, dt.date]], today: dt.date, chunk_days: int = CHUNK_DAYS) -> list[Task]:
-        """Chunks that are missing or stale. Final chunks and chunks covered by the seed are skipped."""
+    def plan(
+        self,
+        availability: dict[str, tuple[dt.date, dt.date]],
+        today: dt.date,
+        chunk_days: int = CHUNK_DAYS,
+        window: tuple[dt.date, dt.date] | None = None,
+        include_stale: bool = True,
+    ) -> list[Task]:
+        """Chunks that are missing or stale. Final chunks and chunks covered by the seed are skipped.
+
+        With `window`, only chunks overlapping those days (the user's query) are planned, so nothing
+        outside the request is downloaded. `include_stale=False` leaves out chunks that exist but are
+        due for a refresh (recent near-real-time days), i.e. returns only what is really missing.
+        """
         tasks, now = [], time.time()
         chunks, seeded = self.manifest["chunks"], self.manifest.get("seeded", {})
         for sensor, epoch in SENSOR_EPOCH.items():
@@ -208,7 +221,10 @@ class Region:
                 entry = chunks.get(f"{sensor}|{start}")
                 in_seed = seed is not None and seed_from <= start and start + dt.timedelta(days=chunk_days - 1) <= seed_final
                 fresh = entry is not None and (entry["final"] or now - entry["fetched"] < REFRESH_HOURS * 3600)
-                if runs and not in_seed and not fresh:
+                if not include_stale and entry is not None:
+                    fresh = True
+                in_window = window is None or (start <= window[1] and start + dt.timedelta(days=chunk_days - 1) >= window[0])
+                if runs and in_window and not in_seed and not fresh:
                     tasks.append(Task(sensor, start, runs, final))
                 start += dt.timedelta(days=chunk_days)
         return tasks
@@ -220,21 +236,19 @@ class Region:
         client: FirmsClient,
         progress: Callable[[int, int], None] | None = None,
         workers: int = WORKERS,
-        priority_window: tuple[dt.date, dt.date] | None = None,
+        window: tuple[dt.date, dt.date] | None = None,
     ) -> dict:
-        """Download what `plan` asks for, then rebuild the consolidated file. Safe to call again after a failure."""
+        """Download what `plan` asks for (only `window` when given), then rebuild the consolidated file.
+
+        Safe to call again after a failure. Nothing outside `window` is fetched: the history of other
+        years is downloaded only when a query asks for it.
+        """
         with self.lock:
             today = today_utc()
             availability = client.availability()
             avail = _platform_availability(availability, today)
-            tasks = self.plan(availability, today)
-
-            def _task_priority(t: Task) -> tuple[int, int, str]:
-                t_end = t.start + dt.timedelta(days=CHUNK_DAYS - 1)
-                in_prio = 0 if (priority_window and t.start <= priority_window[1] and t_end >= priority_window[0]) else 1
-                return (in_prio, -t.start.toordinal(), t.sensor)
-
-            tasks.sort(key=_task_priority)
+            tasks = self.plan(availability, today, window=window)
+            tasks.sort(key=lambda t: (-t.start.toordinal(), t.sensor))
             progressive = client.http_get is _requests_get
             if progressive and not self.has_data and self.manifest.get("chunks"):
                 self.manifest["availability"] = avail.to_json()
@@ -326,6 +340,53 @@ class Region:
         self.manifest["rows"] = len(df)
         self.save()
         self._frame = None
+
+    # -- coverage ------------------------------------------------------------------------------
+
+    def coverage(self, months: pd.PeriodIndex, avail: "hz.Availability") -> dict[str, np.ndarray]:
+        """Share of each month's operating days that this region has data for, per sensor.
+
+        A day counts when a downloaded chunk spans it (with or without detections) or it lies in the
+        seeded range. Only days the sensor was operating (`avail` first / last, up to the horizon) are
+        counted, so a retired satellite does not make later months look incomplete. Months that were
+        never downloaded get 0, so they read as missing, not as zero fires.
+        """
+        if not len(months):
+            return {}
+        first_day = months[0].start_time.normalize()
+        n_days = (months[-1].end_time.normalize() - first_day).days + 1
+        day_month = np.repeat(np.arange(len(months)), [m.days_in_month for m in months])[:n_days]
+        horizon = min(pd.Timestamp(avail.horizon).normalize(), months[-1].end_time.normalize())
+        seeded = self.manifest.get("seeded", {})
+        seed_end = max((pd.Timestamp(v["to"]) for v in seeded.values()), default=None)
+
+        def index(day: pd.Timestamp) -> int:
+            return (pd.Timestamp(day).normalize() - first_day).days
+
+        out = {}
+        for sensor, epoch in SENSOR_EPOCH.items():
+            platforms = [p for p, sen in PLATFORM_SENSOR.items() if sen == sensor and p in avail.first]
+            if not platforms:
+                out[sensor] = np.zeros(len(months))
+                continue
+            start = min(pd.Timestamp(avail.first[p]) for p in platforms)
+            ends = [horizon if avail.last.get(p) is None else min(pd.Timestamp(avail.last[p]), horizon) for p in platforms]
+            active = np.zeros(n_days, dtype=bool)
+            active[max(index(start), 0): max(index(max(ends)) + 1, 0)] = True
+            covered = np.zeros(n_days, dtype=bool)
+            if sensor in seeded and seed_end is not None:  # seed files are whole downloads from the sensor's start
+                covered[max(index(pd.Timestamp(epoch)), 0): max(index(seed_end) + 1, 0)] = True
+            for key, entry in self.manifest["chunks"].items():
+                if not key.startswith(f"{sensor}|"):
+                    continue
+                for day0, days in entry["spans"]:
+                    i0 = index(pd.Timestamp(day0))
+                    covered[max(i0, 0): max(i0 + int(days), 0)] = True
+            observable = np.bincount(day_month[active], minlength=len(months)).astype(float)
+            got = np.bincount(day_month[active & covered], minlength=len(months)).astype(float)
+            with np.errstate(divide="ignore", invalid="ignore"):
+                out[sensor] = np.where(observable > 0, got / observable, 0.0)
+        return out
 
     # -- read ----------------------------------------------------------------------------------
 

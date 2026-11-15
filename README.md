@@ -1,6 +1,7 @@
 # NASA Wildfires Model — Harmonized MODIS & VIIRS Burning Activity Calendar
 
 > **Live Application:** [harmonization.kmd-labs.org](https://harmonization.kmd-labs.org/)  
+> **Demo Video:** [Watch Demo Video (`demo-vid.mp4`)](https://github.com/kmd-labs/nasa-wildfires-model/blob/demo-v1/demo-vid.mp4) ([direct MP4](https://github.com/kmd-labs/nasa-wildfires-model/raw/refs/tags/demo-v1/demo-vid.mp4))  
 > **Hackathon Challenge:** **2026 NASA Space Apps Challenge** — [Challenge 15: Harmonization of MODIS and VIIRS Hot Spots](https://www.spaceappschallenge.org/2026/challenges/modis-and-viirs-hot-spots/)  
 > **Built by:** **KMD Labs** ([kmd-labs.org](https://kmd-labs.org))
 
@@ -12,7 +13,7 @@ A scientifically validated **Burning Activity Calendar** and Earth Observation a
 
 - **26+ Years on a Single Scale:** Seamless monthly and daily fire activity from `2000-11` onward, chained across Terra, Aqua, Suomi NPP, NOAA-20, and NOAA-21.
 - **Zero 2012 Sensor-Entry Jump:** Naive summation jumps **4.64×** when VIIRS launches; harmonization **v4** reduces the median jump to **1.0×**.
-- **Globally Validated (22 Regions, 8 Biomes, 0 Errors):** Predicting raw MODIS strictly from VIIRS in blocked $k$-fold validation achieves **1.1%** median $|\text{bias}|$ (2012–2019) and **2.7%** (2023+ — within 10% in **19/22** regions and within 20% in **22/22**), with **0.9** calibrated 90% interval coverage. See the full [Global v4 Validation Report](docs/validation/global-v4/report.md).
+- **Validated on 22 Regions across 6 Continents and 8 Biomes:** Predicting raw MODIS strictly from VIIRS in blocked $k$-fold validation achieves **1.1%** median $|\text{bias}|$ (2012–2019) and **2.7%** (2023+ — within 10% in **19/22** regions and within 20% in **22/22**), with **0.9** calibrated 90% interval coverage. See the full [v4 Validation Report](docs/validation/global-v4/report.md) and its [scope and limits](#2-multi-regional-validation-summary).
 - **Orbit-Drift & End-of-Mission Ready:** Explicitly models MODIS orbital drift directly from `acq_time` (Terra `-1.36 h`, Aqua `+1.39 h` median shift) and chains NOAA-20/NOAA-21 to Suomi NPP for continuity beyond Suomi NPP's November 2026 end.
 
 ---
@@ -21,7 +22,7 @@ A scientifically validated **Burning Activity Calendar** and Earth Observation a
 
 - [The Challenge & Our Solution](#the-challenge--our-solution)
   - [1. Cross-Sensor Harmonization Engine (`backend/`)](#1-cross-sensor-harmonization-engine-backend)
-  - [2. Global Validation Summary](#2-global-validation-summary)
+  - [2. Multi-Regional Validation Summary](#2-multi-regional-validation-summary)
   - [3. Interactive Burning Activity Calendar (`src/`)](#3-interactive-burning-activity-calendar-src)
 - [Architecture & Performance](#architecture--performance)
 - [API Reference](#api-reference)
@@ -51,7 +52,7 @@ The backend converts multi-satellite NASA FIRMS hotspot counts into consistent *
    Selectable engine versions (`HARMONIZATION=v1|v2|v3|v4` in [`backend/harmonization_select.py`](backend/harmonization_select.py)) span the baseline model through day/night + FRP stratification (`v2`), separated small-fire attribution (`v3`), and the production MODIS orbit-drift model (`v4`). Methodology notes are documented in [`docs/harmonization.md`](docs/harmonization.md).
 4. **Uncertainty, Anomalies & External Witness Checks:** Delivers calibrated 90% quasi-Poisson confidence intervals, leave-one-out multi-year baselines (Z-scores, percentiles, % of median), blocked $k$-fold cross-validation, and burned-area seam tests against NASA LP DAAC (`MCD64A1` / `VNP64A1`).
 
-### 2. Global Validation Summary
+### 2. Multi-Regional Validation Summary
 
 Across **22 fire-prone regions** spanning boreal forests, tropical forests, savannas, temperate zones, grasslands, croplands, Mediterranean shrublands, and peatlands ([full report](docs/validation/global-v4/report.md)):
 
@@ -62,6 +63,8 @@ Across **22 fire-prone regions** spanning boreal forests, tropical forests, sava
 | **k-fold $\|\text{Bias}\|$ (2023+, VIIRS → MODIS)** | — | `4.0%` | **`2.7%`** *(better in 13/22)* |
 | **Forward $\|\text{Bias}\|$ (fit $\le 2023 \rightarrow 2025$)** | — | `11.5%` | **`8.3%`** *(better in 13/22)* |
 | **Calibrated 90% Interval Coverage** | — | `0.9` | **`0.9`** |
+
+**Scope and limits.** This is a multi-regional validation, not wall-to-wall global coverage. Because of the time constraints of the hackathon, we validated 22 hand-picked fire-prone boxes (3–6° each) in one overnight run instead of a random, biome-stratified sample of the whole globe. NOAA-21 is missing in 8 of the regions (the FIRMS Area API rate limit stopped the download), there is no region yet in Central Africa, the tundra, China or the Middle East, the data end in 2025, and the burned-area witness (MCD64A1) is itself a MODIS product. The [validation script](scripts/validation/global_validation.py) is resumable and ready for a larger sample.
 
 ### 3. Interactive Burning Activity Calendar (`src/`)
 
@@ -88,7 +91,7 @@ flowchart LR
 ```
 
 - **Frontend ([harmonization.kmd-labs.org](https://harmonization.kmd-labs.org/)):** Built from `src/` and configured to talk to the Cloud Run API in [`src/app/core/services/wildfire-data.service.ts`](src/app/core/services/wildfire-data.service.ts) (with local override support during development).
-- **Backend (`GCP Cloud Run` · `europe-west1`):** Containerized via [`backend/Dockerfile`](backend/Dockerfile) (`python:3.12-slim` + `uvicorn backend.server:app`). Incoming queries are split by satellite epoch into 5-day FIRMS chunks (`FIRMS_CHUNK_DAYS=5`) on a `0.5°` cache grid—immutable science-quality chunks (`*_SP`) are cached permanently while near-real-time chunks (`*_NRT`) refresh every `6h`. Long historical fetches run asynchronously via HTTP `202` progress updates before serving HTTP `200` results.
+- **Backend (`GCP Cloud Run` · `europe-west1`):** Containerized via [`backend/Dockerfile`](backend/Dockerfile) (`python:3.12-slim` + `uvicorn backend.server:app`). Incoming queries are split by satellite epoch into 5-day FIRMS chunks (`FIRMS_CHUNK_DAYS=5`) on a `0.5°` cache grid—immutable science-quality chunks (`*_SP`) are cached permanently while near-real-time chunks (`*_NRT`) refresh every `6h`. Downloads are on demand: a query fetches only the chunks of its own bbox × date range (no background backfill of other years), answering HTTP `202` with progress until they are in; months never downloaded are returned as `null` (missing, see `series.dataCoverage`), not as zero fires.
 - **Three-Layer Caching & Instant Paint:** Combines a bundled Iberia fallback snapshot for immediate first paint, browser `IndexedDB` + Service Worker caching (`OfflineCacheService` & `src/sw.js`) for offline continuity, and server-side `0.5°` regional chunk reuse so sub-queries avoid redundant NASA FIRMS API calls.
 - **Production Guardrails:** `FIRMS_MAP_KEY` and `EARTHDATA_TOKEN` remain strictly server-side in Cloud Run. Public endpoints are read-only `GET` routes enforcing `CORS_ORIGINS` allowlisting and bounding-box area caps (`MAX_BBOX_DEG2 = 8000` deg² for FIRMS, `BURNED_AREA_MAX_DEG2 = 400` deg² for LP DAAC tiles).
 

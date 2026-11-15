@@ -7,7 +7,7 @@
       <span class="dataset-status__label">{{ t.activeDatasetLabel }}:</span>
       <span class="dataset-status__name">
         @if (analytics.hasLiveBackend() && data.backendCalendar(); as bCal) {
-          {{ t.backendLiveLabel }} (H3-{{ bCal.metadata.h3Resolution }} · {{ bCal.metadata.dataThrough | localeDate }})
+          {{ t.backendLiveLabel }} {{ bCal.metadata.dataThrough | localeDate }} · H3-{{ bCal.metadata.h3Resolution }}
         } @else {
           {{ t.defaultDatasetName }}
         }
@@ -29,9 +29,12 @@
     </div>
 
     <div class="export-grid">
-      <app-button variant="default" [disabled]="!state.hasActiveSelection()" (btnClick)="analytics.downloadFilteredCsv()">
+      <app-button
+        variant="default"
+        [disabled]="!state.hasActiveSelection() || analytics.csvExportStatus() === 'working'"
+        (btnClick)="analytics.downloadFilteredCsv()">
         <lucide-icon [img]="csvIcon" [size]="14"></lucide-icon>
-        <span>{{ t.downloadCsvBtn }}</span>
+        <span>{{ analytics.csvExportStatus() === 'working' ? t.csvExportWorking : t.downloadCsvBtn }}</span>
       </app-button>
       <app-button variant="default" [disabled]="!state.hasActiveSelection()" (btnClick)="analytics.downloadAnalyticsJson()">
         <lucide-icon [img]="jsonIcon" [size]="14"></lucide-icon>
@@ -46,5 +49,8 @@
         <span>{{ t.downloadPngBtn }}</span>
       </app-button>
     </div>
+    @if (analytics.csvExportStatus() === 'error') {
+      <p class="data-popup__error" role="alert">{{ t.csvExportError }}</p>
+    }
   </section>
 </div>

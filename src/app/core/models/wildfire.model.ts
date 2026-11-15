@@ -74,6 +74,8 @@ export interface YearlyComparisonPoint {
   anomalyPct: number;
   anomalyZScore: number;
   inSelectedRange: boolean;
+  /** False when the year (or its part in the seasonal window) was never downloaded: missing, not zero. */
+  hasData: boolean;
 }
 
 export interface ChartSeriesPoint {
@@ -86,6 +88,11 @@ export interface ChartSeriesPoint {
   anomalyPct: number;
   anomalyZScore: number;
   inSelectedRange: boolean;
+  /** False when the period was never downloaded (shown as a gap, not as zero fires). */
+  hasData: boolean;
+  /** 90 % interval of the harmonized value (monthly view with backend data only). */
+  harmonizedLo90: number | null;
+  harmonizedHi90: number | null;
 }
 
 export interface HotspotAnalyticsSummary {
@@ -94,6 +101,9 @@ export interface HotspotAnalyticsSummary {
   rawModisFires: number;
   rawViirsFires: number;
   totalFrpMw: number;
+  /** Raw FRP per sensor family (not harmonized); null without backend data. */
+  totalFrpModisMw: number | null;
+  totalFrpViirsMw: number | null;
   meanFrpMw: number;
   activeFireDays: number;
   peakDate: string | null;
@@ -101,6 +111,9 @@ export interface HotspotAnalyticsSummary {
   multiYearAvgFires: number;
   anomalyPct: number;
   anomalyZScore: number;
+  /** Other years with data the anomaly is computed against; below MIN_ANOMALY_YEARS there is no anomaly. */
+  anomalyComparisonYears: number;
+  anomalyAvailable: boolean;
   areaKm2: number;
   areaHa: number;
   activeDataset: DatasetSelectionMode;
@@ -279,6 +292,8 @@ export interface BackendYearlyRow {
   harmonized: number;
   frpMw?: number;
   monthsWithData: number;
+  /** Share of the year's days downloaded (on-demand download); 0 = never downloaded. */
+  dataCoverage?: number;
 }
 
 export interface BackendDailyBucket {
@@ -300,6 +315,9 @@ export interface BackendCalendarPayload {
     monthInProgress: string | null;
     refreshing: boolean;
     failedChunks: number;
+    /** Complete years downloaded for the area (on-demand download: only years a query asked for). */
+    historyYears?: number;
+    downloadPolicy?: string;
     metric: string;
     unit: string;
     license: string;
@@ -315,6 +333,8 @@ export interface BackendCalendarPayload {
     harmonizedHi90: (number | null)[];
     anomalyZ: (number | null)[];
     percentile: (number | null)[];
+    /** Share of each month's days downloaded; 0 = never downloaded (values are null, not zero). */
+    dataCoverage?: (number | null)[];
   };
   calendar: {
     years: number[];
@@ -341,6 +361,9 @@ export interface BackendCalendarPayload {
       activeFireDays: number;
       peakDate: string | null;
       peakCount: number;
+      totalMwModis?: number;
+      totalMwViirs?: number;
+      peakRawDetections?: number;
     };
     daily?: BackendDailyBucket[];
     dailyByYear?: Record<string, BackendDailyBucket[]>;

@@ -545,31 +545,42 @@
               <span class="kpi-card__label">{{ t.kpiHarmonizedFires }}</span>
               <strong class="kpi-card__val">{{ summary.harmonizedFires | number }}</strong>
               <span class="kpi-card__sub">
-                {{ activeDatasetDisplayLabel() }}: {{ summary.activeDatasetFires | number }} · MODIS {{ summary.rawModisFires | number }} · VIIRS {{ summary.rawViirsFires | number }}
+                {{ t.kpiRawSensors }}: MODIS {{ summary.rawModisFires | number }} · VIIRS {{ summary.rawViirsFires | number }}
               </span>
             </div>
 
             <div class="kpi-card">
               <span class="kpi-card__label">{{ t.kpiMultiYearAnomaly }}</span>
-              <strong
-                class="kpi-card__val"
-                [class.kpi-card__val--hot]="summary.anomalyZScore >= 0.5"
-                [class.kpi-card__val--cool]="summary.anomalyZScore <= -0.5">
-                {{ summary.anomalyZScore >= 0 ? '+' : '' }}{{ summary.anomalyZScore }}σ
-              </strong>
-              <span class="kpi-card__sub">
-                {{ summary.anomalyPct >= 0 ? '+' : '' }}{{ summary.anomalyPct }}% {{ t.kpiVsBaseline }}
+              @if (summary.anomalyAvailable) {
+                <strong
+                  class="kpi-card__val"
+                  [class.kpi-card__val--hot]="summary.anomalyZScore >= 0.5"
+                  [class.kpi-card__val--cool]="summary.anomalyZScore <= -0.5">
+                  {{ summary.anomalyZScore >= 0 ? '+' : '' }}{{ summary.anomalyZScore }}σ
+                </strong>
+                <span class="kpi-card__sub">
+                  {{ summary.anomalyPct >= 0 ? '+' : '' }}{{ summary.anomalyPct }}% {{ t.kpiVsBaseline }}
+                </span>
+              } @else {
+                <strong class="kpi-card__val" [attr.title]="t.kpiAnomalyNoHistoryHint">—</strong>
+                <span class="kpi-card__sub" [attr.title]="t.kpiAnomalyNoHistoryHint">{{ t.kpiAnomalyNoHistory }}</span>
+              }
+            </div>
+
+            <div class="kpi-card">
+              <span class="kpi-card__label" [attr.title]="t.kpiTotalFrpHint">{{ t.kpiTotalFrp }}</span>
+              <strong class="kpi-card__val">{{ summary.totalFrpMw | number }} MW</strong>
+              <span class="kpi-card__sub" [attr.title]="t.kpiTotalFrpHint">
+                @if (summary.totalFrpModisMw !== null && summary.totalFrpViirsMw !== null) {
+                  MODIS {{ summary.totalFrpModisMw | number }} MW · VIIRS {{ summary.totalFrpViirsMw | number }} MW
+                } @else {
+                  {{ t.kpiMeanFrp }}: {{ summary.meanFrpMw }} MW
+                }
               </span>
             </div>
 
             <div class="kpi-card">
-              <span class="kpi-card__label">{{ t.kpiTotalFrp }}</span>
-              <strong class="kpi-card__val">{{ summary.totalFrpMw | number }} MW</strong>
-              <span class="kpi-card__sub">{{ t.kpiMeanFrp }}: {{ summary.meanFrpMw }} MW</span>
-            </div>
-
-            <div class="kpi-card">
-              <span class="kpi-card__label">{{ t.kpiPeakDate }}</span>
+              <span class="kpi-card__label" [attr.title]="t.kpiPeakDateHint">{{ t.kpiPeakDate }}</span>
               <strong class="kpi-card__val">{{ summary.peakDate ? (summary.peakDate | localeDate) : '—' }}</strong>
               <span class="kpi-card__sub" [title]="i18n.formatSquareMetersExact(analytics.bboxArea().m2)">{{ summary.activeFireDays }} {{ t.kpiActiveDays }} · {{ i18n.formatArea(analytics.bboxArea().m2) }}</span>
             </div>
@@ -726,7 +737,7 @@
                 <span class="mono-tag">{{ t.kpiHarmonizedFires }}: <b>{{ hc.harmonizedCount | number }}</b></span>
                 <span class="mono-tag">MODIS: {{ hc.rawModisCount }} · VIIRS: {{ hc.rawViirsCount }}</span>
                 <span class="mono-tag">FRP: {{ hc.frpMw | number }} MW</span>
-                <span class="mono-tag">Avg: {{ hc.multiYearAvg }} ({{ hc.anomalyZScore >= 0 ? '+' : '' }}{{ hc.anomalyZScore }}σ)</span>
+                <span class="mono-tag">{{ t.calendarOtherYearsAvg }}: {{ hc.multiYearAvg }} ({{ hc.anomalyZScore >= 0 ? '+' : '' }}{{ hc.anomalyZScore }}σ)</span>
               } @else {
                 <span class="hover-readout__hint">{{ t.calendarHoverPlaceholder }}</span>
               }
@@ -755,6 +766,7 @@
               <span class="legend-item"><i class="swatch swatch--harm"></i>{{ t.legendHarmonized }}</span>
               <span class="legend-item"><i class="swatch swatch--modis"></i>{{ t.legendRawModis }}</span>
               <span class="legend-item"><i class="swatch swatch--avg"></i>{{ t.legendMultiYearAvg }}</span>
+              <span class="legend-item"><i class="swatch swatch--ci"></i>{{ t.legendInterval90 }}</span>
             </div>
 
             <div class="svg-wrap">
@@ -778,29 +790,52 @@
 
                   @if (pt.key === '2012' || pt.key === '2012-01') {
                     <line [attr.x1]="bx + barW / 2" y1="12" [attr.x2]="bx + barW / 2" y2="156" class="svg-marker" />
-                    <text [attr.x]="bx + barW / 2" y="10" class="svg-marker-text" text-anchor="middle">VIIRS 2012</text>
+                    <text [attr.x]="bx + barW / 2" y="10" class="svg-marker-text" text-anchor="middle">{{ t.chartViirsStartMarker }}</text>
                   }
 
-                  <rect
-                    [attr.x]="bx"
-                    [attr.y]="156 - hHarm"
-                    [attr.width]="barW"
-                    [attr.height]="Math.max(1, hHarm)"
-                    rx="2"
-                    [style.fill]="pt.inSelectedRange ? 'var(--color-accent)' : 'var(--color-text-dim)'"
-                    [attr.opacity]="pt.inSelectedRange ? 0.92 : 0.42"
-                    class="chart-bar"
-                    (mouseenter)="hoveredChartPoint.set(pt)"
-                    (mouseleave)="hoveredChartPoint.set(null)" />
-                  <rect
-                    [attr.x]="bx + barW * 0.22"
-                    [attr.y]="156 - hModis"
-                    [attr.width]="barW * 0.56"
-                    [attr.height]="Math.max(0.5, hModis)"
-                    rx="1"
-                    style="fill: var(--color-text-bright)"
-                    opacity="0.32"
-                    pointer-events="none" />
+                  @if (pt.hasData) {
+                    <rect
+                      [attr.x]="bx"
+                      [attr.y]="156 - hHarm"
+                      [attr.width]="barW"
+                      [attr.height]="Math.max(1, hHarm)"
+                      rx="2"
+                      [style.fill]="pt.inSelectedRange ? 'var(--color-accent)' : 'var(--color-text-dim)'"
+                      [attr.opacity]="pt.inSelectedRange ? 0.92 : 0.42"
+                      class="chart-bar"
+                      (mouseenter)="hoveredChartPoint.set(pt)"
+                      (mouseleave)="hoveredChartPoint.set(null)" />
+                    <rect
+                      [attr.x]="bx + barW * 0.22"
+                      [attr.y]="156 - hModis"
+                      [attr.width]="barW * 0.56"
+                      [attr.height]="Math.max(0.5, hModis)"
+                      rx="1"
+                      style="fill: var(--color-text-bright)"
+                      opacity="0.32"
+                      pointer-events="none" />
+                    @if (pt.harmonizedLo90 !== null && pt.harmonizedHi90 !== null) {
+                      @let yLo = 156 - (Math.min(pt.harmonizedLo90, maxY) / maxY) * 138;
+                      @let yHi = 156 - (Math.min(pt.harmonizedHi90, maxY) / maxY) * 138;
+                      @let cx = bx + barW / 2;
+                      @let cap = Math.min(6, barW * 0.35);
+                      <g class="chart-ci" pointer-events="none">
+                        <line [attr.x1]="cx" [attr.y1]="yLo" [attr.x2]="cx" [attr.y2]="yHi" />
+                        <line [attr.x1]="cx - cap" [attr.y1]="yHi" [attr.x2]="cx + cap" [attr.y2]="yHi" />
+                        <line [attr.x1]="cx - cap" [attr.y1]="yLo" [attr.x2]="cx + cap" [attr.y2]="yLo" />
+                      </g>
+                    }
+                  } @else {
+                    <rect
+                      [attr.x]="bx"
+                      y="18"
+                      [attr.width]="barW"
+                      height="138"
+                      rx="2"
+                      class="chart-gap"
+                      (mouseenter)="hoveredChartPoint.set(pt)"
+                      (mouseleave)="hoveredChartPoint.set(null)" />
+                  }
 
                   @if (series.length <= 8 || i % Math.ceil(series.length / 7) === 0) {
                     <text [attr.x]="bx + barW / 2" y="172" class="svg-axis-label" text-anchor="middle">{{ pt.label }}</text>
@@ -851,17 +886,29 @@
                   @let mag = (Math.abs(pt.anomalyZScore) / maxZ) * 56;
                   @let by = pt.anomalyZScore >= 0 ? zeroY - mag : zeroY;
 
-                  <rect
-                    [attr.x]="bx"
-                    [attr.y]="by"
-                    [attr.width]="barW"
-                    [attr.height]="Math.max(1.5, mag)"
-                    rx="2"
-                    [attr.fill]="pt.anomalyZScore >= 0 ? ramps.anomalyPositiveHex : ramps.anomalyNegativeHex"
-                    [attr.opacity]="pt.inSelectedRange ? 0.92 : 0.42"
-                    class="chart-bar"
-                    (mouseenter)="hoveredChartPoint.set(pt)"
-                    (mouseleave)="hoveredChartPoint.set(null)" />
+                  @if (pt.hasData) {
+                    <rect
+                      [attr.x]="bx"
+                      [attr.y]="by"
+                      [attr.width]="barW"
+                      [attr.height]="Math.max(1.5, mag)"
+                      rx="2"
+                      [attr.fill]="pt.anomalyZScore >= 0 ? ramps.anomalyPositiveHex : ramps.anomalyNegativeHex"
+                      [attr.opacity]="pt.inSelectedRange ? 0.92 : 0.42"
+                      class="chart-bar"
+                      (mouseenter)="hoveredChartPoint.set(pt)"
+                      (mouseleave)="hoveredChartPoint.set(null)" />
+                  } @else {
+                    <rect
+                      [attr.x]="bx"
+                      y="18"
+                      [attr.width]="barW"
+                      height="112"
+                      rx="2"
+                      class="chart-gap"
+                      (mouseenter)="hoveredChartPoint.set(pt)"
+                      (mouseleave)="hoveredChartPoint.set(null)" />
+                  }
 
                   @if (series.length <= 8 || i % Math.ceil(series.length / 7) === 0) {
                     <text [attr.x]="bx + barW / 2" y="152" class="svg-axis-label" text-anchor="middle">{{ pt.label }}</text>
@@ -874,11 +921,18 @@
               @let hp = hoveredChartPoint();
               @if (hp) {
                 <span class="hover-readout__title">{{ hp.label }}</span>
-                <span class="mono-tag">{{ t.legendHarmonized }}: <b>{{ hp.harmonizedCount | number }}</b></span>
-                <span class="mono-tag">MODIS: {{ hp.rawModisCount | number }} · VIIRS: {{ hp.rawViirsCount | number }}</span>
-                <span class="mono-tag">{{ hp.anomalyZScore >= 0 ? '+' : '' }}{{ hp.anomalyZScore }}σ ({{ hp.anomalyPct >= 0 ? '+' : '' }}{{ hp.anomalyPct }}%)</span>
+                @if (hp.hasData) {
+                  <span class="mono-tag">{{ t.legendHarmonized }}: <b>{{ hp.harmonizedCount | number }}</b></span>
+                  @if (hp.harmonizedLo90 !== null && hp.harmonizedHi90 !== null) {
+                    <span class="mono-tag">{{ t.legendInterval90 }}: {{ hp.harmonizedLo90 | number:'1.0-1' }}–{{ hp.harmonizedHi90 | number:'1.0-1' }}</span>
+                  }
+                  <span class="mono-tag">MODIS: {{ hp.rawModisCount | number }} · VIIRS: {{ hp.rawViirsCount | number }}</span>
+                  <span class="mono-tag">{{ hp.anomalyZScore >= 0 ? '+' : '' }}{{ hp.anomalyZScore }}σ ({{ hp.anomalyPct >= 0 ? '+' : '' }}{{ hp.anomalyPct }}%)</span>
+                } @else {
+                  <span class="mono-tag">{{ t.chartNoData }}</span>
+                }
               } @else {
-                <span class="hover-readout__hint">{{ t.legendMultiYearAvg }}: {{ series[0]?.avgCount ?? 0 }} / {{ state.chartGranularity() === 'monthly' ? 'mo' : 'yr' }}</span>
+                <span class="hover-readout__hint">{{ t.legendMultiYearAvg }}: {{ series[0]?.avgCount ?? 0 }} / {{ state.chartGranularity() === 'monthly' ? t.perMonthShort : t.perYearShort }}</span>
               }
             </div>
           </section>

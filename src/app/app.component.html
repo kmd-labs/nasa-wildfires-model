@@ -150,14 +150,24 @@
   <!-- Unified Left Analytics, Region Bounding Box, Layers & Date Range Container -->
   <app-analytics-panel></app-analytics-panel>
 
-  <!-- Bottom-right OpenStreetMap License Attribution -->
-  <a
-    class="osm-attribution glass-panel"
-    href="https://www.openstreetmap.org/copyright"
-    target="_blank"
-    rel="noopener noreferrer">
-    {{ t.osmAttribution }}
-  </a>
+  <!-- Bottom-right attribution of the basemap on screen (NASA GIBS imagery or OpenStreetMap) -->
+  @if (state.showLandOrtho()) {
+    <a
+      class="osm-attribution glass-panel"
+      href="https://www.earthdata.nasa.gov/gibs"
+      target="_blank"
+      rel="noopener noreferrer">
+      {{ t.gibsAttribution }}
+    </a>
+  } @else {
+    <a
+      class="osm-attribution glass-panel"
+      href="https://www.openstreetmap.org/copyright"
+      target="_blank"
+      rel="noopener noreferrer">
+      {{ t.osmAttribution }}
+    </a>
+  }
 
   <app-popup [closeAriaLabel]="t.close"></app-popup>
   <app-tooltip></app-tooltip>

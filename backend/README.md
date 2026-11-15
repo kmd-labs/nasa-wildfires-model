@@ -62,9 +62,17 @@ ponownie. Kawałki z danych bieżących (`*_NRT`) odświeżają się po `FIRMS_R
 Region w cache to BBOX zaokrąglony na zewnątrz do 0,5°. Zapytanie mieszczące się w istniejącym regionie korzysta
 z niego bez pobierania, więc jeden duży region obsługuje każdy BBOX w jego środku.
 
-Pierwsze zapytanie o nowy obszar to pełna historia od 2000 r.: około 3 900 zapytań do FIRMS przy kawałkach
-5-dniowych, około 1 950 przy 10-dniowych. To trwa minuty, dlatego API odpowiada `202` z postępem. Obszary na pokaz
-warto pobrać wcześniej poleceniem `fetch`, a Iberię wczytać poleceniem `seed`.
+Pobieranie jest na żądanie: zapytanie z `from` / `to` pobiera tylko kawałki, które zachodzą na ten zakres dat w tym
+BBOX-ie. Innych lat nie pobieramy w tle. Dopóki brakuje kawałków zakresu, API odpowiada `202` z postępem (`done` /
+`total` dotyczy tylko tego zakresu); kawałki istniejące, ale do odświeżenia (`*_NRT`), odświeżają się w tle, a API od
+razu zwraca dane. Kawałki, które się nie pobrały, nie są ponawiane przez `FAILED_WINDOW_RETRY_S` (120 s): w tym czasie
+API zwraca to, co przyszło, a brakujące dni są oznaczone jako brak danych.
+
+Miesiące, których nie pobrano, mają w odpowiedzi `null` (brak danych), a nie `0`: seria `series.dataCoverage` podaje
+udział pobranych dni w każdym miesiącu (liczonych tylko w okresie pracy satelity), `yearly[].dataCoverage` to samo
+dla roku, a `metadata.historyYears` liczbę w pełni pobranych lat. Średnie, anomalie i percentyle liczą się tylko z
+pobranych miesięcy, więc porównanie z historią wymaga zapytania obejmującego inne lata. Zapytanie bez dat (CLI) pobiera
+całą historię od 2000 r. Obszary na pokaz warto pobrać wcześniej poleceniem `fetch`, a Iberię wczytać poleceniem `seed`.
 
 | Zmienna | Domyślnie | Znaczenie |
 |---|---|---|
