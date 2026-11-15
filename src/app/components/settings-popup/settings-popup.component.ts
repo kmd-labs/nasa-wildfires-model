@@ -1,19 +1,31 @@
 import { Component, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { LucideAngularModule, Monitor, Sun, Moon } from 'lucide-angular';
 import { PopupService } from '@kmd/design-system';
 import { I18nService } from '../../core/i18n/i18n.service';
+import { ThemePref, ThemePrefService } from '../../core/services/theme-pref.service';
 import { AreaUnitPref, DateFormatPref, Lang } from '../../core/i18n/i18n.types';
 import { formatLocaleDate } from '../../core/pipes/locale-date.pipe';
 
 @Component({
   selector: 'app-settings-popup',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, LucideAngularModule],
   templateUrl: './settings-popup.component.html',
   styleUrl: './settings-popup.component.scss'
 })
 export class SettingsPopupComponent {
   readonly i18n = inject(I18nService);
+  readonly themePref = inject(ThemePrefService);
+
+  readonly themes = computed<{ id: ThemePref; icon: typeof Monitor; label: string }[]>(() => {
+    const t = this.i18n.t();
+    return [
+      { id: 'auto', icon: Monitor, label: t.themeAuto },
+      { id: 'light', icon: Sun, label: t.themeLight },
+      { id: 'dark', icon: Moon, label: t.themeDark }
+    ];
+  });
 
   readonly languages: { id: Lang; label: string }[] = [
     { id: 'en', label: 'English' },
@@ -43,6 +55,10 @@ export class SettingsPopupComponent {
       { id: 'mi2', badge: 'mi²', label: t.areaUnitMi2 }
     ];
   });
+
+  selectTheme(pref: ThemePref): void {
+    this.themePref.setPref(pref);
+  }
 
   selectLang(lang: Lang): void {
     this.i18n.setLang(lang);

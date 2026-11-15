@@ -1,3 +1,5 @@
+@use "variables" as *;
+
 :host {
   position: relative;
   display: block;
@@ -5,7 +7,7 @@
   height: 100%;
   overflow: hidden;
   touch-action: none;
-  background: #e5ecf2;
+  background: color("map-bg");
 }
 
 .map2d__canvas {

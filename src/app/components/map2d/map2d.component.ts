@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { isAtMost } from '@kmd/design-system/utils/breakpoints';
+import { ThemeService } from '@kmd/design-system/services/theme.service';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { WildfireDataService } from '../../core/services/wildfire-data.service';
 import { WildfireStateService, ringToClosedPolygonCoords } from '../../core/services/wildfire-state.service';
@@ -72,6 +73,9 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
   private readonly analytics = inject(HotspotAnalyticsService);
   private readonly ramps = inject(ColorRampService);
   private readonly tiles = inject(GlobeTileService);
+  private readonly theme = inject(ThemeService);
+
+  private palette = this.readThemePalette();
 
   private ctx: CanvasRenderingContext2D | null = null;
   private glowCtx: CanvasRenderingContext2D | null = null;
@@ -128,6 +132,15 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
       this.state.showUserLocation();
       this.state.userLocation();
       untracked(() => this.requestRender());
+    });
+
+    // React to light/dark theme changes
+    effect(() => {
+      this.theme.mode();
+      untracked(() => {
+        this.palette = this.readThemePalette();
+        this.requestRender();
+      });
     });
 
     // Cluster outline for the pulsing glow: rebuilt when hotspots or the region change,
@@ -603,8 +616,8 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
     const maxViewLat = this.clampLat(this.worldYToLat(topWy, ws)) + 2;
     const minViewLat = this.clampLat(this.worldYToLat(bottomWy, ws)) - 2;
 
-    this.renderBorderRingSet(ctx, this.borderStateRings, 'rgba(226, 232, 240, 0.45)', 0.85, ws, cx, cy, minViewLat, maxViewLat);
-    this.renderBorderRingSet(ctx, this.borderCountryRings, 'rgba(248, 250, 252, 0.78)', 1.2, ws, cx, cy, minViewLat, maxViewLat);
+    this.renderBorderRingSet(ctx, this.borderStateRings, this.palette.borderState, 0.85, ws, cx, cy, minViewLat, maxViewLat);
+    this.renderBorderRingSet(ctx, this.borderCountryRings, this.palette.borderCountry, 1.2, ws, cx, cy, minViewLat, maxViewLat);
   }
 
   private render(): void {
@@ -616,7 +629,7 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
     ctx.imageSmoothingEnabled = true;
 
     // 1. Neutral airy canvas background before/around slippy map tiles
-    ctx.fillStyle = '#e5ecf2';
+    ctx.fillStyle = this.palette.bg;
     ctx.fillRect(0, 0, this.width, this.height);
 
     // 2. Render slippy tile canvas base (Satellite Orthophoto or OSM street map)
@@ -640,6 +653,11 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
     const minTy = Math.max(0, Math.floor((topLeftWy * scaleToTile) / TILE_SIZE));
     const maxTy = Math.min(tilesCount - 1, Math.floor(((topLeftWy + this.height) * scaleToTile) / TILE_SIZE));
 
+    const applyOsmFilter = provider === 'osm' && this.palette.tileFilter !== 'none';
+    if (applyOsmFilter) {
+      ctx.save();
+      ctx.filter = this.palette.tileFilter;
+    }
     for (let ty = minTy; ty <= maxTy; ty++) {
       const dy = ty * tilePx - topLeftWy;
       for (let tx = minTx; tx <= maxTx; tx++) {
@@ -652,6 +670,9 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
           this.drawFallbackTile(ctx, provider, tileZ, wrappedX, ty, dx, dy, tilePx + 0.5);
         }
       }
+    }
+    if (applyOsmFilter) {
+      ctx.restore();
     }
 
     // 2b. Conditional Administrative Borders overlay when Orthophoto is selected
@@ -915,8 +936,8 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
     const { multi, isPreview, isDraft, editableOuter } = this.getDisplayRings();
     if (multi.length === 0) return;
 
-    const strokeColor = isPreview ? '#d97706' : '#d37400';
-    const fillColor = isPreview ? 'rgba(217, 119, 6, 0.2)' : 'rgba(211, 116, 0, 0.13)';
+    const strokeColor = isPreview ? this.palette.accentHover : this.palette.accent;
+    const fillColor = isPreview ? this.palette.accentPreviewFill : this.palette.accentFill;
 
     for (const poly of multi) {
       ctx.save();
@@ -943,7 +964,7 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
         const [mx, my] = this.lonLatToScreen((a[0] + b[0]) * 0.5, (a[1] + b[1]) * 0.5, ws, cx, cy);
         ctx.beginPath();
         ctx.arc(mx, my, 2.8, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+        ctx.fillStyle = this.palette.handleBg;
         ctx.fill();
         ctx.strokeStyle = strokeColor;
         ctx.lineWidth = 1.2;
@@ -957,11 +978,25 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
         ctx.arc(vx, vy, 4, 0, Math.PI * 2);
         ctx.fillStyle = strokeColor;
         ctx.fill();
-        ctx.strokeStyle = '#ffffff';
+        ctx.strokeStyle = this.palette.handleBg;
         ctx.lineWidth = 1.5;
         ctx.stroke();
       }
     }
+  }
+
+  private readThemePalette() {
+    return {
+      bg: this.theme.getTokenColor('map-bg', '#e5ecf2'),
+      borderState: this.theme.getTokenColor('map-border-state', 'rgba(226, 232, 240, 0.45)'),
+      borderCountry: this.theme.getTokenColor('map-border-country', 'rgba(248, 250, 252, 0.78)'),
+      accent: this.theme.getTokenColor('accent', '#d37400'),
+      accentHover: this.theme.getTokenColor('accent-hover', '#e6922e'),
+      accentFill: this.theme.getTokenColor('accent-glow-soft', 'rgba(211, 116, 0, 0.13)'),
+      accentPreviewFill: this.theme.getTokenColor('btn-active-red', 'rgba(217, 119, 6, 0.2)'),
+      handleBg: this.theme.getTokenColor('slider-thumb-bg', '#ffffff'),
+      tileFilter: this.theme.getTokenColor('map-tile-filter', 'none')
+    };
   }
 
   private buildSortedBbox(a: [number, number], b: [number, number]): BoundingBox {

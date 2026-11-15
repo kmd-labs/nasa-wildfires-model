@@ -8,11 +8,12 @@ This document defines the mandatory UI, architectural, and engineering conventio
 
 - **Immediate Immersion:** The interactive visualization (3D globe, canvas, simulation, or chart) occupies `100vw × 100vh` and is immediately interactive upon page load.
 - **No Settings Bloat:** Never add settings modals, preferences drawers, theme switchers, or onboarding popups that block or distract from the visualization.
-- **Single Light Theme:** KMD applications use a single, cohesive **Light Theme** defined in `_variables.scss` (`neutral-50` `#f5f7fb` airy background with frosted glass panels).
-  - Do **not** implement dark mode, light/dark toggle buttons, or theme persistence in `localStorage`.
-  - Canvas/WebGL renderers read design tokens at runtime via `ThemeService.getTokenColor(token)` from `:root` CSS custom properties (`--color-*`).
+- **Light Theme Default & Optional Midnight Dark Theme:** KMD applications use the canonical **Light Theme** defined in `_variables.scss` (`neutral-50` `#f5f7fb` airy background with frosted glass panels) by default.
+  - An opt-in blue **"Midnight"** dark theme is available under `:root[data-theme="dark"]` via `ThemeService.setMode('dark')`, keeping the signature `#D37400` orange accent and automatically switching brand/splash/about logotypes to `kmd-white-orange.svg`.
+  - Apps that opt in must expose the theme preference **only inside an existing Settings popup** (never as a standalone header theme toggle button) and persist under `<app-slug>.theme` in `localStorage`.
+  - Canvas/WebGL renderers read design tokens at runtime via `ThemeService.getTokenColor(token)` and re-apply them inside an `effect()` watching `ThemeService.mode()`.
 - **Unified Typography (`Inter`):** All UI elements and `<canvas>` 2D/3D text labels use a single font family (`$font-family: "Inter", sans-serif;` emitted as `--font-family` on `:root`). Canvas renderers must use `ThemeService.getFontFamily()` instead of hardcoding system font stacks like `"Segoe UI"`.
-  - The splash uses the official `assets/design-system/logo/kmd-black-orange.svg` logotype with a left-to-right clip reveal. Numeric readouts use the monospaced face (`$font-family-mono`, emitted as `--font-family-mono`); all other text remains Inter.
+  - The splash uses the official `assets/design-system/logo/kmd-black-orange.svg` logotype in light mode (and `kmd-white-orange.svg` when dark mode is active) with a left-to-right clip reveal. Numeric readouts use the monospaced face (`$font-family-mono`, emitted as `--font-family-mono`); all other text remains Inter.
 
 ---
 
@@ -22,9 +23,10 @@ Every KMD visualization app follows a strict three-zone HUD floating over the fu
 
 1. **Top-Left — Brand Logotype & Language Selector (`.header__left`):**
    - **Brand Pill (`.header__brand.glass-panel` / `<app-brand>`):** Displays the official `KMD` SVG logotype (`assets/design-system/logo/kmd-black-orange.svg` — black wordmark with `#D37400` orange accent dot) separated by a `1px` vertical divider from the interactive collaboration callout (`[Handshake] Open to new projects` / `t.about.cta`). On hover (and tap on mobile portrait), the brand pill expands smoothly. Clicking opens the official KMD Labs About modal (`AboutModalComponent` / `AboutService`) featuring team credentials, direct contact button (`hello@kmd-labs.org`), and a link to the main website (`kmd-labs.org`). On `mobile` portrait, it collapses in place to save viewport space.
-   - **Language Pill (`.header__settings.glass-panel`):** Contains **only** the compact language `app-dropdown` (`EN`, `PL`, `ES`). No theme buttons or extra settings icons.
-2. **Top-Right — View Switcher (`.header__right`):**
-   - **View Pill (`.header__view.glass-panel`):** Contains a single right-aligned `app-dropdown` (`align="right"`) that switches between the app's primary visualization modes/views.
+   - **Settings Pill (`.header__settings.glass-panel`):** Opens the Settings popup (`SettingsPopupComponent`) containing Appearance (`Auto` / `Light` / `Dark`), Language (`EN` / `PL`), Date Format, and Area Units. Never add standalone theme toggle buttons to the header.
+2. **Top-Right — Actions & View Switcher (`.header__right`):**
+   - **Action Pills (`.header__action.glass-panel`):** Compact pills for Export, Code (GitHub repository link), Data Sources, and Glossary & Data (collapsing to icon-only below the `desktop` breakpoint).
+   - **View Pill (`.header__view.glass-panel`):** Contains a single view mode switcher (`2D Map` / `3D Globe`).
 3. **Bottom Dock — Application Logic, Sliders & Glossaries (`.dock-wrap`):**
    - All simulation controls, timeline/parameter sliders (`app-timeline-slider`), play/pause buttons, layer toggles, color-scale legends, and glossary triggers (`PopupService`) live in floating glassmorphic panels anchored to the **bottom** of the viewport.
 

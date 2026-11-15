@@ -133,7 +133,7 @@
     gap: 5px;
     padding: 1px 7px;
     border-radius: radius("pill");
-    background: rgba(100, 116, 139, 0.12);
+    background: color("btn-bg");
     color: color("text-dim");
     font-size: 10px;
     font-weight: font-weight("semibold");
@@ -154,8 +154,8 @@
     }
 
     &--cached {
-      background: rgba(217, 119, 6, 0.14);
-      color: #b45309;
+      background: color("warning-soft");
+      color: color("warning-text");
     }
 
     &--sync {
@@ -164,8 +164,8 @@
     }
 
     &--err {
-      background: rgba(220, 38, 38, 0.12);
-      color: #b91c1c;
+      background: color("danger-soft");
+      color: color("danger-text");
     }
   }
 
@@ -231,7 +231,7 @@
   padding: 5px 14px;
   border-top: 1px solid color("line");
   border-bottom: 1px solid color("line");
-  background: rgba(248, 250, 252, 0.94);
+  background: color("panel-bg-heavy");
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 
@@ -317,7 +317,7 @@
   flex-shrink: 0;
   gap: 8px;
   padding: 9px 14px 10px;
-  background: rgba(255, 255, 255, 0.48);
+  background: color("panel-inset");
 
   &__top {
     display: flex;
@@ -413,7 +413,7 @@
 .coord-error {
   margin: 0;
   font-size: font-size("xxs");
-  color: #b91c1c;
+  color: color("danger-text");
 }
 
 .dataset-switcher {
@@ -508,7 +508,7 @@
     padding: 18px 16px;
     border-radius: radius("card");
     border: 1px dashed color("line-strong");
-    background: rgba(255, 255, 255, 0.65);
+    background: color("panel-inset");
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -563,15 +563,15 @@
   font-size: font-size("xs");
 
   &--done {
-    border-color: rgba(5, 150, 105, 0.32);
-    color: #047857;
+    border-color: color("success");
+    color: color("success-text");
   }
 
   &--missing {
-    border-color: rgba(220, 38, 38, 0.55);
-    background: rgba(254, 242, 242, 0.92);
-    color: #b91c1c;
-    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.12);
+    border-color: color("danger");
+    background: color("danger-soft");
+    color: color("danger-text");
+    box-shadow: 0 0 0 2px color("danger-soft");
   }
 
   &__label {
@@ -595,7 +595,7 @@
     flex-direction: column;
     gap: 8px;
     padding: 9px 14px 10px;
-    background: rgba(255, 255, 255, 0.36);
+    background: color("panel-inset");
   }
 
   &__items {
@@ -689,10 +689,10 @@
   }
 
   &--missing {
-    border-color: rgba(220, 38, 38, 0.72);
-    background: rgba(254, 242, 242, 0.92);
-    color: #b91c1c;
-    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.14);
+    border-color: color("danger");
+    background: color("danger-soft");
+    color: color("danger-text");
+    box-shadow: 0 0 0 2px color("danger-soft");
   }
 }
 
@@ -705,7 +705,7 @@
   border-radius: radius("pill");
   border: none;
   background: color("accent");
-  color: #ffffff;
+  color: color("on-accent");
   font: inherit;
   font-size: font-size("xxs");
   font-weight: font-weight("semibold");
@@ -727,7 +727,7 @@
   margin: 0;
   font-size: font-size("xxs");
   font-weight: font-weight("medium");
-  color: #b91c1c;
+  color: color("danger-text");
 }
 
 .coords-fields {
@@ -817,7 +817,7 @@
   gap: 2px;
   padding: 9px 11px;
   border-radius: radius("sm");
-  background: rgba(255, 255, 255, 0.65);
+  background: color("panel-inset");
   border: 1px solid color("line");
 
   &__label {
@@ -859,7 +859,7 @@
   gap: 8px;
   padding: 11px 12px;
   border-radius: radius("card");
-  background: rgba(255, 255, 255, 0.65);
+  background: color("panel-inset");
   border: 1px solid color("line");
 
   &__head {
@@ -893,11 +893,11 @@
 .calendar-year-accordion {
   border-radius: radius("sm");
   border: 1px solid color("line");
-  background: rgba(255, 255, 255, 0.55);
+  background: color("panel-inset");
   overflow: hidden;
 
   &--open {
-    background: rgba(255, 255, 255, 0.85);
+    background: color("panel-inset-strong");
     border-color: color("line-strong");
   }
 
@@ -1013,13 +1013,13 @@
 }
 
 .svg-avg-line {
-  stroke: #0284c7;
+  stroke: color("link-color");
   stroke-width: 1.5;
   stroke-dasharray: 5, 4;
 }
 
 .svg-marker {
-  stroke: rgba(15, 23, 42, 0.22);
+  stroke: color("line-strong");
   stroke-width: 1;
   stroke-dasharray: 2, 2;
 }
@@ -1063,17 +1063,17 @@
   border-radius: 2px;
 
   &--harm {
-    background: #d37400;
+    background: color("accent");
   }
 
   &--modis {
-    background: rgba(15, 23, 42, 0.45);
+    background: color("text-dim");
   }
 
   &--avg {
     width: 14px;
     height: 2px;
-    background: #0284c7;
+    background: color("link-color");
   }
 
   // 90 % interval whisker: a thin vertical line with caps
@@ -1165,14 +1165,14 @@
 
   &--sync {
     background: color("accent-glow-soft");
-    border: 1px solid rgba(211, 116, 0, 0.25);
+    border: 1px solid color("accent-glow");
     color: color("accent");
   }
 
   &--err {
-    background: rgba(220, 38, 38, 0.08);
-    border: 1px solid rgba(220, 38, 38, 0.24);
-    color: #b91c1c;
+    background: color("danger-soft");
+    border: 1px solid color("danger");
+    color: color("danger-text");
   }
 }
 
@@ -1222,7 +1222,7 @@
     padding: 0 6px 0 8px;
     border: 1px solid color("line");
     border-radius: radius("sm");
-    background: rgba(255, 255, 255, 0.85);
+    background: color("panel-inset-strong");
     transition: border-color transition("fast"), box-shadow transition("fast");
 
     &--open,
@@ -1290,10 +1290,10 @@
     padding: 4px;
     border-radius: radius("sm");
     border: 1px solid color("line-strong");
-    background: rgba(255, 255, 255, 0.96);
+    background: color("panel-bg-heavy");
     backdrop-filter: blur(blur-token("md"));
     -webkit-backdrop-filter: blur(blur-token("md"));
-    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.14);
+    box-shadow: 0 10px 28px color("shadow-heavy");
     @include custom-scrollbar;
   }
 
@@ -1347,7 +1347,7 @@
     font-weight: font-weight("semibold");
     padding: 1px 5px;
     border-radius: 4px;
-    background: rgba(15, 23, 42, 0.06);
+    background: color("btn-bg");
     color: color("text-dim");
 
     &--cached {

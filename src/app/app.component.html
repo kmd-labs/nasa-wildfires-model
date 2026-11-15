@@ -79,6 +79,22 @@
       </div>
 
       <div class="header__action glass-panel">
+        <a
+          class="header__action-link"
+          [class.header__action-link--icon]="isMobileView()"
+          [href]="githubUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          [attr.aria-label]="t.codeAria"
+          [appTooltip]="isMobileView() ? t.codeBtn : null">
+          <lucide-icon [img]="githubIcon" [size]="15"></lucide-icon>
+          @if (!isMobileView()) {
+            <span>{{ t.codeBtn }}</span>
+          }
+        </a>
+      </div>
+
+      <div class="header__action glass-panel">
         <app-button
           variant="ghost"
           [size]="isMobileView() ? 'sm' : 'md'"

@@ -90,7 +90,7 @@
 
       .settings__badge {
         background: color("btn-active-blue-border");
-        color: #ffffff;
+        color: color("on-info");
       }
     }
   }
@@ -109,6 +109,10 @@
     font-weight: font-weight("bold");
     line-height: 1;
     transition: background transition("fast"), color transition("fast");
+
+    &--icon {
+      padding: 3px 4px;
+    }
   }
 
   &__name {

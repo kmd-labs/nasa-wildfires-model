@@ -103,6 +103,11 @@ export class GlobeMathService {
     this.lutAir = this.buildAirLut();
   }
 
+  /** Rebuilds theme-dependent SST/anomaly LUTs after a design-token change. */
+  invalidateLuts(): void {
+    this.refreshLutsFromTokens();
+  }
+
   pos(lon: number, lat: number, r: number, out: THREE.Vector3): THREE.Vector3 {
     const phi = (90 - lat) * (Math.PI / 180);
     const theta = (lon + 180) * (Math.PI / 180);

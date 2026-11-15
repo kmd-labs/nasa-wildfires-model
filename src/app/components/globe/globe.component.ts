@@ -69,6 +69,8 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
   private controls!: OrbitControls;
 
   private globeMesh?: THREE.Mesh;
+  private glowMaterial: THREE.ShaderMaterial | null = null;
+  private bokehMaterial: THREE.PointsMaterial | null = null;
 
   // OpenStreetMap + Satellite orthophoto tile basemaps and wildfire overlay groups
   private readonly osmTileGroup = new THREE.Group();
@@ -221,6 +223,12 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
       if (this.scene) {
         untracked(() => this.rebuildUserLocationPin());
       }
+    });
+
+    // React to light/dark theme changes
+    effect(() => {
+      this.theme.mode();
+      untracked(() => this.applyThemeColors());
     });
   }
 
@@ -473,6 +481,7 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
     });
 
     const haloMesh = new THREE.Mesh(new THREE.SphereGeometry(R * 1.15, 64, 32), glowMat);
+    this.glowMaterial = glowMat;
     this.scene.add(haloMesh);
 
     const pGeo = new THREE.BufferGeometry();
@@ -492,14 +501,33 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
       transparent: true,
       opacity: 0.35
     });
+    this.bokehMaterial = pMat;
     this.scene.add(new THREE.Points(pGeo, pMat));
+  }
+
+  private applyThemeColors(): void {
+    this.math.invalidateLuts();
+    this.tiles.setOsmTint(this.theme.isDark() ? 0.72 : 1);
+    if (!this.scene) return;
+    (this.scene.background as THREE.Color).set(this.theme.getTokenColor('globe-bg', '#f5f7fb'));
+    if (this.glowMaterial) {
+      this.glowMaterial.uniforms['c'].value.set(this.theme.getTokenColor('globe-glow', '#0f172a'));
+    }
+    if (this.bokehMaterial) {
+      this.bokehMaterial.color.set(this.theme.getTokenColor('globe-bokeh', '#94a3b8'));
+    }
+    if (this.globeMesh) {
+      (this.globeMesh.material as THREE.MeshLambertMaterial).color.set(
+        this.theme.getTokenColor('globe-ocean', '#aad3df')
+      );
+    }
   }
 
   private initBaseGlobe() {
     this.globeMesh = new THREE.Mesh(
       new THREE.SphereGeometry(this.math.R, 128, 64),
       new THREE.MeshLambertMaterial({
-        color: 0xaad3df,
+        color: new THREE.Color(this.theme.getTokenColor('globe-ocean', '#aad3df')),
         polygonOffset: true,
         polygonOffsetFactor: 2,
         polygonOffsetUnits: 2

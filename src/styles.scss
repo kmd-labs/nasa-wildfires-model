@@ -9,13 +9,13 @@
 .popup-dialog__footer .btn.btn--hot {
   background: color("accent");
   border-color: color("accent");
-  color: #ffffff;
+  color: color("on-accent");
   font-weight: font-weight("semibold");
 
   &:hover:not(:disabled) {
     background: color("accent-hover");
     border-color: color("accent-hover");
-    color: #ffffff;
+    color: color("on-accent");
   }
 }
 
@@ -59,7 +59,7 @@
   .header__brand--expanded,
   .header__brand--popup-open {
     max-width: min(460px, calc(100vw - 24px)) !important;
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.22);
+    box-shadow: 0 8px 24px color("shadow-heavy");
 
     .header__brand-btn {
       height: 28px !important;
@@ -158,7 +158,7 @@
     font-family: var(--font-family-mono);
     font-weight: font-weight("semibold");
     color: color("accent");
-    background: rgba(color("accent"), 0.12);
+    background: color("accent-glow-soft");
     padding: 1px 6px;
     border-radius: radius("xs");
     white-space: nowrap;
@@ -198,11 +198,11 @@
     flex-shrink: 0;
 
     &--water {
-      color: #0284c7;
+      color: color("link-color");
     }
 
     &--air {
-      color: #d37400;
+      color: color("accent");
     }
   }
 

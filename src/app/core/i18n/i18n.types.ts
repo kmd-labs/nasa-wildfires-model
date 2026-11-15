@@ -23,6 +23,12 @@ export interface Dict {
   changeLanguage: string;
   settingsTitle: string;
   settingsAria: string;
+  themeLabel: string;
+  themeAuto: string;
+  themeLight: string;
+  themeDark: string;
+  codeBtn: string;
+  codeAria: string;
   dateFormatLabel: string;
   dateFormatAuto: string;
   areaUnitLabel: string;

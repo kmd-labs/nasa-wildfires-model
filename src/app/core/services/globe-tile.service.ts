@@ -39,9 +39,21 @@ export class GlobeTileService {
   private readonly MAX_CACHE = 320;
   private readonly cache = new Map<string, CachedTile>();
   private accessTick = 0;
+  private osmTint = 1;
 
   constructor() {
     this.loader.setCrossOrigin('anonymous');
+  }
+
+  /** Adjusts brightness tint on cached and future OSM tiles (e.g. dimmed in dark mode). */
+  setOsmTint(scalar: number): void {
+    if (this.osmTint === scalar) return;
+    this.osmTint = scalar;
+    for (const entry of this.cache.values()) {
+      if (entry.provider === 'osm') {
+        entry.mesh.material.color.setScalar(scalar);
+      }
+    }
   }
 
   /**
@@ -238,7 +250,7 @@ export class GlobeTileService {
 
     const url = this.buildTileUrl(provider, z, x, y);
     const mat = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
+      color: provider === 'osm' ? new THREE.Color().setScalar(this.osmTint) : 0xffffff,
       transparent: true,
       opacity: 0,
       depthWrite: false,

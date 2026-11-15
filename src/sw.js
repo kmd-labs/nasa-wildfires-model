@@ -1,4 +1,4 @@
-const SHELL_CACHE = 'kmd-wildfires-shell-v1';
+const SHELL_CACHE = 'kmd-wildfires-shell-v2';
 const TILE_CACHE = 'kmd-wildfires-tiles-v2';
 const MAX_CACHED_TILES = 450;
 
