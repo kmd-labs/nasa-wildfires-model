@@ -129,7 +129,7 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
       }
       if (this.camera && this.controls) {
         untracked(() => {
-          if (this.state.userCamera3d() !== null) return;
+          if (isAtMost('tablet') || this.state.userCamera3d() !== null) return;
           const bbox = this.state.regionBbox();
           if (bbox) {
             this.flyToBbox(bbox);
@@ -270,7 +270,7 @@ export class GlobeComponent implements AfterViewInit, OnDestroy {
       this.state.isAnalyticsMinimized(),
       this.state.isAnalyticsExpanded()
     );
-    if (framing.isMobile || this.state.isAnalyticsMinimized()) return 0;
+    if (framing.isMobile || isAtMost('tablet') || this.state.isAnalyticsMinimized()) return 0;
 
     const shiftPx = framing.desiredCenterX - this.canvasWidth * 0.5;
     const tanHalfFov = Math.tan(((this.camera?.fov ?? 40) * Math.PI) / 360);

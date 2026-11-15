@@ -10,6 +10,7 @@ import {
   untracked
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { isAtMost } from '@kmd/design-system/utils/breakpoints';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { WildfireDataService } from '../../core/services/wildfire-data.service';
 import { WildfireStateService, ringToClosedPolygonCoords } from '../../core/services/wildfire-state.service';
@@ -154,7 +155,7 @@ export class Map2dComponent implements AfterViewInit, OnDestroy {
         return;
       }
       untracked(() => {
-        if (!this.ctx || this.state.userCamera2d() !== null) return;
+        if (!this.ctx || isAtMost('tablet') || this.state.userCamera2d() !== null) return;
         const bbox = this.state.regionBbox();
         if (bbox) {
           this.fitBboxToViewport(bbox);
