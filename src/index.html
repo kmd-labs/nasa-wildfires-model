@@ -14,7 +14,6 @@
         var dark = p === 'dark' || (p === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
         if (dark) {
           document.documentElement.setAttribute('data-theme', 'dark');
-          document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#0b1526');
         }
       } catch (e) {}
     })();
